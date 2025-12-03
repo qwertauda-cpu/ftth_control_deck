@@ -2855,11 +2855,11 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
                 
                 subscribersCache.push(subscriberWithMeta);
                 
-                // عرض المشترك في الجدول مباشرة (واحد تلو الآخر) - جميع المشتركين
+                // عرض المشترك في الجدول مباشرة (فوراً بدون انتظار)
                 if (tbody) {
                     const meta = subscriberWithMeta._meta;
                     const row = document.createElement('tr');
-                    row.className = 'hover:bg-gray-50 transition-all duration-300 opacity-0 transform translate-y-2';
+                    row.className = 'hover:bg-gray-50 transition-all duration-200 opacity-0 transform translate-y-1';
                     row.dataset.status = meta.statusKey || '';
                     row.dataset.tags = Array.from(meta.tags || []).join(',');
                     row.innerHTML = `
@@ -2883,23 +2883,30 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
                     `;
                     tbody.appendChild(row);
                     
-                    // Animation: fade in + slide up
-                    setTimeout(() => {
-                        row.classList.remove('opacity-0', 'translate-y-2');
+                    // Animation: fade in + slide up (فوراً بدون تأخير)
+                    requestAnimationFrame(() => {
+                        row.classList.remove('opacity-0', 'translate-y-1');
                         row.classList.add('opacity-100', 'translate-y-0');
-                    }, 10);
+                    });
                 }
                 
-                // تحديث الإحصائيات كل 10 مشتركين
-                if ((index + 1) % 10 === 0 || index === combinedList.length - 1) {
-                    renderSubscriberStatusCards();
-                    renderExpiringSoonList();
-                    updateStats();
+                // تحديث التقدم (بعد العرض مباشرة)
+                updateLoadingProgress(index + 1, combinedList.length);
+                
+                // تحديث الإحصائيات كل 20 مشتركين (غير متزامن - لا يوقف العرض)
+                if ((index + 1) % 20 === 0 || index === combinedList.length - 1) {
+                    // استخدام setTimeout لجعل التحديث غير متزامن
+                    setTimeout(() => {
+                        renderSubscriberStatusCards();
+                        renderExpiringSoonList();
+                        updateStats();
+                    }, 0);
                 }
                 
-                // تأخير بسيط لعرض المشتركين واحد تلو الآخر (30ms)
-                if (index < combinedList.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 30));
+                // تأخير بسيط جداً (0ms) - لا تأخير فعلي، فقط للسماح للمتصفح بالرسم
+                if (index < combinedList.length - 1 && (index + 1) % 5 !== 0) {
+                    // لا تأخير لكل مشترك، فقط كل 5 مشتركين
+                    await new Promise(resolve => setTimeout(resolve, 0));
                 }
             }
             
@@ -3309,14 +3316,11 @@ async function syncCustomers() {
                         
                         subscribersCache.push(subscriberWithMeta);
                         
-                        // تحديث التقدم
-                        updateLoadingProgress(i + 1, totalCustomers);
-                        
-                        // عرض المشترك في الجدول مباشرة (واحد تلو الآخر) - جميع المشتركين
+                        // عرض المشترك في الجدول مباشرة (فوراً بدون انتظار)
                         if (tbody) {
                             const meta = subscriberWithMeta._meta;
                             const row = document.createElement('tr');
-                            row.className = 'hover:bg-gray-50 transition-all duration-300 opacity-0 transform translate-y-2';
+                            row.className = 'hover:bg-gray-50 transition-all duration-200 opacity-0 transform translate-y-1';
                             row.dataset.status = meta.statusKey || '';
                             row.dataset.tags = Array.from(meta.tags || []).join(',');
                             row.innerHTML = `
@@ -3340,23 +3344,30 @@ async function syncCustomers() {
                             `;
                             tbody.appendChild(row);
                             
-                            // Animation: fade in + slide up
-                            setTimeout(() => {
-                                row.classList.remove('opacity-0', 'translate-y-2');
+                            // Animation: fade in + slide up (فوراً بدون تأخير)
+                            requestAnimationFrame(() => {
+                                row.classList.remove('opacity-0', 'translate-y-1');
                                 row.classList.add('opacity-100', 'translate-y-0');
-                            }, 10);
+                            });
                         }
                         
-                        // تحديث الإحصائيات كل 10 مشتركين
-                        if ((i + 1) % 10 === 0 || i === cacheData.customers.length - 1) {
-                            renderSubscriberStatusCards();
-                            renderExpiringSoonList();
-                            updateStats();
+                        // تحديث التقدم (بعد العرض مباشرة)
+                        updateLoadingProgress(i + 1, totalCustomers);
+                        
+                        // تحديث الإحصائيات كل 20 مشتركين (غير متزامن - لا يوقف العرض)
+                        if ((i + 1) % 20 === 0 || i === cacheData.customers.length - 1) {
+                            // استخدام setTimeout لجعل التحديث غير متزامن
+                            setTimeout(() => {
+                                renderSubscriberStatusCards();
+                                renderExpiringSoonList();
+                                updateStats();
+                            }, 0);
                         }
                         
-                        // تأخير بسيط لعرض المشتركين واحد تلو الآخر (30ms)
-                        if (i < cacheData.customers.length - 1) {
-                            await new Promise(resolve => setTimeout(resolve, 30));
+                        // تأخير بسيط جداً (5ms فقط) لعرض المشتركين بسلاسة
+                        if (i < cacheData.customers.length - 1 && (i + 1) % 5 !== 0) {
+                            // لا تأخير لكل مشترك، فقط كل 5 مشتركين
+                            await new Promise(resolve => setTimeout(resolve, 0));
                         }
                     }
                     
