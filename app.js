@@ -2270,11 +2270,13 @@ function startAutoRefresh() {
             switch (currentScreen) {
                 case 'dashboard':
                     // تحديث لوحة التحكم فقط (الإحصائيات) - بدون تحديث الجدول
-                    if (currentUserId) {
-                        // تحديث الإحصائيات فقط
+                    // التحديث التلقائي يعمل فقط عند اكتشاف تغييرات (incremental sync)
+                    if (currentUserId && hasInitialSync) {
+                        // تحديث الإحصائيات من البيانات المحفوظة في cache
                         renderSubscriberStatusCards();
                         loadWalletBalance();
                         // لا نحدث الجدول - فقط الإحصائيات
+                        console.log('[AUTO-REFRESH] Updated dashboard stats only (no table refresh)');
                     }
                     break;
                     
@@ -3113,6 +3115,9 @@ async function syncCustomers() {
         const forceFullSync = true; // فرض المزامنة الكاملة
         console.log('[SYNC] بدء المزامنة الكاملة - سيتم جلب جميع المشتركين من جميع الصفحات');
         
+        // إظهار رسالة للمستخدم
+        showSubscribersTableMessage('جاري مزامنة جميع المشتركين من موقع الوطني... قد يستغرق ذلك عدة دقائق.');
+        
         console.log('[SYNC] Starting sync request...');
         const fetchOptions = addUsernameToFetchOptions({
             method: 'POST',
@@ -3175,6 +3180,10 @@ async function syncCustomers() {
                     <span id="sync-btn-text">مزامنة المشتركين</span>
                 `;
             }
+            
+            // بعد المزامنة: تحديث الإحصائيات فقط
+            renderSubscriberStatusCards();
+            loadWalletBalance();
             
             // Reload subscribers from cache with retry mechanism
             console.log('[SYNC] Reloading subscribers from cache...');
