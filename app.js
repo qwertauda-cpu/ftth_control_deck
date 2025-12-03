@@ -3178,7 +3178,7 @@ async function syncCustomers() {
     showSubscribersTableMessage('جاري مزامنة المشتركين من الوطني... قد يستغرق ذلك عدة دقائق.');
     
     // بدء مراقبة التقدم
-    monitorSyncProgress(userId);
+    // تم حذف monitorSyncProgress - حاوية التقدم تم حذفها
 
     try {
         // المزامنة الكاملة: جلب جميع المشتركين من جميع الصفحات
