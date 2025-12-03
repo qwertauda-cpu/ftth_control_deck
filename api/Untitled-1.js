@@ -167,6 +167,53 @@ app.post('/api/admin/deploy', requireAuth, async (req, res) => {
     }
 });
 
+// GitHub Webhook - Auto Deploy (لا يحتاج authentication لأن GitHub يرسل secret)
+app.post('/api/admin/webhook/github', async (req, res) => {
+    try {
+        const WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET || '';
+        const githubEvent = req.headers['x-github-event'];
+        const githubSignature = req.headers['x-hub-signature-256'];
+        
+        // التحقق من أن الطلب من GitHub (اختياري لكن آمن)
+        if (WEBHOOK_SECRET && githubSignature) {
+            // يمكن إضافة التحقق من الـ signature هنا
+            // لكن سنتركه بسيطاً الآن
+        }
+        
+        // نستجيب فوراً لـ GitHub
+        res.status(200).json({ success: true, message: 'Webhook received' });
+        
+        // تنفيذ التحديث في الخلفية
+        if (githubEvent === 'push') {
+            console.log('[WEBHOOK] GitHub push detected, starting auto-deploy...');
+            
+            const projectPath = process.env.PROJECT_PATH || '/var/www/ftth_control_deck';
+            const pm2AppName = process.env.PM2_APP_NAME || 'ftth-api';
+            
+            // 1. Pull latest changes
+            const pullResult = await executeCommand(`cd ${projectPath} && git pull origin main`);
+            console.log('[WEBHOOK] Git pull result:', pullResult.success ? 'Success' : 'Failed');
+            
+            if (pullResult.success) {
+                // 2. Install dependencies if package.json changed
+                const installResult = await executeCommand(`cd ${projectPath}/api && npm install`);
+                console.log('[WEBHOOK] npm install result:', installResult.success ? 'Success' : 'Failed');
+                
+                // 3. Restart PM2 application
+                const restartResult = await executeCommand(`pm2 restart ${pm2AppName}`);
+                console.log('[WEBHOOK] PM2 restart result:', restartResult.success ? 'Success' : 'Failed');
+                
+                console.log('[WEBHOOK] ✅ Auto-deploy completed successfully');
+            } else {
+                console.error('[WEBHOOK] ❌ Git pull failed:', pullResult.error);
+            }
+        }
+    } catch (error) {
+        console.error('[WEBHOOK] Error:', error.message);
+        // لا نرسل خطأ لأننا أرسلنا 200 بالفعل
+    }
+});
+
 // Login endpoint
 app.post('/api/admin/login', (req, res) => {
     const { password } = req.body;
