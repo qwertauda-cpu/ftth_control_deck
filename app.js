@@ -2682,7 +2682,6 @@ async function loadLocalSubscribers() {
         currentFilteredSubscribers = [];
         subscriberPagination.currentPage = 0;
         renderSubscribersTablePage();
-        updateSubscriberFilterSummary(0);
     }
 }
 
@@ -2962,7 +2961,6 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
             currentFilteredSubscribers = [];
             subscriberPagination.currentPage = 0;
             updatePaginationControls(0, 0);
-            updateSubscriberFilterSummary(0);
         }
     } catch (error) {
         console.error('[LOAD API] Error loading from API:', error);
@@ -2974,7 +2972,6 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
         currentFilteredSubscribers = [];
         subscriberPagination.currentPage = 0;
         updatePaginationControls(0, 0);
-        updateSubscriberFilterSummary(0);
     }
 }
 
