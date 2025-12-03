@@ -4407,7 +4407,7 @@ function applySubscriberFilter(filterKey = 'all') {
     });
     subscriberPagination.currentPage = 1;
     renderSubscribersTablePage();
-    updateSubscriberFilterSummary(currentFilteredSubscribers.length);
+    // تم حذف updateSubscriberFilterSummary - العداد تم حذفه
     setActiveStatusCardUI();
 }
 
