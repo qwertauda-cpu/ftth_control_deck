@@ -2036,8 +2036,8 @@ async function refreshSubscribersDataOnly() {
         // إظهار شريط التحميل
         showSubscribersLoading(true, 'جاري تحديث البيانات...');
         
-        // جلب البيانات من API فقط (بدون cache)
-        const apiUrl = `${API_URL}/alwatani-login/${userId}/customers?username=${encodeURIComponent(currentDetailUser || '')}&pageNumber=${pageNumber}&pageSize=${pageSize}`;
+        // جلب جميع البيانات من API (fetchAll=true)
+        const apiUrl = `${API_URL}/alwatani-login/${userId}/customers?username=${encodeURIComponent(currentDetailUser || '')}&fetchAll=true&mode=all&pageSize=${pageSize}&maxPages=2000`;
         const response = await fetch(apiUrl, addUsernameToFetchOptions());
         const data = await response.json();
         
@@ -2655,11 +2655,12 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
     
     // إذا لم تكن البيانات في cache، جلب من API
     try {
-        showSubscribersTableMessage('جاري تحميل البيانات من الموقع الرئيسي...');
-        showSubscribersLoading(true, 'جاري جلب البيانات من الموقع الرئيسي...');
-        console.log('[LOAD API] Fetching directly from Alwatani API for userId:', userId, 'page:', pageNumber);
+        showSubscribersTableMessage('جاري تحميل جميع البيانات من الموقع الرئيسي...');
+        showSubscribersLoading(true, 'جاري جلب جميع المشتركين من الموقع الرئيسي...');
+        console.log('[LOAD API] Fetching ALL pages from Alwatani API for userId:', userId);
         
-        const apiUrl = `${API_URL}/alwatani-login/${userId}/customers?username=${encodeURIComponent(currentDetailUser || '')}&pageNumber=${pageNumber}&pageSize=${pageSize}`;
+        // استخدام fetchAll=true لجلب جميع الصفحات
+        const apiUrl = `${API_URL}/alwatani-login/${userId}/customers?username=${encodeURIComponent(currentDetailUser || '')}&fetchAll=true&mode=all&pageSize=${pageSize}&maxPages=2000`;
         const response = await fetch(apiUrl, addUsernameToFetchOptions());
         const data = await response.json();
         
@@ -2714,14 +2715,22 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
             loadWalletBalance(); // تحميل رصيد المحفظة
             
             const total = data.pagination?.total || combinedList.length;
-            showSubscribersTableMessage(`✅ تم تحميل ${combinedList.length} مشترك من الموقع الرئيسي (الصفحة ${pageNumber})`);
+            const pagesFetched = data.pagination?.pagesFetched || 1;
+            showSubscribersTableMessage(`✅ تم تحميل ${combinedList.length} مشترك من الموقع الرئيسي (${pagesFetched} صفحة، إجمالي: ${total})`);
             showSubscribersLoading(false);
             
-            // تحديث pagination
-            const totalPages = Math.ceil(total / pageSize);
-            subscriberPagination.currentPage = pageNumber;
-            subscriberPagination.totalPages = totalPages;
-            updatePaginationControls(total, totalPages);
+            // تحديث pagination - إذا كان fetchAll، نعرض جميع البيانات في صفحة واحدة
+            if (data.pagination?.mode === 'all') {
+                // جميع البيانات في صفحة واحدة
+                subscriberPagination.currentPage = 1;
+                subscriberPagination.totalPages = 1;
+                updatePaginationControls(total, 1);
+            } else {
+                const totalPages = Math.ceil(total / pageSize);
+                subscriberPagination.currentPage = pageNumber;
+                subscriberPagination.totalPages = totalPages;
+                updatePaginationControls(total, totalPages);
+            }
             
             return;
         } else {
