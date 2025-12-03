@@ -2024,6 +2024,121 @@ async function deleteEmployee(employeeId, employeeName) {
     }
 }
 
+// دالة لتحديث البيانات فقط بدون إعادة تحميل كامل
+async function refreshSubscribersDataOnly() {
+    if (!currentUserId) return;
+    
+    try {
+        const userId = currentUserId;
+        const pageNumber = currentCustomersPage || 1;
+        const pageSize = ALWATANI_CUSTOMERS_PAGE_SIZE;
+        
+        // إظهار شريط التحميل
+        showSubscribersLoading(true, 'جاري تحديث البيانات...');
+        
+        // جلب البيانات من API فقط (بدون cache)
+        const apiUrl = `${API_URL}/alwatani-login/${userId}/customers?username=${encodeURIComponent(currentDetailUser || '')}&pageNumber=${pageNumber}&pageSize=${pageSize}`;
+        const response = await fetch(apiUrl, addUsernameToFetchOptions());
+        const data = await response.json();
+        
+        if (data.success && data.data && data.data.combined && Array.isArray(data.data.combined)) {
+            const combinedList = data.data.combined;
+            
+            // تحديث subscribersCache فقط
+            subscribersCache = combinedList.map((sub) => {
+                const normalized = {
+                    id: sub.id || sub.accountId || sub.account_id || null,
+                    account_id: sub.account_id || sub.accountId || null,
+                    accountId: sub.accountId || sub.account_id || null,
+                    username: sub.username || null,
+                    deviceName: sub.deviceName || sub.device_name || null,
+                    name: sub.name || '--',
+                    phone: sub.phone || null,
+                    zone: sub.zone || null,
+                    page_url: sub.page_url || (sub.accountId || sub.account_id ? `https://admin.ftth.iq/customer-details/${sub.accountId || sub.account_id}/details/view` : '#'),
+                    start_date: sub.start_date || sub.startDate || null,
+                    startDate: sub.startDate || sub.start_date || null,
+                    end_date: sub.end_date || sub.endDate || null,
+                    endDate: sub.endDate || sub.end_date || null,
+                    status: sub.status || null,
+                    raw: sub.raw || {},
+                    rawCustomer: sub.rawCustomer || null,
+                    rawAddress: sub.rawAddress || null
+                };
+                return {
+                    ...normalized,
+                    _meta: buildSubscriberMeta(normalized)
+                };
+            });
+            
+            // تحديث العرض فقط (بدون إعادة تحميل كامل)
+            renderSubscriberStatusCards();
+            renderExpiringSoonList();
+            applySubscriberFilter(activeSubscriberFilter || 'all');
+            
+            if (combinedList.length > 0) {
+                updateStatsFromSummary(combinedList);
+            }
+            
+            loadWalletBalance();
+            
+            const total = data.pagination?.total || combinedList.length;
+            const totalPages = Math.ceil(total / pageSize);
+            subscriberPagination.currentPage = pageNumber;
+            subscriberPagination.totalPages = totalPages;
+            updatePaginationControls(total, totalPages);
+            
+            showSubscribersLoading(false);
+            console.log('[AUTO-REFRESH] Data updated successfully:', combinedList.length, 'subscribers');
+        } else {
+            showSubscribersLoading(false);
+            console.warn('[AUTO-REFRESH] No data received');
+        }
+    } catch (error) {
+        showSubscribersLoading(false);
+        console.error('[AUTO-REFRESH] Error refreshing data:', error);
+    }
+}
+
+// دالة لإظهار/إخفاء شريط التحميل
+function showSubscribersLoading(show, message = '') {
+    const loadingBar = document.getElementById('subscribers-loading-bar');
+    const loadingProgress = document.getElementById('subscribers-loading-progress');
+    const loadingMessage = document.getElementById('subscribers-loading-message');
+    
+    if (loadingBar) {
+        if (show) {
+            loadingBar.classList.remove('hidden');
+            loadingProgress.style.width = '0%';
+            // محاكاة التقدم
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 10;
+                if (progress <= 90) {
+                    loadingProgress.style.width = progress + '%';
+                } else {
+                    clearInterval(interval);
+                }
+            }, 100);
+        } else {
+            loadingProgress.style.width = '100%';
+            setTimeout(() => {
+                loadingBar.classList.add('hidden');
+                loadingProgress.style.width = '0%';
+            }, 300);
+        }
+    }
+    
+    if (loadingMessage) {
+        if (show && message) {
+            loadingMessage.textContent = message;
+            loadingMessage.classList.remove('hidden');
+        } else {
+            loadingMessage.classList.add('hidden');
+        }
+    }
+}
+
 // دالة بدء التحديث التلقائي للبيانات
 function startAutoRefresh() {
     // إيقاف أي تحديث تلقائي سابق
@@ -2039,9 +2154,9 @@ function startAutoRefresh() {
         try {
             switch (currentScreen) {
                 case 'dashboard':
-                    // تحديث بيانات المشتركين مباشرة من API
+                    // تحديث بيانات المشتركين فقط (بدون إعادة تحميل كامل)
                     if (currentUserId) {
-                        await loadRemoteSubscribers(currentCustomersPage || 1, ALWATANI_CUSTOMERS_PAGE_SIZE);
+                        await refreshSubscribersDataOnly();
                     }
                     break;
                     
@@ -2456,6 +2571,7 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
     // محاولة جلب البيانات من قاعدة البيانات أولاً (cache)
     try {
         showSubscribersTableMessage('جاري تحميل البيانات من قاعدة البيانات...');
+        showSubscribersLoading(true, 'جاري تحميل البيانات...');
         console.log('[LOAD CACHE] Fetching from database cache for userId:', userId, 'page:', pageNumber);
         
         const cacheUrl = `${API_URL}/alwatani-login/${userId}/customers/cache?username=${encodeURIComponent(currentDetailUser || '')}&pageNumber=${pageNumber}&pageSize=${pageSize}`;
@@ -2516,6 +2632,7 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
                 };
             });
             
+            // تحديث العرض بدون إخفاء الجدول
             renderSubscriberStatusCards();
             renderExpiringSoonList();
             applySubscriberFilter(activeSubscriberFilter || 'all');
@@ -2529,6 +2646,7 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
             
             const lastSync = cacheData.lastSync ? new Date(cacheData.lastSync).toLocaleString('ar-IQ') : 'غير معروف';
             showSubscribersTableMessage(`✅ تم تحميل ${subscribersCache.length} مشترك من قاعدة البيانات (الصفحة ${pageNumber}/${totalPages}) - آخر تحديث: ${lastSync}`);
+            showSubscribersLoading(false);
             return;
         }
     } catch (cacheError) {
@@ -2538,6 +2656,7 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
     // إذا لم تكن البيانات في cache، جلب من API
     try {
         showSubscribersTableMessage('جاري تحميل البيانات من الموقع الرئيسي...');
+        showSubscribersLoading(true, 'جاري جلب البيانات من الموقع الرئيسي...');
         console.log('[LOAD API] Fetching directly from Alwatani API for userId:', userId, 'page:', pageNumber);
         
         const apiUrl = `${API_URL}/alwatani-login/${userId}/customers?username=${encodeURIComponent(currentDetailUser || '')}&pageNumber=${pageNumber}&pageSize=${pageSize}`;
@@ -2596,6 +2715,7 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
             
             const total = data.pagination?.total || combinedList.length;
             showSubscribersTableMessage(`✅ تم تحميل ${combinedList.length} مشترك من الموقع الرئيسي (الصفحة ${pageNumber})`);
+            showSubscribersLoading(false);
             
             // تحديث pagination
             const totalPages = Math.ceil(total / pageSize);
@@ -2607,6 +2727,7 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
         } else {
             console.error('[LOAD API] No data in response:', data);
             showSubscribersTableMessage('❌ لم يتم العثور على بيانات. ' + (data.message || ''));
+            showSubscribersLoading(false);
             subscribersCache = [];
             renderSubscriberStatusCards();
             renderExpiringSoonList();
@@ -2618,6 +2739,7 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
     } catch (error) {
         console.error('[LOAD API] Error loading from API:', error);
         showSubscribersTableMessage('❌ حدث خطأ أثناء جلب البيانات: ' + (error.message || 'خطأ غير معروف'));
+        showSubscribersLoading(false);
         subscribersCache = [];
         renderSubscriberStatusCards();
         renderExpiringSoonList();
