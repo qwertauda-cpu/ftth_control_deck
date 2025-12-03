@@ -1319,7 +1319,8 @@ function openPageDetail(username, password, userId) {
     if (sectionDashboard) sectionDashboard.classList.remove('hidden');
     if (sectionSubscribers) sectionSubscribers.classList.add('hidden');
     
-    loadSubscribers();
+    // تم إلغاء التحميل التلقائي - البيانات تُجلب فقط عند الضغط على زر "مزامنة المشتركين"
+    // loadSubscribers();
     loadAlwataniDetails();
     // تم إزالة updateSyncStatus() لأننا لم نعد نستخدم sync
 }
@@ -3189,21 +3190,68 @@ async function syncCustomers() {
             renderSubscriberStatusCards();
             loadWalletBalance();
             
-            // Reload subscribers from cache with retry mechanism
-            console.log('[SYNC] Reloading subscribers from cache...');
-            await loadRemoteSubscribers();
+            // بعد المزامنة: جلب جميع البيانات من قاعدة البيانات وعرضها
+            console.log('[SYNC] Reloading all subscribers from database...');
             
-            // If no data loaded, retry after a short delay (database might need a moment)
-            if (subscribersCache.length === 0) {
-                console.log('[SYNC] No data loaded, retrying after 1 second...');
-                setTimeout(async () => {
-                    await loadRemoteSubscribers();
-                    await updateSyncStatus();
-                }, 1000);
-            } else {
-                console.log('[SYNC] Successfully loaded', subscribersCache.length, 'subscribers');
-                await updateSyncStatus();
+            // جلب جميع البيانات من قاعدة البيانات (fetchAll من cache)
+            try {
+                const userId = currentUserId;
+                const cacheUrl = `${API_URL}/alwatani-login/${userId}/customers/cache?username=${encodeURIComponent(currentDetailUser || '')}&pageNumber=1&pageSize=10000`;
+                const cacheResponse = await fetch(cacheUrl, addUsernameToFetchOptions());
+                const cacheData = await cacheResponse.json();
+                
+                if (cacheData.success && cacheData.customers && Array.isArray(cacheData.customers) && cacheData.customers.length > 0) {
+                    subscribersCache = cacheData.customers.map((sub) => {
+                        const normalized = {
+                            id: sub.id || sub.accountId || sub.account_id || null,
+                            account_id: sub.account_id || sub.accountId || null,
+                            accountId: sub.accountId || sub.account_id || null,
+                            username: sub.username || null,
+                            deviceName: sub.deviceName || sub.device_name || null,
+                            name: sub.name || '--',
+                            phone: sub.phone || null,
+                            zone: sub.zone || null,
+                            page_url: sub.page_url || (sub.accountId || sub.account_id ? `https://admin.ftth.iq/customer-details/${sub.accountId || sub.account_id}/details/view` : '#'),
+                            start_date: sub.start_date || sub.startDate || null,
+                            startDate: sub.startDate || sub.start_date || null,
+                            end_date: sub.end_date || sub.endDate || null,
+                            endDate: sub.endDate || sub.end_date || null,
+                            status: sub.status || null,
+                            raw: sub.raw || {},
+                            rawCustomer: sub.rawCustomer || null,
+                            rawAddress: sub.rawAddress || null
+                        };
+                        return {
+                            ...normalized,
+                            _meta: buildSubscriberMeta(normalized)
+                        };
+                    });
+                    
+                    // تحديث العرض
+                    renderSubscriberStatusCards();
+                    renderExpiringSoonList();
+                    applySubscriberFilter(activeSubscriberFilter || 'all', true);
+                    updateStats();
+                    
+                    const total = cacheData.total || subscribersCache.length;
+                    const totalPages = 1; // جميع البيانات في صفحة واحدة
+                    subscriberPagination.currentPage = 1;
+                    subscriberPagination.totalPages = totalPages;
+                    updatePaginationControls(total, totalPages);
+                    
+                    showSubscribersTableMessage(`✅ تم تحميل ${subscribersCache.length} مشترك من قاعدة البيانات`);
+                    console.log('[SYNC] Successfully loaded', subscribersCache.length, 'subscribers from database');
+                } else {
+                    // إذا لم تكن البيانات في cache، جلب من API مباشرة
+                    console.log('[SYNC] No data in cache, fetching from API...');
+                    await loadRemoteSubscribers(1, 10000); // جلب جميع البيانات
+                }
+            } catch (error) {
+                console.error('[SYNC] Error loading from cache, fetching from API:', error);
+                await loadRemoteSubscribers(1, 10000); // جلب جميع البيانات
             }
+            
+            showSubscribersLoading(false);
             
             // بعد المزامنة الأولى: تم إلغاء التحديث التلقائي
             if (!hasInitialSync) {
