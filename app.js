@@ -92,6 +92,7 @@ const ALWATANI_CUSTOMERS_PAGE_SIZE = 100;
 
 // Auto-refresh intervals
 let dataAutoRefreshInterval = null;
+let isRefreshingData = false; // Flag لمنع التحديثات المتداخلة
 let currentScreen = 'dashboard'; // تتبع الشاشة الحالية
 
 // Subscribers dashboard state
@@ -2028,6 +2029,14 @@ async function deleteEmployee(employeeId, employeeName) {
 async function refreshSubscribersDataOnly() {
     if (!currentUserId) return;
     
+    // منع التحديثات المتداخلة
+    if (isRefreshingData) {
+        console.log('[AUTO-REFRESH] Refresh already in progress, skipping...');
+        return;
+    }
+    
+    isRefreshingData = true;
+    
     try {
         const userId = currentUserId;
         const pageNumber = currentCustomersPage || 1;
@@ -2036,9 +2045,19 @@ async function refreshSubscribersDataOnly() {
         // إظهار شريط التحميل
         showSubscribersLoading(true, 'جاري تحديث البيانات...');
         
-        // جلب جميع البيانات من API (fetchAll=true)
+        // جلب جميع البيانات من API (fetchAll=true) مع timeout
         const apiUrl = `${API_URL}/alwatani-login/${userId}/customers?username=${encodeURIComponent(currentDetailUser || '')}&fetchAll=true&mode=all&pageSize=${pageSize}&maxPages=2000`;
-        const response = await fetch(apiUrl, addUsernameToFetchOptions());
+        
+        // إضافة timeout للطلب (60 ثانية)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 ثانية timeout
+        
+        const response = await fetch(apiUrl, {
+            ...addUsernameToFetchOptions(),
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
         const data = await response.json();
         
         console.log('[AUTO-REFRESH] Response:', {
@@ -2111,7 +2130,14 @@ async function refreshSubscribersDataOnly() {
         }
     } catch (error) {
         showSubscribersLoading(false);
-        console.error('[AUTO-REFRESH] Error refreshing data:', error);
+        if (error.name === 'AbortError') {
+            console.warn('[AUTO-REFRESH] Request timeout (took longer than 60 seconds)');
+        } else {
+            console.error('[AUTO-REFRESH] Error refreshing data:', error);
+        }
+    } finally {
+        // إعادة تعيين flag بعد انتهاء الطلب
+        isRefreshingData = false;
     }
 }
 
@@ -2217,8 +2243,14 @@ function startAutoRefresh() {
         dataAutoRefreshInterval = null;
     }
     
-    // تحديث البيانات كل 30 ثانية
+    // تحديث البيانات كل 60 ثانية (زيادة من 30 لتجنب التعارض)
     dataAutoRefreshInterval = setInterval(async () => {
+        // التحقق من أن الطلب السابق انتهى
+        if (isRefreshingData) {
+            console.log('[AUTO-REFRESH] Previous refresh still in progress, skipping this cycle...');
+            return;
+        }
+        
         console.log('[AUTO-REFRESH] Refreshing data for screen:', currentScreen);
         
         try {
@@ -2268,7 +2300,7 @@ function startAutoRefresh() {
         } catch (error) {
             console.error('[AUTO-REFRESH] Error refreshing data:', error);
         }
-    }, 30000); // 30 ثانية
+    }, 60000); // 60 ثانية (زيادة من 30 لتجنب التعارض)
     
     console.log('[AUTO-REFRESH] Auto-refresh started for screen:', currentScreen);
 }
