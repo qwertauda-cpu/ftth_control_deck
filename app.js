@@ -3303,8 +3303,74 @@ async function syncCustomers() {
     
     showSubscribersTableMessage('جاري مزامنة المشتركين من الوطني... قد يستغرق ذلك عدة دقائق.');
     
-    // بدء مراقبة التقدم
-    // تم حذف monitorSyncProgress - حاوية التقدم تم حذفها
+    // إظهار شريط التحميل
+    showSubscribersLoading(true, 'جاري بدء المزامنة...', 0, 0);
+    
+    // مسح الجدول قبل البدء
+    const tbody = document.getElementById('subscribers-table-body');
+    if (tbody) {
+        tbody.innerHTML = '';
+    }
+    subscribersCache = [];
+    
+    // بدء مراقبة التقدم من السيرفر
+    let progressMonitorInterval = null;
+    const startProgressMonitoring = () => {
+        if (progressMonitorInterval) {
+            clearInterval(progressMonitorInterval);
+        }
+        
+        progressMonitorInterval = setInterval(async () => {
+            try {
+                const progressResponse = await fetch(`${API_URL}/alwatani-login/${userId}/customers/sync-progress`);
+                const progressData = await progressResponse.json();
+                
+                if (progressData.success && progressData.progress) {
+                    const progress = progressData.progress;
+                    const stage = progress.stage || 'unknown';
+                    const current = progress.current || 0;
+                    const total = progress.total || 0;
+                    const message = progress.message || 'جاري المزامنة...';
+                    const phoneFound = progress.phoneFound || 0;
+                    
+                    // تحديث شريط التحميل والعداد
+                    if (total > 0) {
+                        updateLoadingProgress(current, total);
+                        const loadingMessage = document.getElementById('subscribers-loading-message');
+                        if (loadingMessage) {
+                            let displayMessage = message;
+                            
+                            // إضافة معلومات إضافية حسب المرحلة
+                            if (stage === 'fetching_pages' || stage === 'pages_complete') {
+                                displayMessage = `📄 ${message} (${current}/${total} صفحة)`;
+                            } else if (stage === 'enriching') {
+                                displayMessage = `🔍 ${message} (${current}/${total} مشترك) - ${phoneFound} رقم هاتف`;
+                            } else if (stage === 'saving') {
+                                displayMessage = `💾 ${message} (${current}/${total} مشترك)`;
+                            }
+                            
+                            loadingMessage.textContent = displayMessage;
+                            loadingMessage.classList.remove('hidden');
+                        }
+                    }
+                    
+                    // إذا اكتملت المزامنة أو تم إيقافها
+                    if (stage === 'completed' || stage === 'cancelled' || stage === 'error') {
+                        clearInterval(progressMonitorInterval);
+                        progressMonitorInterval = null;
+                        
+                        if (stage === 'completed') {
+                            showSubscribersLoading(false);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('[PROGRESS MONITOR] Error:', error);
+            }
+        }, 1000); // تحديث كل ثانية
+    };
+    
+    startProgressMonitoring();
 
     try {
         // المزامنة الكاملة: جلب جميع المشتركين من جميع الصفحات
@@ -3313,13 +3379,6 @@ async function syncCustomers() {
         
         // إظهار رسالة للمستخدم
         showSubscribersTableMessage('جاري مزامنة جميع المشتركين من موقع الوطني... قد يستغرق ذلك عدة دقائق.');
-        
-        // مسح الجدول قبل البدء
-        const tbody = document.getElementById('subscribers-table-body');
-        if (tbody) {
-            tbody.innerHTML = '';
-        }
-        subscribersCache = [];
         
         console.log('[SYNC] Starting sync request...');
         const fetchOptions = addUsernameToFetchOptions({
@@ -3355,9 +3414,10 @@ async function syncCustomers() {
         
         if (data.success) {
             // إيقاف مراقبة التقدم بعد انتهاء المزامنة
-            setTimeout(() => {
-                stopSyncProgressMonitoring();
-            }, 2000);
+            if (progressMonitorInterval) {
+                clearInterval(progressMonitorInterval);
+                progressMonitorInterval = null;
+            }
             
             const stats = data.stats || {};
             showSubscribersTableMessage(
