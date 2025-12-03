@@ -2690,7 +2690,7 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
             // تحديث العرض بدون إخفاء الجدول
             renderSubscriberStatusCards();
             renderExpiringSoonList();
-            applySubscriberFilter(activeSubscriberFilter || 'all');
+            applySubscriberFilter(activeSubscriberFilter || 'all', false);
             updateStats();
             
             const total = cacheData.total || subscribersCache.length;
