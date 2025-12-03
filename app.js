@@ -2100,31 +2100,68 @@ async function refreshSubscribersDataOnly() {
     }
 }
 
-// دالة لإظهار/إخفاء شريط التحميل
-function showSubscribersLoading(show, message = '') {
+// متغيرات لتتبع التقدم الحقيقي
+let loadingProgressInterval = null;
+let currentLoadingCount = 0;
+let targetLoadingCount = 0;
+
+// دالة لإظهار/إخفاء شريط التحميل مع عداد حقيقي
+function showSubscribersLoading(show, message = '', current = 0, total = 0) {
     const loadingBar = document.getElementById('subscribers-loading-bar');
     const loadingProgress = document.getElementById('subscribers-loading-progress');
+    const loadingCounter = document.getElementById('subscribers-loading-counter');
     const loadingMessage = document.getElementById('subscribers-loading-message');
     
     if (loadingBar) {
         if (show) {
             loadingBar.classList.remove('hidden');
             loadingProgress.style.width = '0%';
-            // محاكاة التقدم
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += 10;
-                if (progress <= 90) {
-                    loadingProgress.style.width = progress + '%';
-                } else {
-                    clearInterval(interval);
+            
+            if (total > 0) {
+                currentLoadingCount = current;
+                targetLoadingCount = total;
+                
+                // إظهار العداد
+                if (loadingCounter) {
+                    loadingCounter.style.display = 'block';
+                    loadingCounter.textContent = `${current}/${total}`;
                 }
-            }, 100);
+                
+                // تحديث التقدم الحقيقي
+                updateLoadingProgress(current, total);
+            } else {
+                // محاكاة التقدم إذا لم يكن هناك total
+                if (loadingCounter) {
+                    loadingCounter.style.display = 'none';
+                }
+                let progress = 0;
+                if (loadingProgressInterval) {
+                    clearInterval(loadingProgressInterval);
+                }
+                loadingProgressInterval = setInterval(() => {
+                    progress += 5;
+                    if (progress <= 90) {
+                        loadingProgress.style.width = progress + '%';
+                    } else {
+                        clearInterval(loadingProgressInterval);
+                        loadingProgressInterval = null;
+                    }
+                }, 100);
+            }
         } else {
+            if (loadingProgressInterval) {
+                clearInterval(loadingProgressInterval);
+                loadingProgressInterval = null;
+            }
             loadingProgress.style.width = '100%';
+            if (loadingCounter) {
+                loadingCounter.style.display = 'none';
+            }
             setTimeout(() => {
                 loadingBar.classList.add('hidden');
                 loadingProgress.style.width = '0%';
+                currentLoadingCount = 0;
+                targetLoadingCount = 0;
             }, 300);
         }
     }
@@ -2136,6 +2173,24 @@ function showSubscribersLoading(show, message = '') {
         } else {
             loadingMessage.classList.add('hidden');
         }
+    }
+}
+
+// دالة لتحديث التقدم الحقيقي
+function updateLoadingProgress(current, total) {
+    const loadingProgress = document.getElementById('subscribers-loading-progress');
+    const loadingCounter = document.getElementById('subscribers-loading-counter');
+    
+    if (!loadingProgress || !total) return;
+    
+    currentLoadingCount = current;
+    targetLoadingCount = total;
+    
+    const percentage = Math.min(100, Math.round((current / total) * 100));
+    loadingProgress.style.width = percentage + '%';
+    
+    if (loadingCounter) {
+        loadingCounter.textContent = `${current}/${total}`;
     }
 }
 
@@ -2703,9 +2758,13 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
             
             console.log('[LOAD API] Rendered', subscribersCache.length, 'subscribers');
             
+            // تحديث التقدم إلى 100%
+            updateLoadingProgress(combinedList.length, combinedList.length);
+            
             renderSubscriberStatusCards();
             renderExpiringSoonList();
-            applySubscriberFilter(activeSubscriberFilter || 'all');
+            // استخدام animation عند عرض الجدول
+            applySubscriberFilter(activeSubscriberFilter || 'all', true);
             
             // تحديث الإحصائيات من البيانات
             if (combinedList.length > 0) {
@@ -4050,7 +4109,7 @@ function applySubscriberFilter(filterKey = 'all') {
     setActiveStatusCardUI();
 }
 
-function renderSubscribersTable(list, offset = 0) {
+function renderSubscribersTable(list, offset = 0, animate = true) {
     const tbody = document.getElementById('subscribers-table-body');
     if (!tbody) {
         console.error('[RENDER TABLE] Table body not found!');
@@ -4059,52 +4118,106 @@ function renderSubscribersTable(list, offset = 0) {
     
     console.log('[RENDER TABLE] Rendering', list?.length || 0, 'subscribers');
     
-        tbody.innerHTML = '';
+    tbody.innerHTML = '';
         
     if (!list || list.length === 0) {
-            tbody.innerHTML = `
-                <tr>
+        tbody.innerHTML = `
+            <tr>
                 <td colspan="11" class="p-8 text-center text-gray-400">
-                        <div class="flex flex-col items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
-                            <p>لا توجد بيانات</p>
-                        </div>
-                    </td>
-                </tr>
-            `;
+                    <div class="flex flex-col items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+                        <p>لا توجد بيانات</p>
+                    </div>
+                </td>
+            </tr>
+        `;
         return;
     }
     
-    list.forEach((sub, index) => {
-        const meta = sub._meta || buildSubscriberMeta(sub);
-        sub._meta = meta;
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-50 transition-colors';
-        row.dataset.status = meta.statusKey || '';
-        row.dataset.tags = Array.from(meta.tags || []).join(',');
-                row.innerHTML = `
-            <td class="p-4 font-mono text-gray-400">${offset + index + 1}</td>
-            <td class="p-4 font-medium text-gray-800">${sub.name || '--'}</td>
-            <td class="p-4 text-gray-600 font-mono" dir="ltr">${sub.account_id || sub.accountId || '--'}</td>
-            <td class="p-4 text-gray-600 font-mono" dir="ltr">${sub.deviceName || sub.username || '--'}</td>
-            <td class="p-4 text-gray-600 font-mono" dir="ltr">${sub.phone || '--'}</td>
-            <td class="p-4 text-gray-600">${sub.zone || '--'}</td>
-            <td class="p-4"><a href="${sub.page_url || '#'}" target="_blank" class="text-blue-600 hover:underline text-xs">عرض الصفحة</a></td>
-                    <td class="p-4 text-gray-600">${formatDate(sub.start_date || sub.startDate)}</td>
-                    <td class="p-4 text-gray-600">${formatDate(sub.end_date || sub.endDate)}</td>
-            <td class="p-4">
-                <span class="px-2 py-1 rounded-full text-xs font-bold ${getStatusBadgeClass(meta.statusKey)}">${getStatusLabel(meta.statusKey)}</span>
-            </td>
-                    <td class="p-4 text-center">
-                        <button class="text-gray-400 hover:text-[#26466D]">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-    
-    console.log('[RENDER TABLE] Successfully rendered', list.length, 'rows in table');
+    if (animate && list.length > 0) {
+        // عرض المشتركين واحد تلو الآخر مع animation
+        let currentIndex = 0;
+        const animateNext = () => {
+            if (currentIndex >= list.length) {
+                console.log('[RENDER TABLE] Successfully rendered', list.length, 'rows in table with animation');
+                return;
+            }
+            
+            const sub = list[currentIndex];
+            const meta = sub._meta || buildSubscriberMeta(sub);
+            sub._meta = meta;
+            
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50 transition-all duration-300 opacity-0 transform translate-y-2';
+            row.dataset.status = meta.statusKey || '';
+            row.dataset.tags = Array.from(meta.tags || []).join(',');
+            row.innerHTML = `
+                <td class="p-4 font-mono text-gray-400">${offset + currentIndex + 1}</td>
+                <td class="p-4 font-medium text-gray-800">${sub.name || '--'}</td>
+                <td class="p-4 text-gray-600 font-mono" dir="ltr">${sub.account_id || sub.accountId || '--'}</td>
+                <td class="p-4 text-gray-600 font-mono" dir="ltr">${sub.deviceName || sub.username || '--'}</td>
+                <td class="p-4 text-gray-600 font-mono" dir="ltr">${sub.phone || '--'}</td>
+                <td class="p-4 text-gray-600">${sub.zone || '--'}</td>
+                <td class="p-4"><a href="${sub.page_url || '#'}" target="_blank" class="text-blue-600 hover:underline text-xs">عرض الصفحة</a></td>
+                <td class="p-4 text-gray-600">${formatDate(sub.start_date || sub.startDate)}</td>
+                <td class="p-4 text-gray-600">${formatDate(sub.end_date || sub.endDate)}</td>
+                <td class="p-4">
+                    <span class="px-2 py-1 rounded-full text-xs font-bold ${getStatusBadgeClass(meta.statusKey)}">${getStatusLabel(meta.statusKey)}</span>
+                </td>
+                <td class="p-4 text-center">
+                    <button class="text-gray-400 hover:text-[#26466D]">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+            
+            // Animation: fade in + slide up
+            setTimeout(() => {
+                row.classList.remove('opacity-0', 'translate-y-2');
+                row.classList.add('opacity-100', 'translate-y-0');
+            }, 10);
+            
+            // تحديث العداد
+            updateLoadingProgress(currentIndex + 1, list.length);
+            
+            currentIndex++;
+            setTimeout(animateNext, 30); // 30ms بين كل مشترك (سريع وجميل)
+        };
+        
+        animateNext();
+    } else {
+        // عرض بدون animation (للحالات العادية)
+        list.forEach((sub, index) => {
+            const meta = sub._meta || buildSubscriberMeta(sub);
+            sub._meta = meta;
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50 transition-colors';
+            row.dataset.status = meta.statusKey || '';
+            row.dataset.tags = Array.from(meta.tags || []).join(',');
+            row.innerHTML = `
+                <td class="p-4 font-mono text-gray-400">${offset + index + 1}</td>
+                <td class="p-4 font-medium text-gray-800">${sub.name || '--'}</td>
+                <td class="p-4 text-gray-600 font-mono" dir="ltr">${sub.account_id || sub.accountId || '--'}</td>
+                <td class="p-4 text-gray-600 font-mono" dir="ltr">${sub.deviceName || sub.username || '--'}</td>
+                <td class="p-4 text-gray-600 font-mono" dir="ltr">${sub.phone || '--'}</td>
+                <td class="p-4 text-gray-600">${sub.zone || '--'}</td>
+                <td class="p-4"><a href="${sub.page_url || '#'}" target="_blank" class="text-blue-600 hover:underline text-xs">عرض الصفحة</a></td>
+                <td class="p-4 text-gray-600">${formatDate(sub.start_date || sub.startDate)}</td>
+                <td class="p-4 text-gray-600">${formatDate(sub.end_date || sub.endDate)}</td>
+                <td class="p-4">
+                    <span class="px-2 py-1 rounded-full text-xs font-bold ${getStatusBadgeClass(meta.statusKey)}">${getStatusLabel(meta.statusKey)}</span>
+                </td>
+                <td class="p-4 text-center">
+                    <button class="text-gray-400 hover:text-[#26466D]">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+        console.log('[RENDER TABLE] Successfully rendered', list.length, 'rows in table');
+    }
 }
 
 function getStatusLabel(key) {
@@ -4137,14 +4250,14 @@ function updateSubscriberFilterSummary(count) {
     summary.textContent = `عرض ${count} - ${label}`;
 }
 
-function renderSubscribersTablePage() {
+function renderSubscribersTablePage(animate = false) {
     const total = currentFilteredSubscribers.length;
     const pageSize = subscriberPagination.pageSize || 10;
     const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
     
     if (totalPages === 0) {
         subscriberPagination.currentPage = 0;
-        renderSubscribersTable([]);
+        renderSubscribersTable([], 0, animate);
         updatePaginationControls(total, totalPages);
         return;
     }
@@ -4159,7 +4272,7 @@ function renderSubscribersTablePage() {
     const start = (subscriberPagination.currentPage - 1) * pageSize;
     const pagedList = currentFilteredSubscribers.slice(start, start + pageSize);
     
-    renderSubscribersTable(pagedList, start);
+    renderSubscribersTable(pagedList, start, animate);
     updatePaginationControls(total, totalPages);
 }
 

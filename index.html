@@ -1664,8 +1664,9 @@
                         <!-- جدول بيانات المشتركين -->
                         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden slide-up mt-6">
                             <!-- شريط التحميل -->
-                            <div id="subscribers-loading-bar" class="hidden h-1 bg-gray-200">
-                                <div id="subscribers-loading-progress" class="h-full bg-blue-500 transition-all duration-300" style="width: 0%"></div>
+                            <div id="subscribers-loading-bar" class="hidden h-1 bg-gray-200 relative">
+                                <div id="subscribers-loading-progress" class="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300 ease-out" style="width: 0%"></div>
+                                <div id="subscribers-loading-counter" class="absolute top-0 right-0 text-xs text-blue-600 font-bold px-2 py-0.5 bg-blue-50 rounded-bl" style="display: none;">0</div>
                             </div>
                             <div class="p-5 border-b border-gray-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                                 <div>
