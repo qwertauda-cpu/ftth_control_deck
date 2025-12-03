@@ -2815,11 +2815,19 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
             updateLoadingProgress(0, combinedList.length);
             showSubscribersLoading(true, `جاري معالجة ${combinedList.length} مشترك...`, 0, combinedList.length);
             
-            subscribersCache = combinedList.map((sub, index) => {
+            // معالجة وعرض المشتركين تدريجياً (واحد تلو الآخر)
+            subscribersCache = [];
+            const tbody = document.getElementById('subscribers-table-body');
+            if (tbody) {
+                tbody.innerHTML = ''; // مسح الجدول
+            }
+            
+            for (let index = 0; index < combinedList.length; index++) {
+                const sub = combinedList[index];
+                
                 // تحديث التقدم أثناء المعالجة
-                if (index % 10 === 0 || index === combinedList.length - 1) {
-                    updateLoadingProgress(index + 1, combinedList.length);
-                }
+                updateLoadingProgress(index + 1, combinedList.length);
+                
                 // Normalize data structure from API
                 const normalized = {
                     id: sub.id || sub.accountId || sub.account_id || null,
@@ -2840,11 +2848,60 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
                     rawCustomer: sub.rawCustomer || null,
                     rawAddress: sub.rawAddress || null
                 };
-                return {
+                const subscriberWithMeta = {
                     ...normalized,
                     _meta: buildSubscriberMeta(normalized)
                 };
-            });
+                
+                subscribersCache.push(subscriberWithMeta);
+                
+                // عرض المشترك في الجدول مباشرة (واحد تلو الآخر)
+                if (tbody && index < 100) { // عرض أول 100 في الجدول مباشرة
+                    const meta = subscriberWithMeta._meta;
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-gray-50 transition-all duration-300 opacity-0 transform translate-y-2';
+                    row.dataset.status = meta.statusKey || '';
+                    row.dataset.tags = Array.from(meta.tags || []).join(',');
+                    row.innerHTML = `
+                        <td class="p-4 font-mono text-gray-400">${index + 1}</td>
+                        <td class="p-4 font-medium text-gray-800">${normalized.name || '--'}</td>
+                        <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.account_id || normalized.accountId || '--'}</td>
+                        <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.deviceName || normalized.username || '--'}</td>
+                        <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.phone || '--'}</td>
+                        <td class="p-4 text-gray-600">${normalized.zone || '--'}</td>
+                        <td class="p-4"><a href="${normalized.page_url || '#'}" target="_blank" class="text-blue-600 hover:underline text-xs">عرض الصفحة</a></td>
+                        <td class="p-4 text-gray-600">${formatDate(normalized.start_date || normalized.startDate)}</td>
+                        <td class="p-4 text-gray-600">${formatDate(normalized.end_date || normalized.endDate)}</td>
+                        <td class="p-4">
+                            <span class="px-2 py-1 rounded-full text-xs font-bold ${getStatusBadgeClass(meta.statusKey)}">${getStatusLabel(meta.statusKey)}</span>
+                        </td>
+                        <td class="p-4 text-center">
+                            <button class="text-gray-400 hover:text-[#26466D]">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                    
+                    // Animation: fade in + slide up
+                    setTimeout(() => {
+                        row.classList.remove('opacity-0', 'translate-y-2');
+                        row.classList.add('opacity-100', 'translate-y-0');
+                    }, 10);
+                }
+                
+                // تحديث الإحصائيات كل 10 مشتركين
+                if ((index + 1) % 10 === 0 || index === combinedList.length - 1) {
+                    renderSubscriberStatusCards();
+                    renderExpiringSoonList();
+                    updateStats();
+                }
+                
+                // تأخير بسيط لعرض المشتركين واحد تلو الآخر (20ms)
+                if (index < combinedList.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 20));
+                }
+            }
             
             console.log('[LOAD API] Rendered', subscribersCache.length, 'subscribers');
             
