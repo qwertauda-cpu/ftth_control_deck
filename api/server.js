@@ -3905,12 +3905,38 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
             message: `جاري الحفظ في قاعدة البيانات... 0/${customersToSave.length}`
         });
 
+        // التحقق من بنية الجدول
+        let hasPartnerId = false;
+        let hasCustomerData = false;
+        try {
+            const [columns] = await alwataniPool.query(`
+                SELECT COLUMN_NAME 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_NAME = 'alwatani_customers_cache'
+            `);
+            const columnNames = columns.map(c => c.COLUMN_NAME);
+            hasPartnerId = columnNames.includes('partner_id');
+            hasCustomerData = columnNames.includes('customer_data');
+            console.log(`[SYNC] Table structure: hasPartnerId=${hasPartnerId}, hasCustomerData=${hasCustomerData}`);
+        } catch (e) {
+            console.warn('[SYNC] Could not check table structure:', e.message);
+        }
+
         // الحصول على عدد السجلات الموجودة قبل المزامنة
-        const [beforeCount] = await alwataniPool.query(
-            'SELECT COUNT(*) as total FROM alwatani_customers_cache WHERE partner_id = ?',
-            [partnerId]
-        );
-        const beforeTotal = beforeCount[0]?.total || 0;
+        let beforeTotal = 0;
+        if (hasPartnerId) {
+            const [beforeCount] = await alwataniPool.query(
+                'SELECT COUNT(*) as total FROM alwatani_customers_cache WHERE partner_id = ?',
+                [partnerId]
+            );
+            beforeTotal = beforeCount[0]?.total || 0;
+        } else {
+            const [beforeCount] = await alwataniPool.query(
+                'SELECT COUNT(*) as total FROM alwatani_customers_cache'
+            );
+            beforeTotal = beforeCount[0]?.total || 0;
+        }
 
         // حفظ البيانات بشكل batch باستخدام INSERT ... ON DUPLICATE KEY UPDATE
         const batchSize = 50; // حفظ 50 مشترك في كل batch (تقليل من 100 لتجنب أخطاء SQL)
@@ -3918,26 +3944,60 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
 
         for (let i = 0; i < customersToSave.length; i += batchSize) {
             const batch = customersToSave.slice(i, i + batchSize);
-            const values = [];
-            const placeholders = [];
-
-            for (const customer of batch) {
-                // ترتيب القيم يجب أن يطابق ترتيب الأعمدة في INSERT
-                // ترتيب الأعمدة: account_id, partner_id, customer_data, synced_at
-                values.push(customer.accountId, customer.partnerId, customer.customerData);
-                placeholders.push('(?, ?, ?, CURRENT_TIMESTAMP)');
-            }
 
             try {
-                const query = `
-                    INSERT INTO alwatani_customers_cache (account_id, partner_id, customer_data, synced_at) 
-                    VALUES ${placeholders.join(', ')}
-                    ON DUPLICATE KEY UPDATE 
-                        customer_data = VALUES(customer_data),
-                        updated_at = CURRENT_TIMESTAMP
-                `;
-
-                await alwataniPool.query(query, values);
+                if (hasPartnerId && hasCustomerData) {
+                    // البنية الجديدة: partner_id + customer_data (JSON)
+                    const values = [];
+                    const placeholders = [];
+                    for (const customer of batch) {
+                        values.push(customer.accountId, customer.partnerId, customer.customerData);
+                        placeholders.push('(?, ?, ?, CURRENT_TIMESTAMP)');
+                    }
+                    const query = `
+                        INSERT INTO alwatani_customers_cache (account_id, partner_id, customer_data, synced_at) 
+                        VALUES ${placeholders.join(', ')}
+                        ON DUPLICATE KEY UPDATE 
+                            customer_data = VALUES(customer_data),
+                            updated_at = CURRENT_TIMESTAMP
+                    `;
+                    await alwataniPool.query(query, values);
+                } else {
+                    // البنية القديمة: أعمدة منفصلة
+                    for (const customer of batch) {
+                        const record = typeof customer.customerData === 'string' 
+                            ? JSON.parse(customer.customerData) 
+                            : customer.customerData;
+                        
+                        await alwataniPool.query(
+                            `INSERT INTO alwatani_customers_cache 
+                             (account_id, username, device_name, phone, region, page_url, start_date, end_date, status, created_at) 
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                             ON DUPLICATE KEY UPDATE 
+                                username = VALUES(username),
+                                device_name = VALUES(device_name),
+                                phone = VALUES(phone),
+                                region = VALUES(region),
+                                page_url = VALUES(page_url),
+                                start_date = VALUES(start_date),
+                                end_date = VALUES(end_date),
+                                status = VALUES(status),
+                                updated_at = CURRENT_TIMESTAMP`,
+                            [
+                                record.accountId || record.account_id,
+                                record.username,
+                                record.deviceName || record.device_name,
+                                record.phone,
+                                record.zone || record.region,
+                                record.page_url,
+                                record.startDate || record.start_date,
+                                record.endDate || record.end_date,
+                                record.status
+                            ]
+                        );
+                    }
+                }
+                
                 processedCount += batch.length;
                 
                 // تحديث حالة التقدم أثناء الحفظ
@@ -3960,14 +4020,46 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                 console.log(`[SYNC] Attempting to save batch ${Math.floor(i / batchSize) + 1} one by one...`);
                 for (const customer of batch) {
                     try {
-                        await alwataniPool.query(
-                            `INSERT INTO alwatani_customers_cache (account_id, partner_id, customer_data) 
-                             VALUES (?, ?, ?) 
-                             ON DUPLICATE KEY UPDATE 
-                                 customer_data = VALUES(customer_data),
-                                 updated_at = CURRENT_TIMESTAMP`,
-                            [customer.accountId, customer.partnerId, customer.customerData]
-                        );
+                        if (hasPartnerId && hasCustomerData) {
+                            await alwataniPool.query(
+                                `INSERT INTO alwatani_customers_cache (account_id, partner_id, customer_data) 
+                                 VALUES (?, ?, ?) 
+                                 ON DUPLICATE KEY UPDATE 
+                                     customer_data = VALUES(customer_data),
+                                     updated_at = CURRENT_TIMESTAMP`,
+                                [customer.accountId, customer.partnerId, customer.customerData]
+                            );
+                        } else {
+                            const record = typeof customer.customerData === 'string' 
+                                ? JSON.parse(customer.customerData) 
+                                : customer.customerData;
+                            await alwataniPool.query(
+                                `INSERT INTO alwatani_customers_cache 
+                                 (account_id, username, device_name, phone, region, page_url, start_date, end_date, status) 
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                 ON DUPLICATE KEY UPDATE 
+                                    username = VALUES(username),
+                                    device_name = VALUES(device_name),
+                                    phone = VALUES(phone),
+                                    region = VALUES(region),
+                                    page_url = VALUES(page_url),
+                                    start_date = VALUES(start_date),
+                                    end_date = VALUES(end_date),
+                                    status = VALUES(status),
+                                    updated_at = CURRENT_TIMESTAMP`,
+                                [
+                                    record.accountId || record.account_id,
+                                    record.username,
+                                    record.deviceName || record.device_name,
+                                    record.phone,
+                                    record.zone || record.region,
+                                    record.page_url,
+                                    record.startDate || record.start_date,
+                                    record.endDate || record.end_date,
+                                    record.status
+                                ]
+                            );
+                        }
                         processedCount++;
                     } catch (singleErr) {
                         console.error(`[SYNC] Error saving subscriber ${customer.accountId}:`, singleErr.message);
@@ -3977,11 +4069,19 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         }
 
         // حساب العدد الفعلي بعد المزامنة
-        const [afterCount] = await alwataniPool.query(
-            'SELECT COUNT(*) as total FROM alwatani_customers_cache WHERE partner_id = ?',
-            [partnerId]
-        );
-        const afterTotal = afterCount[0]?.total || 0;
+        let afterTotal = 0;
+        if (hasPartnerId) {
+            const [afterCount] = await alwataniPool.query(
+                'SELECT COUNT(*) as total FROM alwatani_customers_cache WHERE partner_id = ?',
+                [partnerId]
+            );
+            afterTotal = afterCount[0]?.total || 0;
+        } else {
+            const [afterCount] = await alwataniPool.query(
+                'SELECT COUNT(*) as total FROM alwatani_customers_cache'
+            );
+            afterTotal = afterCount[0]?.total || 0;
+        }
         
         // حساب عدد السجلات الجديدة والمحدثة
         const savedCount = Math.max(0, afterTotal - beforeTotal);
