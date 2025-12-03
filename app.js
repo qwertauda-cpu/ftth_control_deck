@@ -1346,7 +1346,8 @@ function openAdminDashboard() {
     hideSideMenu(); // إخفاء القائمة الجانبية عند العودة إلى لوحة التحكم الرئيسية
     loadPages();
     currentScreen = 'dashboard';
-    startAutoRefresh();
+    // تم إلغاء التحديث التلقائي
+    // startAutoRefresh();
 }
 
 function openExpiringScreen() {
@@ -1355,7 +1356,8 @@ function openExpiringScreen() {
     renderExpiringSoonList();
     setSideMenuActiveByScreen('expiring');
     currentScreen = 'expiring';
-    startAutoRefresh();
+    // تم إلغاء التحديث التلقائي
+    // startAutoRefresh();
 }
 
 function closeExpiringScreen() {
@@ -1367,7 +1369,8 @@ function openTicketDashboardScreen() {
     showScreen('tickets-dashboard-screen');
     setSideMenuActiveByScreen('tickets');
     currentScreen = 'tickets';
-    startAutoRefresh();
+    // تم إلغاء التحديث التلقائي
+    // startAutoRefresh();
 }
 
 function closeTicketDashboardScreen() {
@@ -1380,7 +1383,8 @@ function openGeneralSettingsScreen() {
     setSideMenuActiveByScreen('settings');
     loadEmployees();
     currentScreen = 'settings';
-    startAutoRefresh();
+    // تم إلغاء التحديث التلقائي
+    // startAutoRefresh();
 }
 
 function closeGeneralSettingsScreen() {
@@ -3201,11 +3205,12 @@ async function syncCustomers() {
                 await updateSyncStatus();
             }
             
-            // بعد المزامنة الأولى: بدء التحديث التلقائي للوحة التحكم فقط
+            // بعد المزامنة الأولى: تم إلغاء التحديث التلقائي
             if (!hasInitialSync) {
                 hasInitialSync = true;
-                console.log('[SYNC] First sync completed, starting auto-refresh for dashboard stats only...');
-                startAutoRefresh(); // بدء التحديث التلقائي بعد المزامنة الأولى
+                console.log('[SYNC] First sync completed');
+                // تم إلغاء التحديث التلقائي - لا يبدأ تلقائياً
+                // startAutoRefresh();
             }
         } else {
             const stageSuffix = data.stage ? ` [${data.stage}]` : '';
@@ -4947,7 +4952,8 @@ async function openTicketManagement() {
     await loadTickets();
     updateTicketCounts();
     currentScreen = 'ticket-management';
-    startAutoRefresh();
+    // تم إلغاء التحديث التلقائي
+    // startAutoRefresh();
 }
 
 // Load tickets from API
