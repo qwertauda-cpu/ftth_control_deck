@@ -2799,7 +2799,7 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
             loadWalletBalance(); // تحميل رصيد المحفظة
             
             const total = data.pagination?.total || combinedList.length;
-            const pagesFetched = data.pagination?.pagesFetched || 1;
+            // استخدام pagesFetched المحدد سابقاً
             showSubscribersTableMessage(`✅ تم تحميل ${combinedList.length} مشترك من الموقع الرئيسي (${pagesFetched} صفحة، إجمالي: ${total})`);
             
             // إخفاء شريط التحميل بعد انتهاء animation (حسب عدد المشتركين في الصفحة الحالية)
