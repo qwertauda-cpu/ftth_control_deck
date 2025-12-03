@@ -3016,10 +3016,139 @@ async function stopSync() {
         const data = await response.json();
         
         if (data.success) {
-            showSubscribersTableMessage('⏹️ تم طلب إيقاف المزامنة. سيتم حفظ البيانات التي تم جلبها.');
+            showSubscribersTableMessage('⏹️ تم طلب إيقاف المزامنة. جاري تحميل البيانات المحفوظة...');
+            
+            // جلب البيانات المحفوظة فوراً من قاعدة البيانات وعرضها في الجدول
+            try {
+                const userId = currentUserId;
+                const cacheUrl = `${API_URL}/alwatani-login/${userId}/customers/cache?username=${encodeURIComponent(currentDetailUser || '')}&pageNumber=1&pageSize=10000`;
+                const cacheResponse = await fetch(cacheUrl, addUsernameToFetchOptions());
+                const cacheData = await cacheResponse.json();
+                
+                if (cacheData.success && cacheData.customers && Array.isArray(cacheData.customers) && cacheData.customers.length > 0) {
+                    const totalCustomers = cacheData.customers.length;
+                    console.log('[STOP SYNC] Loading', totalCustomers, 'saved subscribers from database...');
+                    
+                    // إظهار شريط التحميل
+                    showSubscribersLoading(true, `جاري تحميل ${totalCustomers} مشترك محفوظ...`, 0, totalCustomers);
+                    
+                    // معالجة وعرض المشتركين
+                    subscribersCache = [];
+                    const tbody = document.getElementById('subscribers-table-body');
+                    if (tbody) {
+                        tbody.innerHTML = ''; // مسح الجدول
+                    }
+                    
+                    // معالجة وعرض المشتركين تدريجياً
+                    for (let i = 0; i < cacheData.customers.length; i++) {
+                        const sub = cacheData.customers[i];
+                        const normalized = {
+                            id: sub.id || sub.accountId || sub.account_id || null,
+                            account_id: sub.account_id || sub.accountId || null,
+                            accountId: sub.accountId || sub.account_id || null,
+                            username: sub.username || null,
+                            deviceName: sub.deviceName || sub.device_name || null,
+                            name: sub.name || '--',
+                            phone: sub.phone || null,
+                            zone: sub.zone || null,
+                            page_url: sub.page_url || (sub.accountId || sub.account_id ? `https://admin.ftth.iq/customer-details/${sub.accountId || sub.account_id}/details/view` : '#'),
+                            start_date: sub.start_date || sub.startDate || null,
+                            startDate: sub.startDate || sub.start_date || null,
+                            end_date: sub.end_date || sub.endDate || null,
+                            endDate: sub.endDate || sub.end_date || null,
+                            status: sub.status || null,
+                            raw: sub.raw || {},
+                            rawCustomer: sub.rawCustomer || null,
+                            rawAddress: sub.rawAddress || null
+                        };
+                        
+                        const subscriberWithMeta = {
+                            ...normalized,
+                            _meta: buildSubscriberMeta(normalized)
+                        };
+                        
+                        subscribersCache.push(subscriberWithMeta);
+                        
+                        // عرض المشترك في الجدول مباشرة
+                        if (tbody) {
+                            const meta = subscriberWithMeta._meta;
+                            const row = document.createElement('tr');
+                            row.className = 'hover:bg-gray-50 transition-all duration-200 opacity-0 transform translate-y-1';
+                            row.dataset.status = meta.statusKey || '';
+                            row.dataset.tags = Array.from(meta.tags || []).join(',');
+                            row.innerHTML = `
+                                <td class="p-4 font-mono text-gray-400">${i + 1}</td>
+                                <td class="p-4 font-medium text-gray-800">${normalized.name || '--'}</td>
+                                <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.account_id || normalized.accountId || '--'}</td>
+                                <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.deviceName || normalized.username || '--'}</td>
+                                <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.phone || '--'}</td>
+                                <td class="p-4 text-gray-600">${normalized.zone || '--'}</td>
+                                <td class="p-4"><a href="${normalized.page_url || '#'}" target="_blank" class="text-blue-600 hover:underline text-xs">عرض الصفحة</a></td>
+                                <td class="p-4 text-gray-600">${formatDate(normalized.start_date || normalized.startDate)}</td>
+                                <td class="p-4 text-gray-600">${formatDate(normalized.end_date || normalized.endDate)}</td>
+                                <td class="p-4">
+                                    <span class="px-2 py-1 rounded-full text-xs font-bold ${getStatusBadgeClass(meta.statusKey)}">${getStatusLabel(meta.statusKey)}</span>
+                                </td>
+                                <td class="p-4 text-center">
+                                    <button class="text-gray-400 hover:text-[#26466D]">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
+                                    </button>
+                                </td>
+                            `;
+                            tbody.appendChild(row);
+                            
+                            // Animation
+                            requestAnimationFrame(() => {
+                                row.classList.remove('opacity-0', 'translate-y-1');
+                                row.classList.add('opacity-100', 'translate-y-0');
+                            });
+                        }
+                        
+                        // تحديث التقدم
+                        updateLoadingProgress(i + 1, totalCustomers);
+                        
+                        // تحديث الإحصائيات كل 20 مشتركين
+                        if ((i + 1) % 20 === 0 || i === cacheData.customers.length - 1) {
+                            setTimeout(() => {
+                                renderSubscriberStatusCards();
+                                renderExpiringSoonList();
+                                updateStats();
+                            }, 0);
+                        }
+                        
+                        // تأخير بسيط
+                        if (i < cacheData.customers.length - 1 && (i + 1) % 5 !== 0) {
+                            await new Promise(resolve => setTimeout(resolve, 0));
+                        }
+                    }
+                    
+                    // بعد الانتهاء: تحديث العرض الكامل
+                    applySubscriberFilter(activeSubscriberFilter || 'all', false);
+                    updateStats();
+                    
+                    const total = cacheData.total || subscribersCache.length;
+                    const totalPages = 1;
+                    subscriberPagination.currentPage = 1;
+                    subscriberPagination.totalPages = totalPages;
+                    updatePaginationControls(total, totalPages);
+                    
+                    showSubscribersTableMessage(`✅ تم تحميل ${subscribersCache.length} مشترك محفوظ من قاعدة البيانات`);
+                    console.log('[STOP SYNC] Successfully loaded', subscribersCache.length, 'saved subscribers');
+                    
+                    // إخفاء شريط التحميل
+                    setTimeout(() => {
+                        showSubscribersLoading(false);
+                    }, 500);
+                } else {
+                    showSubscribersTableMessage('⚠️ لا توجد بيانات محفوظة في قاعدة البيانات');
+                }
+            } catch (error) {
+                console.error('[STOP SYNC] Error loading saved data:', error);
+                showSubscribersTableMessage('⚠️ حدث خطأ أثناء تحميل البيانات المحفوظة');
+            }
             
             // إخفاء زر الإيقاف وإظهار زر المزامنة بعد ثانيتين
-            setTimeout(async () => {
+            setTimeout(() => {
                 if (stopSyncBtn) {
                     stopSyncBtn.classList.add('hidden');
                     stopSyncBtn.disabled = false;
@@ -3041,9 +3170,6 @@ async function stopSync() {
                         <span id="sync-btn-text">مزامنة المشتركين</span>
                     `;
                 }
-                
-                // تحديث البيانات بعد الإيقاف
-                await loadLocalSubscribers();
             }, 2000);
         } else {
             alert('فشل إيقاف المزامنة: ' + (data.message || 'خطأ غير معروف'));
