@@ -3365,6 +3365,11 @@ async function syncCustomers() {
                     
                     showSubscribersTableMessage(`✅ تم تحميل ${subscribersCache.length} مشترك من قاعدة البيانات`);
                     console.log('[SYNC] Successfully loaded', subscribersCache.length, 'subscribers from database');
+                    
+                    // إخفاء شريط التحميل بعد الانتهاء
+                    setTimeout(() => {
+                        showSubscribersLoading(false);
+                    }, 500);
                 } else {
                     // إذا لم تكن البيانات في cache، جلب من API مباشرة
                     console.log('[SYNC] No data in cache, fetching from API...');
@@ -3374,8 +3379,6 @@ async function syncCustomers() {
                 console.error('[SYNC] Error loading from cache, fetching from API:', error);
                 await loadRemoteSubscribers(1, 10000); // جلب جميع البيانات
             }
-            
-            showSubscribersLoading(false);
             
             // بعد المزامنة الأولى: تم إلغاء التحديث التلقائي
             if (!hasInitialSync) {
