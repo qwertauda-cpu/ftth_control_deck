@@ -2032,7 +2032,7 @@ function startAutoRefresh() {
         dataAutoRefreshInterval = null;
     }
     
-    // تحديث البيانات كل دقيقة (60 ثانية)
+    // تحديث البيانات كل 30 ثانية
     dataAutoRefreshInterval = setInterval(async () => {
         console.log('[AUTO-REFRESH] Refreshing data for screen:', currentScreen);
         
@@ -2083,7 +2083,7 @@ function startAutoRefresh() {
         } catch (error) {
             console.error('[AUTO-REFRESH] Error refreshing data:', error);
         }
-    }, 60000); // 60 ثانية = دقيقة واحدة
+    }, 30000); // 30 ثانية
     
     console.log('[AUTO-REFRESH] Auto-refresh started for screen:', currentScreen);
 }
@@ -2453,7 +2453,65 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
 
     const userId = currentUserId;
     
-    // جلب البيانات مباشرة من API بدون cache
+    // محاولة جلب البيانات من قاعدة البيانات أولاً (cache)
+    try {
+        showSubscribersTableMessage('جاري تحميل البيانات من قاعدة البيانات...');
+        console.log('[LOAD CACHE] Fetching from database cache for userId:', userId, 'page:', pageNumber);
+        
+        const cacheUrl = `${API_URL}/alwatani-login/${userId}/customers/cache?username=${encodeURIComponent(currentDetailUser || '')}&pageNumber=${pageNumber}&pageSize=${pageSize}`;
+        const cacheResponse = await fetch(cacheUrl, addUsernameToFetchOptions());
+        const cacheData = await cacheResponse.json();
+        
+        // إذا كانت البيانات موجودة في cache، استخدمها
+        if (cacheData.success && cacheData.customers && Array.isArray(cacheData.customers) && cacheData.customers.length > 0) {
+            console.log('[LOAD CACHE] Found', cacheData.customers.length, 'subscribers in cache (page', pageNumber, 'of', cacheData.totalPages, ')');
+            
+            subscribersCache = cacheData.customers.map((sub) => {
+                const normalized = {
+                    id: sub.id || sub.accountId || sub.account_id || null,
+                    account_id: sub.account_id || sub.accountId || null,
+                    accountId: sub.accountId || sub.account_id || null,
+                    username: sub.username || null,
+                    deviceName: sub.deviceName || sub.device_name || null,
+                    name: sub.name || '--',
+                    phone: sub.phone || null,
+                    zone: sub.zone || null,
+                    page_url: sub.page_url || (sub.accountId || sub.account_id ? `https://admin.ftth.iq/customer-details/${sub.accountId || sub.account_id}/details/view` : '#'),
+                    start_date: sub.start_date || sub.startDate || null,
+                    startDate: sub.startDate || sub.start_date || null,
+                    end_date: sub.end_date || sub.endDate || null,
+                    endDate: sub.endDate || sub.end_date || null,
+                    status: sub.status || null,
+                    raw: sub.raw || {},
+                    rawCustomer: sub.rawCustomer || null,
+                    rawAddress: sub.rawAddress || null
+                };
+                return {
+                    ...normalized,
+                    _meta: buildSubscriberMeta(normalized)
+                };
+            });
+            
+            renderSubscriberStatusCards();
+            renderExpiringSoonList();
+            applySubscriberFilter(activeSubscriberFilter || 'all');
+            updateStats();
+            
+            const total = cacheData.total || subscribersCache.length;
+            const totalPages = cacheData.totalPages || Math.ceil(total / pageSize);
+            subscriberPagination.currentPage = pageNumber;
+            subscriberPagination.totalPages = totalPages;
+            updatePaginationControls(total, totalPages);
+            
+            const lastSync = cacheData.lastSync ? new Date(cacheData.lastSync).toLocaleString('ar-IQ') : 'غير معروف';
+            showSubscribersTableMessage(`✅ تم تحميل ${subscribersCache.length} مشترك من قاعدة البيانات (الصفحة ${pageNumber}/${totalPages}) - آخر تحديث: ${lastSync}`);
+            return;
+        }
+    } catch (cacheError) {
+        console.warn('[LOAD CACHE] Cache load failed, falling back to API:', cacheError);
+    }
+    
+    // إذا لم تكن البيانات في cache، جلب من API
     try {
         showSubscribersTableMessage('جاري تحميل البيانات من الموقع الرئيسي...');
         console.log('[LOAD API] Fetching directly from Alwatani API for userId:', userId, 'page:', pageNumber);

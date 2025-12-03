@@ -502,16 +502,22 @@ function getHeaderValueCaseInsensitive(headers, headerName) {
 
 const DEFAULT_REFERER_HEADER = getHeaderValueCaseInsensitive(ALWATANI_BASE_HEADERS, 'Referer') || 'https://admin.ftth.iq/';
 
-const DETAIL_FETCH_CONCURRENCY = Math.max(1, parseInt(process.env.DETAIL_FETCH_CONCURRENCY || process.env.ALWATANI_DETAIL_CONCURRENCY || '3', 10));
-const DETAIL_FETCH_BATCH_DELAY = Math.max(0, parseInt(process.env.DETAIL_FETCH_BATCH_DELAY_MS || process.env.ALWATANI_DETAIL_BATCH_DELAY || '1000', 10));
+// إعدادات قابلة للتعديل ديناميكياً
+let DETAIL_FETCH_CONCURRENCY = Math.max(1, parseInt(process.env.DETAIL_FETCH_CONCURRENCY || process.env.ALWATANI_DETAIL_CONCURRENCY || '3', 10));
+let DETAIL_FETCH_BATCH_DELAY = Math.max(0, parseInt(process.env.DETAIL_FETCH_BATCH_DELAY_MS || process.env.ALWATANI_DETAIL_BATCH_DELAY || '1000', 10));
 const DETAIL_FETCH_DELAY_MIN = Math.max(0, parseInt(process.env.DETAIL_FETCH_DELAY_MIN || '0', 10));
 const DETAIL_FETCH_DELAY_MAX = Math.max(0, parseInt(process.env.DETAIL_FETCH_DELAY_MAX || '0', 10));
 const DETAIL_FETCH_MAX_RETRIES = Math.max(1, parseInt(process.env.DETAIL_FETCH_MAX_RETRIES || '3', 10));
 const DETAIL_FETCH_IMMEDIATE_SAVE = (process.env.DETAIL_FETCH_IMMEDIATE_SAVE || 'true').toLowerCase() !== 'false';
 const PAGE_FETCH_BATCH_SIZE = Math.max(1, parseInt(process.env.PAGE_FETCH_BATCH_SIZE || process.env.ALWATANI_PAGE_BATCH_SIZE || '12', 10));
-const PAGE_FETCH_BATCH_DELAY = Math.max(0, parseInt(process.env.PAGE_FETCH_BATCH_DELAY_MS || process.env.ALWATANI_PAGE_BATCH_DELAY || '0', 10));
+let PAGE_FETCH_BATCH_DELAY = Math.max(0, parseInt(process.env.PAGE_FETCH_BATCH_DELAY_MS || process.env.ALWATANI_PAGE_BATCH_DELAY || '0', 10));
 const PAGE_FETCH_MAX_RETRIES = Math.max(1, parseInt(process.env.PAGE_FETCH_MAX_RETRIES || '4', 10));
 const PAGE_FETCH_RATE_LIMIT_BACKOFF = Math.max(1000, parseInt(process.env.PAGE_FETCH_RATE_BACKOFF_MS || '15000', 10));
+
+// Helper functions للحصول على القيم الحالية (للاستخدام في الكود)
+function getDetailFetchConcurrency() { return DETAIL_FETCH_CONCURRENCY; }
+function getDetailFetchBatchDelay() { return DETAIL_FETCH_BATCH_DELAY; }
+function getPageFetchBatchDelay() { return PAGE_FETCH_BATCH_DELAY; }
 const ADDRESS_BATCH_SIZE = Math.max(20, parseInt(process.env.ADDRESSES_BATCH_SIZE || '120', 10));
 const ADDRESS_BATCH_DELAY = Math.max(0, parseInt(process.env.ADDRESSES_BATCH_DELAY_MS || '250', 10));
 const RATE_LIMIT_HOST = (process.env.RATE_LIMIT_HOST || 'rate-limit.ftth.iq').toLowerCase();
@@ -1897,8 +1903,9 @@ async function enrichCustomersWithDetails(records, tokenRef, username, password,
     }
     
     // جلب مشتركين بعدد قابل للتعديل عبر ENV (تفاصيل أسرع بدون حظر)
-    const concurrency = DETAIL_FETCH_CONCURRENCY;
-    let delayBetweenBatches = DETAIL_FETCH_BATCH_DELAY;
+    // قراءة القيم ديناميكياً في كل مرة
+    const concurrency = getDetailFetchConcurrency();
+    let delayBetweenBatches = getDetailFetchBatchDelay();
     let delayMin = DETAIL_FETCH_DELAY_MIN;
     let delayMax = DETAIL_FETCH_DELAY_MAX;
     console.log(`[ENRICH] Starting detail fetching: ${concurrency} subscribers every ${(Math.max(delayBetweenBatches, 1) / 1000).toFixed(2)} seconds`);
@@ -3419,8 +3426,9 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                         });
                         
                         // تأخير قصير لتجنب rate limiting
-                        if (pageNum < totalPages && PAGE_FETCH_BATCH_DELAY > 0) {
-                            await delay(PAGE_FETCH_BATCH_DELAY);
+                        const currentPageDelay = getPageFetchBatchDelay();
+                        if (pageNum < totalPages && currentPageDelay > 0) {
+                            await delay(currentPageDelay);
                         }
                     }
                     
@@ -3565,8 +3573,9 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                         message: `جاري جلب بيانات المشتركين الناقصين... ${allCustomers.length}/${missingAccountIds.length}`
                     });
                     
-                    if (PAGE_FETCH_BATCH_DELAY > 0 && pageNum < totalPages) {
-                        await delay(PAGE_FETCH_BATCH_DELAY);
+                    const currentPageDelay = getPageFetchBatchDelay();
+                    if (currentPageDelay > 0 && pageNum < totalPages) {
+                        await delay(currentPageDelay);
                     }
                 }
             }
@@ -3640,8 +3649,9 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                     message: `Fetching subscriber pages... Page ${lastPageInBatch}/${totalPages} (${pagesFetchedInBatch} successful in this batch)`
                 });
                 
-                if (PAGE_FETCH_BATCH_DELAY > 0 && lastPageInBatch < totalPages) {
-                    await delay(PAGE_FETCH_BATCH_DELAY);
+                const currentPageDelay = getPageFetchBatchDelay();
+                if (currentPageDelay > 0 && lastPageInBatch < totalPages) {
+                    await delay(currentPageDelay);
                 }
             }
         }
@@ -4139,12 +4149,26 @@ app.get('/api/alwatani-login/:id/customers/cache', async (req, res) => {
         const alwataniPool = await dbManager.getAlwataniPool(alwataniUsername);
         
         console.log(`[CACHE] Querying cache for alwatani: ${alwataniUsername}, partnerId: ${partnerId}`);
-        const [rows] = await alwataniPool.query(
-            'SELECT customer_data, synced_at FROM alwatani_customers_cache WHERE partner_id = ? ORDER BY synced_at DESC',
+        
+        // دعم pagination
+        const pageNumber = parseInt(req.query.pageNumber) || 1;
+        const pageSize = parseInt(req.query.pageSize) || 100;
+        const offset = (pageNumber - 1) * pageSize;
+        
+        // جلب العدد الإجمالي
+        const [countResult] = await alwataniPool.query(
+            'SELECT COUNT(*) as total FROM alwatani_customers_cache WHERE partner_id = ?',
             [partnerId]
         );
+        const total = countResult[0].total;
+        
+        // جلب البيانات مع pagination
+        const [rows] = await alwataniPool.query(
+            'SELECT customer_data, synced_at FROM alwatani_customers_cache WHERE partner_id = ? ORDER BY synced_at DESC LIMIT ? OFFSET ?',
+            [partnerId, pageSize, offset]
+        );
 
-        console.log(`[CACHE] Found ${rows.length} cached records`);
+        console.log(`[CACHE] Found ${total} total records, returning ${rows.length} for page ${pageNumber}`);
 
         const customers = rows.map(row => {
             try {
@@ -4166,11 +4190,12 @@ app.get('/api/alwatani-login/:id/customers/cache', async (req, res) => {
 
         res.json({
             success: true,
-            data: customers,
-            meta: {
-                total: customers.length,
-                lastSync: lastSyncRow[0]?.last_sync || null
-            }
+            customers: customers,
+            total: total,
+            pageNumber: pageNumber,
+            pageSize: pageSize,
+            totalPages: Math.ceil(total / pageSize),
+            lastSync: lastSyncRow[0]?.last_sync || null
         });
     } catch (error) {
         console.error('Get cached customers error:', error);
@@ -6531,7 +6556,157 @@ async function startServer() {
         console.log('');
         console.log('💡 Tip: You can stop the server by pressing Ctrl+C');
         console.log('═══════════════════════════════════════════════════════════');
+        
+        // بدء نظام التحديث التلقائي
+        startAutoSyncService();
     });
+}
+
+// ================= Auto Sync Service =================
+// نظام التحديث التلقائي للبيانات
+let autoSyncIntervals = new Map(); // userId -> interval
+let autoSyncRunning = new Map(); // userId -> boolean
+
+async function startAutoSyncService() {
+    console.log('');
+    console.log('🔄 Starting Auto-Sync Service...');
+    
+    // انتظار 30 ثانية بعد تشغيل السيرفر قبل بدء المزامنة
+    await delay(30000);
+    
+    // بدء المزامنة التلقائية لجميع الحسابات
+    await syncAllAccounts();
+    
+    // بدء التحديث التلقائي كل 30 ثانية
+    setInterval(async () => {
+        await syncAllAccounts(false); // incremental sync (سريع)
+    }, 30000); // 30 ثانية
+    
+    console.log('✅ Auto-Sync Service started - Updates every 30 seconds');
+}
+
+async function syncAllAccounts(isFirstSync = true) {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        const [owners] = await masterPool.query(
+            'SELECT username, domain FROM owners_databases WHERE is_active = TRUE'
+        );
+        
+        for (const owner of owners) {
+            try {
+                const ownerPool = await dbManager.getOwnerPool(owner.domain);
+                const [accounts] = await ownerPool.query(
+                    'SELECT id, username, user_id FROM alwatani_login WHERE id IS NOT NULL'
+                );
+                
+                for (const account of accounts) {
+                    if (autoSyncRunning.get(account.id)) {
+                        console.log(`[AUTO-SYNC] Skipping ${account.username} - sync already running`);
+                        continue;
+                    }
+                    
+                    // في المرة الأولى: sync كامل بطيء
+                    // في التحديثات: sync سريع (incremental)
+                    await performAutoSync(account.id, owner.username, owner.domain, isFirstSync);
+                }
+            } catch (error) {
+                console.error(`[AUTO-SYNC] Error syncing owner ${owner.username}:`, error.message);
+            }
+        }
+    } catch (error) {
+        console.error('[AUTO-SYNC] Error in syncAllAccounts:', error.message);
+    }
+}
+
+async function performAutoSync(accountId, ownerUsername, ownerDomain, isFullSync = false) {
+    autoSyncRunning.set(accountId, true);
+    
+    try {
+        console.log(`[AUTO-SYNC] ${isFullSync ? 'Full' : 'Incremental'} sync for account ${accountId}...`);
+        
+        // استخدام إعدادات مختلفة حسب نوع المزامنة
+        const originalPageDelay = PAGE_FETCH_BATCH_DELAY;
+        const originalDetailDelay = DETAIL_FETCH_BATCH_DELAY;
+        const originalConcurrency = DETAIL_FETCH_CONCURRENCY;
+        
+        if (isFullSync) {
+            // في المرة الأولى: إعدادات بطيئة لتجنب الحظر
+            PAGE_FETCH_BATCH_DELAY = 2000; // 2 ثانية بين الصفحات
+            DETAIL_FETCH_BATCH_DELAY = 2000; // 2 ثانية بين التفاصيل
+            DETAIL_FETCH_CONCURRENCY = 2; // 2 مشترك في كل مرة
+            console.log('[AUTO-SYNC] Using slow settings for first sync to avoid rate limiting');
+        } else {
+            // في التحديثات: إعدادات سريعة
+            PAGE_FETCH_BATCH_DELAY = 500; // 0.5 ثانية
+            DETAIL_FETCH_BATCH_DELAY = 500; // 0.5 ثانية
+            DETAIL_FETCH_CONCURRENCY = 5; // 5 مشتركين في كل مرة
+            console.log('[AUTO-SYNC] Using fast settings for incremental sync');
+        }
+        
+        // تنفيذ المزامنة باستخدام http module
+        const http = require('http');
+        const syncPath = `/api/alwatani-login/${accountId}/customers/sync`;
+        const postData = JSON.stringify({
+            forceFullSync: isFullSync,
+            owner_username: ownerUsername
+        });
+        
+        const result = await new Promise((resolve) => {
+            const options = {
+                hostname: 'localhost',
+                port: config.server.port,
+                path: syncPath,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(postData),
+                    'X-Owner-Username': ownerUsername
+                },
+                timeout: 300000 // 5 دقائق timeout
+            };
+            
+            const req = http.request(options, (res) => {
+                let data = '';
+                res.on('data', (chunk) => { data += chunk; });
+                res.on('end', () => {
+                    try {
+                        const jsonData = JSON.parse(data);
+                        resolve({ ok: res.statusCode === 200, status: res.statusCode, data: jsonData });
+                    } catch (e) {
+                        resolve({ ok: false, status: res.statusCode, data: { success: false, message: data } });
+                    }
+                });
+            });
+            
+            req.on('error', (error) => {
+                resolve({ ok: false, status: 0, data: { success: false, message: error.message } });
+            });
+            
+            req.on('timeout', () => {
+                req.destroy();
+                resolve({ ok: false, status: 0, data: { success: false, message: 'Request timeout' } });
+            });
+            
+            req.write(postData);
+            req.end();
+        });
+        
+        if (result.ok && result.data.success) {
+            console.log(`[AUTO-SYNC] ✅ Sync completed for account ${accountId}`);
+        } else {
+            console.warn(`[AUTO-SYNC] ⚠️ Sync ${result.ok ? 'completed with warnings' : 'failed'} for account ${accountId}:`, result.data.message || `Status: ${result.status}`);
+        }
+        
+        // استعادة الإعدادات الأصلية
+        PAGE_FETCH_BATCH_DELAY = originalPageDelay;
+        DETAIL_FETCH_BATCH_DELAY = originalDetailDelay;
+        DETAIL_FETCH_CONCURRENCY = originalConcurrency;
+        
+    } catch (error) {
+        console.error(`[AUTO-SYNC] Error syncing account ${accountId}:`, error.message);
+    } finally {
+        autoSyncRunning.set(accountId, false);
+    }
 }
 
 // Handle shutdown gracefully
