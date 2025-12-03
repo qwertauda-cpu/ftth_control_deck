@@ -2462,9 +2462,33 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
         const cacheResponse = await fetch(cacheUrl, addUsernameToFetchOptions());
         const cacheData = await cacheResponse.json();
         
-        // إذا كانت البيانات موجودة في cache، استخدمها
+        // إذا كانت البيانات موجودة في cache، تحقق من عددها وتاريخها
         if (cacheData.success && cacheData.customers && Array.isArray(cacheData.customers) && cacheData.customers.length > 0) {
-            console.log('[LOAD CACHE] Found', cacheData.customers.length, 'subscribers in cache (page', pageNumber, 'of', cacheData.totalPages, ')');
+            const totalInCache = cacheData.total || 0;
+            const MIN_CACHE_THRESHOLD = 500; // الحد الأدنى للاعتماد على cache
+            const MAX_CACHE_AGE_HOURS = 24; // الحد الأقصى لعمر البيانات في cache (ساعة)
+            
+            // التحقق من عمر البيانات
+            let cacheTooOld = false;
+            if (cacheData.lastSync) {
+                const lastSyncDate = new Date(cacheData.lastSync);
+                const now = new Date();
+                const hoursSinceSync = (now - lastSyncDate) / (1000 * 60 * 60);
+                if (hoursSinceSync > MAX_CACHE_AGE_HOURS) {
+                    cacheTooOld = true;
+                    console.log(`[LOAD CACHE] Cache data is ${hoursSinceSync.toFixed(1)} hours old (older than ${MAX_CACHE_AGE_HOURS} hours), fetching from API...`);
+                }
+            }
+            
+            // إذا كان العدد الإجمالي في cache قليل جداً أو البيانات قديمة، اجلب من API مباشرة
+            if (totalInCache < MIN_CACHE_THRESHOLD || cacheTooOld) {
+                console.log(`[LOAD CACHE] Cache insufficient (${totalInCache} records${cacheTooOld ? ', data too old' : ''}), fetching from API instead...`);
+                showSubscribersTableMessage(`⚠️ البيانات في قاعدة البيانات غير كافية (${totalInCache} سجل فقط)، جاري جلب البيانات من الموقع الرئيسي...`);
+                // تجاهل cache والانتقال لجلب من API
+                throw new Error('Cache has insufficient or outdated data, fetching from API');
+            }
+            
+            console.log('[LOAD CACHE] Found', cacheData.customers.length, 'subscribers in cache (page', pageNumber, 'of', cacheData.totalPages, ', total:', totalInCache, ')');
             
             subscribersCache = cacheData.customers.map((sub) => {
                 const normalized = {
