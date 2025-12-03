@@ -3181,6 +3181,13 @@ async function syncCustomers() {
         // إظهار رسالة للمستخدم
         showSubscribersTableMessage('جاري مزامنة جميع المشتركين من موقع الوطني... قد يستغرق ذلك عدة دقائق.');
         
+        // مسح الجدول قبل البدء
+        const tbody = document.getElementById('subscribers-table-body');
+        if (tbody) {
+            tbody.innerHTML = '';
+        }
+        subscribersCache = [];
+        
         console.log('[SYNC] Starting sync request...');
         const fetchOptions = addUsernameToFetchOptions({
             method: 'POST',
