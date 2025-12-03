@@ -4255,25 +4255,37 @@ app.get('/api/alwatani-login/:id/customers/cache', async (req, res) => {
         const pageSize = parseInt(req.query.pageSize) || 100;
         const offset = (pageNumber - 1) * pageSize;
         
-        // التحقق من وجود عمود partner_id في الجدول
+        // التحقق من وجود عمود partner_id في الجدول - محاولة مباشرة أولاً
         let hasPartnerId = false;
+        let hasCustomerData = false;
+        
+        // محاولة جلب عمود واحد باستخدام partner_id - إذا نجح، العمود موجود
         try {
-            const [columns] = await alwataniPool.query(`
-                SELECT COLUMN_NAME 
-                FROM INFORMATION_SCHEMA.COLUMNS 
-                WHERE TABLE_SCHEMA = DATABASE() 
-                AND TABLE_NAME = 'alwatani_customers_cache' 
-                AND COLUMN_NAME = 'partner_id'
-            `);
-            hasPartnerId = columns.length > 0;
+            await alwataniPool.query(
+                'SELECT COUNT(*) as total FROM alwatani_customers_cache WHERE partner_id = ? LIMIT 1',
+                [partnerId]
+            );
+            hasPartnerId = true;
+            console.log('[CACHE] Table has partner_id column');
         } catch (e) {
-            console.warn('[CACHE] Could not check for partner_id column:', e.message);
+            hasPartnerId = false;
+            console.log('[CACHE] Table does not have partner_id column, using old structure');
+        }
+        
+        // التحقق من وجود customer_data
+        try {
+            await alwataniPool.query(
+                'SELECT customer_data FROM alwatani_customers_cache LIMIT 1'
+            );
+            hasCustomerData = true;
+        } catch (e) {
+            hasCustomerData = false;
         }
         
         let countResult, rows;
         
-        if (hasPartnerId) {
-            // إذا كان الجدول يحتوي على partner_id
+        if (hasPartnerId && hasCustomerData) {
+            // البنية الجديدة: partner_id + customer_data (JSON)
             [countResult] = await alwataniPool.query(
                 'SELECT COUNT(*) as total FROM alwatani_customers_cache WHERE partner_id = ?',
                 [partnerId]
@@ -4283,7 +4295,7 @@ app.get('/api/alwatani-login/:id/customers/cache', async (req, res) => {
                 [partnerId, pageSize, offset]
             );
         } else {
-            // إذا لم يكن موجوداً، جلب جميع البيانات
+            // البنية القديمة: أعمدة منفصلة (بدون partner_id)
             [countResult] = await alwataniPool.query(
                 'SELECT COUNT(*) as total FROM alwatani_customers_cache'
             );
@@ -4331,7 +4343,7 @@ app.get('/api/alwatani-login/:id/customers/cache', async (req, res) => {
 
         // جلب آخر وقت تحديث
         let lastSyncRow;
-        if (hasPartnerId) {
+        if (hasPartnerId && hasCustomerData) {
             [lastSyncRow] = await alwataniPool.query(
                 'SELECT MAX(synced_at) as last_sync FROM alwatani_customers_cache WHERE partner_id = ?',
                 [partnerId]
