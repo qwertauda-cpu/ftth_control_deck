@@ -4545,12 +4545,7 @@ function getStatusBadgeClass(key) {
     return subscriberStatusBadgeClasses[key] || subscriberStatusBadgeClasses.other;
 }
 
-function updateSubscriberFilterSummary(count) {
-    const summary = document.getElementById('subscriber-filter-summary');
-    if (!summary) return;
-    const label = subscriberFilterLabels[activeSubscriberFilter] || subscriberFilterLabels.all;
-    summary.textContent = `عرض ${count} - ${label}`;
-}
+// تم حذف دالة updateSubscriberFilterSummary - العداد تم حذفه من الواجهة
 
 function renderSubscribersTablePage(animate = false) {
     const total = currentFilteredSubscribers.length;
