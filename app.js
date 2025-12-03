@@ -5517,9 +5517,31 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const createAccountModal = document.getElementById('create-account-modal');
     if (createAccountModal) {
-        createAccountModal.addEventListener('click', function(e) {
-            if (e.target === this) { closeCreateAccountModal(); }
+        // منع context menu (الكليك اليمين) على الـ modal
+        createAccountModal.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
         });
+        
+        // إغلاق الـ modal عند الضغط على الـ backdrop فقط (left click)
+        createAccountModal.addEventListener('click', function(e) {
+            // التأكد من أن الـ click هو left click فقط (button === 0)
+            // والتأكد من أن الـ click كان على الـ backdrop وليس على المحتوى
+            if (e.button === 0 && e.target === this) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeCreateAccountModal();
+            }
+        });
+        
+        // منع إغلاق الـ modal عند الضغط داخل المحتوى
+        const modalContent = createAccountModal.querySelector('.bg-white');
+        if (modalContent) {
+            modalContent.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+        }
     }
 });
 
