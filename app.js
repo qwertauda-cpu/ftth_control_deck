@@ -2773,10 +2773,19 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
         showSubscribersLoading(true, 'جاري جلب جميع المشتركين من الموقع الرئيسي...');
         console.log('[LOAD API] Fetching ALL pages from Alwatani API for userId:', userId);
         
-        // استخدام fetchAll=true لجلب جميع الصفحات
-        const apiUrl = `${API_URL}/alwatani-login/${userId}/customers?username=${encodeURIComponent(currentDetailUser || '')}&fetchAll=true&mode=all&pageSize=${pageSize}&maxPages=2000`;
-        const response = await fetch(apiUrl, addUsernameToFetchOptions());
-        const data = await response.json();
+        // محاولة جلب جميع الصفحات أولاً (fetchAll=true)
+        // إذا فشل، نستخدم fallback لجلب صفحة واحدة فقط
+        let apiUrl = `${API_URL}/alwatani-login/${userId}/customers?username=${encodeURIComponent(currentDetailUser || '')}&fetchAll=true&mode=all&pageSize=${pageSize}&maxPages=500`;
+        let response = await fetch(apiUrl, addUsernameToFetchOptions());
+        let data = await response.json();
+        
+        // إذا فشل fetchAll، جرب صفحة واحدة فقط
+        if (!data.success || !data.data?.combined || data.data.combined.length === 0) {
+            console.log('[LOAD API] fetchAll failed, trying single page...');
+            apiUrl = `${API_URL}/alwatani-login/${userId}/customers?username=${encodeURIComponent(currentDetailUser || '')}&pageNumber=${pageNumber}&pageSize=${pageSize}`;
+            response = await fetch(apiUrl, addUsernameToFetchOptions());
+            data = await response.json();
+        }
         
         console.log('[LOAD API] Response:', {
             success: data.success,
