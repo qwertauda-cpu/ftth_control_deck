@@ -1,0 +1,27 @@
+﻿# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables
+.env
+*.env
+!ENV_TEMPLATE.env
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+
+# Workspace files
+*.code-workspace
