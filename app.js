@@ -93,6 +93,7 @@ const ALWATANI_CUSTOMERS_PAGE_SIZE = 100;
 // Auto-refresh intervals
 let dataAutoRefreshInterval = null;
 let isRefreshingData = false; // Flag لمنع التحديثات المتداخلة
+let hasInitialSync = false; // Flag لتتبع ما إذا تمت المزامنة الأولى
 let currentScreen = 'dashboard'; // تتبع الشاشة الحالية
 
 // Subscribers dashboard state
@@ -267,7 +268,7 @@ async function handleLogin(e) {
                 hideSideMenu(); // إخفاء القائمة الجانبية في لوحة التحكم الرئيسية
                 await loadPages();
                 currentScreen = 'dashboard';
-                startAutoRefresh(); // بدء التحديث التلقائي
+                // لا نبدأ التحديث التلقائي عند أول دخول - يبدأ بعد المزامنة الأولى
             
             // Apply dark mode if saved
             const savedTheme = localStorage.getItem('theme');
@@ -2268,9 +2269,12 @@ function startAutoRefresh() {
         try {
             switch (currentScreen) {
                 case 'dashboard':
-                    // تحديث بيانات المشتركين فقط (بدون إعادة تحميل كامل)
+                    // تحديث لوحة التحكم فقط (الإحصائيات) - بدون تحديث الجدول
                     if (currentUserId) {
-                        await refreshSubscribersDataOnly();
+                        // تحديث الإحصائيات فقط
+                        renderSubscriberStatusCards();
+                        loadWalletBalance();
+                        // لا نحدث الجدول - فقط الإحصائيات
                     }
                     break;
                     
@@ -3186,6 +3190,13 @@ async function syncCustomers() {
             } else {
                 console.log('[SYNC] Successfully loaded', subscribersCache.length, 'subscribers');
                 await updateSyncStatus();
+            }
+            
+            // بعد المزامنة الأولى: بدء التحديث التلقائي للوحة التحكم فقط
+            if (!hasInitialSync) {
+                hasInitialSync = true;
+                console.log('[SYNC] First sync completed, starting auto-refresh for dashboard stats only...');
+                startAutoRefresh(); // بدء التحديث التلقائي بعد المزامنة الأولى
             }
         } else {
             const stageSuffix = data.stage ? ` [${data.stage}]` : '';
