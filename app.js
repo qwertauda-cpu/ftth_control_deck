@@ -2727,9 +2727,19 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
         
         if (data.success && data.data && data.data.combined && Array.isArray(data.data.combined)) {
             const combinedList = data.data.combined;
-            console.log('[LOAD API] Processing', combinedList.length, 'subscribers');
+            const totalFetched = data.pagination?.total || combinedList.length;
+            const pagesFetched = data.pagination?.pagesFetched || 1;
+            console.log('[LOAD API] Processing', combinedList.length, 'subscribers (from', pagesFetched, 'pages, total:', totalFetched, ')');
             
-            subscribersCache = combinedList.map((sub) => {
+            // تحديث التقدم الحقيقي
+            updateLoadingProgress(0, combinedList.length);
+            showSubscribersLoading(true, `جاري معالجة ${combinedList.length} مشترك...`, 0, combinedList.length);
+            
+            subscribersCache = combinedList.map((sub, index) => {
+                // تحديث التقدم أثناء المعالجة
+                if (index % 10 === 0 || index === combinedList.length - 1) {
+                    updateLoadingProgress(index + 1, combinedList.length);
+                }
                 // Normalize data structure from API
                 const normalized = {
                     id: sub.id || sub.accountId || sub.account_id || null,
@@ -2776,7 +2786,13 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
             const total = data.pagination?.total || combinedList.length;
             const pagesFetched = data.pagination?.pagesFetched || 1;
             showSubscribersTableMessage(`✅ تم تحميل ${combinedList.length} مشترك من الموقع الرئيسي (${pagesFetched} صفحة، إجمالي: ${total})`);
-            showSubscribersLoading(false);
+            
+            // إخفاء شريط التحميل بعد انتهاء animation (حسب عدد المشتركين في الصفحة الحالية)
+            const pageSize = subscriberPagination.pageSize || 10;
+            const animateCount = Math.min(pageSize, currentFilteredSubscribers.length);
+            setTimeout(() => {
+                showSubscribersLoading(false);
+            }, (animateCount * 30) + 500); // بعد انتهاء animation
             
             // تحديث pagination - إذا كان fetchAll، نعرض جميع البيانات في صفحة واحدة
             if (data.pagination?.mode === 'all') {
