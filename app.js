@@ -2045,12 +2045,13 @@ async function refreshSubscribersDataOnly() {
         // إظهار شريط التحميل
         showSubscribersLoading(true, 'جاري تحديث البيانات...');
         
-        // جلب جميع البيانات من API (fetchAll=true) مع timeout
-        const apiUrl = `${API_URL}/alwatani-login/${userId}/customers?username=${encodeURIComponent(currentDetailUser || '')}&fetchAll=true&mode=all&pageSize=${pageSize}&maxPages=2000`;
+        // في التحديث التلقائي: جلب صفحة واحدة فقط (أسرع وأكثر موثوقية)
+        // بدلاً من جلب جميع الصفحات التي قد تستغرق وقتاً طويلاً
+        const apiUrl = `${API_URL}/alwatani-login/${userId}/customers?username=${encodeURIComponent(currentDetailUser || '')}&pageNumber=${pageNumber}&pageSize=${pageSize}`;
         
-        // إضافة timeout للطلب (60 ثانية)
+        // إضافة timeout للطلب (30 ثانية - كافٍ لصفحة واحدة)
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 ثانية timeout
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 ثانية timeout
         
         const response = await fetch(apiUrl, {
             ...addUsernameToFetchOptions(),
@@ -2070,10 +2071,21 @@ async function refreshSubscribersDataOnly() {
         
         if (data.success && data.data && data.data.combined && Array.isArray(data.data.combined)) {
             const combinedList = data.data.combined;
-            console.log('[AUTO-REFRESH] Processing', combinedList.length, 'subscribers');
+            console.log('[AUTO-REFRESH] Processing', combinedList.length, 'subscribers from page', pageNumber);
             
-            // تحديث subscribersCache فقط
-            subscribersCache = combinedList.map((sub) => {
+            // دمج البيانات الجديدة مع البيانات الموجودة (بدلاً من استبدالها)
+            // تحديث المشتركين الموجودين وإضافة الجدد
+            const existingMap = new Map(subscribersCache.map(sub => [sub.accountId || sub.account_id, sub]));
+            
+            combinedList.forEach((sub) => {
+                const accountId = sub.accountId || sub.account_id;
+                if (accountId) {
+                    existingMap.set(accountId, sub);
+                }
+            });
+            
+            // تحديث subscribersCache مع البيانات المدمجة
+            subscribersCache = Array.from(existingMap.values()).map((sub) => {
                 const normalized = {
                     id: sub.id || sub.accountId || sub.account_id || null,
                     account_id: sub.account_id || sub.accountId || null,
