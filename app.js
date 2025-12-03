@@ -2855,8 +2855,8 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
                 
                 subscribersCache.push(subscriberWithMeta);
                 
-                // عرض المشترك في الجدول مباشرة (واحد تلو الآخر)
-                if (tbody && index < 100) { // عرض أول 100 في الجدول مباشرة
+                // عرض المشترك في الجدول مباشرة (واحد تلو الآخر) - جميع المشتركين
+                if (tbody) {
                     const meta = subscriberWithMeta._meta;
                     const row = document.createElement('tr');
                     row.className = 'hover:bg-gray-50 transition-all duration-300 opacity-0 transform translate-y-2';
@@ -2897,9 +2897,9 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
                     updateStats();
                 }
                 
-                // تأخير بسيط لعرض المشتركين واحد تلو الآخر (20ms)
+                // تأخير بسيط لعرض المشتركين واحد تلو الآخر (30ms)
                 if (index < combinedList.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 20));
+                    await new Promise(resolve => setTimeout(resolve, 30));
                 }
             }
             
@@ -3305,8 +3305,8 @@ async function syncCustomers() {
                         // تحديث التقدم
                         updateLoadingProgress(i + 1, totalCustomers);
                         
-                        // عرض المشترك في الجدول مباشرة (واحد تلو الآخر)
-                        if (tbody && i < 100) { // عرض أول 100 في الجدول مباشرة
+                        // عرض المشترك في الجدول مباشرة (واحد تلو الآخر) - جميع المشتركين
+                        if (tbody) {
                             const meta = subscriberWithMeta._meta;
                             const row = document.createElement('tr');
                             row.className = 'hover:bg-gray-50 transition-all duration-300 opacity-0 transform translate-y-2';
@@ -3347,9 +3347,9 @@ async function syncCustomers() {
                             updateStats();
                         }
                         
-                        // تأخير بسيط لعرض المشتركين واحد تلو الآخر (20ms)
+                        // تأخير بسيط لعرض المشتركين واحد تلو الآخر (30ms)
                         if (i < cacheData.customers.length - 1) {
-                            await new Promise(resolve => setTimeout(resolve, 20));
+                            await new Promise(resolve => setTimeout(resolve, 30));
                         }
                     }
                     
