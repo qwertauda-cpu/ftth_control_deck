@@ -1204,7 +1204,8 @@ async function handleAddPage(e) {
             // Switch to subscriber management page after short delay
             setTimeout(async () => {
                 switchScreen('dashboard-screen', 'page-detail-screen');
-                await loadSubscribers();
+                // تم إلغاء التحميل التلقائي - البيانات تُجلب فقط عند الضغط على زر "مزامنة المشتركين"
+                // await loadSubscribers();
                 await loadAlwataniDetails();
                 
                 // Clear form
