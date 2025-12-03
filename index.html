@@ -1,0 +1,2239 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة المشتركين FTTH</title>
+    <script>
+        // قمع تحذير Tailwind CDN
+        const originalWarn = console.warn;
+        console.warn = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
+                return; // تجاهل تحذير Tailwind CDN
+            }
+            originalWarn.apply(console, args);
+        };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: #f8fafc;
+            transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* Smooth transitions for all elements */
+        * {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        /* Exclude SVG and images from transitions */
+        svg, img, video, canvas {
+            transition: none !important;
+        }
+        
+        /* Force dark mode on all containers and screens - STRONG OVERRIDE */
+        body.dark-mode div:not([class*="stat-icon"]):not([class*="custom-blue"]) {
+            background-color: inherit;
+        }
+        
+        /* Universal selector for all background classes - HIGHEST PRIORITY */
+        body.dark-mode *[class*="bg-white"] {
+            background-color: #1e293b !important;
+        }
+        
+        body.dark-mode *[class*="bg-slate-50"] {
+            background-color: #0f172a !important;
+        }
+        
+        body.dark-mode *[class*="bg-gray-50"] {
+            background-color: #1e293b !important;
+        }
+        
+        body.dark-mode *[class*="bg-gray-100"] {
+            background-color: #1e293b !important;
+        }
+        
+        body.dark-mode *[class*="bg-gray-200"] {
+            background-color: #334155 !important;
+        }
+        
+        body.dark-mode *[class*="bg-blue-50"] {
+            background-color: #1e3a5f !important;
+        }
+        
+        body.dark-mode *[class*="bg-red-50"] {
+            background-color: #7f1d1d !important;
+        }
+        
+        body.dark-mode *[class*="bg-orange-100"] {
+            background-color: #7c2d12 !important;
+        }
+        
+        body.dark-mode *[class*="bg-indigo-50"],
+        body.dark-mode *[class*="bg-indigo-100"] {
+            background-color: #312e81 !important;
+        }
+        
+        body.dark-mode *[class*="bg-green-100"] {
+            background-color: #14532d !important;
+        }
+        
+        /* Specific screen backgrounds */
+        body.dark-mode #login-container,
+        body.dark-mode #dashboard-screen,
+        body.dark-mode #ticket-management-screen,
+        body.dark-mode #team-management-screen,
+        body.dark-mode #page-detail-screen,
+        body.dark-mode #team-tickets-screen {
+            background-color: #0f172a !important;
+        }
+        
+        /* All headers */
+        body.dark-mode header {
+            background-color: #1e293b !important;
+        }
+        
+        /* All main sections */
+        body.dark-mode main {
+            background-color: transparent !important;
+        }
+        .fade-in {
+            animation: fadeIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .slide-up {
+            animation: slideUp 0.4s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.99); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-100%); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .animate-slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        .custom-blue { background-color: #26466D; }
+        .custom-blue-hover:hover { background-color: #1e3a5f; }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .stat-icon-green { background-color: #10B981; color: white; }
+        .stat-icon-blue { background-color: #3B82F6; color: white; }
+        .stat-icon-orange { background-color: #F59E0B; color: white; }
+        .stat-icon-purple { background-color: #8B5CF6; color: white; }
+        .stat-icon-red { background-color: #EF4444; color: white; }
+        .status-select {
+            appearance: none;
+            -webkit-appearance: none;
+            text-align: center;
+            cursor: pointer;
+        }
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+        }
+        .status-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            background-color: #fff;
+            text-align: left;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+        .status-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+            border-color: #cbd5f5;
+        }
+        .status-card.active {
+            border-color: #26466D;
+            box-shadow: 0 18px 35px rgba(38, 70, 109, 0.15);
+        }
+        .status-progress {
+            width: 56px;
+            height: 56px;
+            border-radius: 9999px;
+            background: conic-gradient(var(--ring-color, #22c55e) var(--ring-progress, 0deg), #e2e8f0 0deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .status-progress span {
+            width: 38px;
+            height: 38px;
+            border-radius: 9999px;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: #475569;
+        }
+        /* Side Menu Styles - Fixed Sidebar */
+        .side-menu {
+            position: fixed;
+            right: 0;
+            top: 0;
+            height: 100vh;
+            width: 320px;
+            background: linear-gradient(180deg, #26466D 0%, #1e3a5f 100%);
+            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            overflow-x: hidden;
+            z-index: 40;
+        }
+        
+        /* التأكد من أن المحتوى الرئيسي لا يظهر خلف القائمة الجانبية */
+        body:not(:has(#side-menu-container.hidden)) #dashboard-screen:not(.hidden),
+        body:not(:has(#side-menu-container.hidden)) #expiring-screen:not(.hidden),
+        body:not(:has(#side-menu-container.hidden)) #tickets-dashboard-screen:not(.hidden),
+        body:not(:has(#side-menu-container.hidden)) #wallet-screen:not(.hidden),
+        body:not(:has(#side-menu-container.hidden)) #general-settings-screen:not(.hidden),
+        body:not(:has(#side-menu-container.hidden)) #ticket-management-screen:not(.hidden),
+        body:not(:has(#side-menu-container.hidden)) #team-management-screen:not(.hidden),
+        body:not(:has(#side-menu-container.hidden)) #page-detail-screen:not(.hidden),
+        body:not(:has(#side-menu-container.hidden)) #team-tickets-screen:not(.hidden) {
+            margin-right: 320px !important;
+        }
+        
+        .side-menu::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .side-menu::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .side-menu::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+        
+        .side-menu::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        /* إخفاء القائمة عندما تكون صفحة تسجيل الدخول ظاهرة */
+        #side-menu-container.hidden {
+            display: none !important;
+        }
+        
+        /* إخفاء login-container عند وجود dashboard-screen ظاهر */
+        #dashboard-screen:not(.hidden) ~ #login-container,
+        #dashboard-screen:not(.hidden) + #login-container,
+        body:has(#dashboard-screen:not(.hidden)) #login-container {
+            display: none !important;
+        }
+        
+        /* إخفاء login-container بقوة عند إضافته للـ hidden */
+        #login-container.hidden {
+            display: none !important;
+        }
+        
+        /* إخفاء القائمة الجانبية عند فتح modal إضافة مستخدم جديد */
+        #create-account-modal:not(.hidden) ~ #side-menu-container,
+        body:has(#create-account-modal:not(.hidden)) #side-menu-container {
+            display: none !important;
+        }
+        
+        .side-menu-link {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            border-radius: 0.75rem;
+            border: none;
+            background: rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.875rem;
+            transition: all 0.2s ease;
+            margin-bottom: 0.5rem;
+        }
+        
+        .side-menu-link svg {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+        
+        .side-menu-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            transform: translateX(-4px);
+        }
+        
+        .side-menu-link.active {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-right: 3px solid #fff;
+        }
+        
+        /* Menu Section Styles */
+        .menu-section {
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .menu-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 0.5rem;
+            width: 100%;
+            text-align: right;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .menu-section-title:hover {
+            color: rgba(255, 255, 255, 1);
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .menu-section-title svg {
+            width: 18px;
+            height: 18px;
+        }
+        
+        .menu-subsection {
+            padding-right: 1.5rem;
+            padding-left: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .side-menu-link-sub {
+            width: 100%;
+            padding: 0.625rem 1rem;
+            border-radius: 0.5rem;
+            border: none;
+            background: rgba(255, 255, 255, 0.03);
+            color: rgba(255, 255, 255, 0.75);
+            font-weight: 400;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transition: all 0.2s ease;
+        }
+        
+        .side-menu-link-sub svg {
+            width: 16px;
+            height: 16px;
+        }
+        
+        .side-menu-link-sub:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            transform: translateX(-2px);
+        }
+        
+        .side-menu-link-sub.active {
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
+        }
+        
+        /* Adjust main content to account for fixed sidebar */
+        body:not(:has(#side-menu-container.hidden)) #dashboard-screen:not(.hidden),
+        body:not(:has(#side-menu-container.hidden)) #expiring-screen:not(.hidden),
+        body:not(:has(#side-menu-container.hidden)) #tickets-dashboard-screen:not(.hidden),
+        body:not(:has(#side-menu-container.hidden)) #wallet-screen:not(.hidden),
+        body:not(:has(#side-menu-container.hidden)) #general-settings-screen:not(.hidden),
+        body:not(:has(#side-menu-container.hidden)) #ticket-management-screen:not(.hidden),
+        body:not(:has(#side-menu-container.hidden)) #team-management-screen:not(.hidden),
+        body:not(:has(#side-menu-container.hidden)) #page-detail-screen:not(.hidden),
+        body:not(:has(#side-menu-container.hidden)) #team-tickets-screen:not(.hidden) {
+            margin-right: 320px !important;
+            width: calc(100% - 320px) !important;
+            transition: margin-right 0.3s ease, width 0.3s ease;
+        }
+        
+        /* إذا كانت القائمة الجانبية مخفية، أزل الـ margin وأعد العرض الكامل */
+        body:has(#side-menu-container.hidden) #dashboard-screen,
+        body:has(#side-menu-container.hidden) #expiring-screen,
+        body:has(#side-menu-container.hidden) #tickets-dashboard-screen,
+        body:has(#side-menu-container.hidden) #wallet-screen,
+        body:has(#side-menu-container.hidden) #general-settings-screen,
+        body:has(#side-menu-container.hidden) #ticket-management-screen,
+        body:has(#side-menu-container.hidden) #team-management-screen,
+        body:has(#side-menu-container.hidden) #page-detail-screen,
+        body:has(#side-menu-container.hidden) #team-tickets-screen {
+            margin-right: 0 !important;
+            width: 100% !important;
+        }
+        
+        @media (max-width: 1024px) {
+            #dashboard-screen,
+            #expiring-screen,
+            #tickets-dashboard-screen,
+            #wallet-screen,
+            #general-settings-screen,
+            #ticket-management-screen,
+            #team-management-screen,
+            #page-detail-screen,
+            #team-tickets-screen {
+                margin-right: 0 !important;
+            }
+            
+            #side-menu-container {
+                transform: translateX(100%);
+            }
+            
+            #side-menu-container.open {
+                transform: translateX(0);
+            }
+        }
+        
+        @media (max-width: 1024px) {
+            .side-menu {
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+            }
+            
+            .side-menu.open {
+                transform: translateX(0);
+            }
+            
+            main {
+                margin-right: 0;
+            }
+            
+            .menu-mobile-toggle {
+                display: block;
+            }
+        }
+        
+        @media (min-width: 1025px) {
+            .menu-mobile-toggle {
+                display: none;
+            }
+        }
+        
+        /* Dark Mode Styles - Complete & Animated */
+        body.dark-mode {
+            background-color: #0f172a !important;
+            color: #e2e8f0 !important;
+        }
+        
+        /* Universal background override - covers all bg classes */
+        body.dark-mode [class*="bg-white"],
+        body.dark-mode .bg-white,
+        body.dark-mode div.bg-white,
+        body.dark-mode header.bg-white,
+        body.dark-mode main.bg-white {
+            background-color: #1e293b !important;
+        }
+        
+        body.dark-mode [class*="bg-slate-50"],
+        body.dark-mode .bg-slate-50,
+        body.dark-mode div.bg-slate-50,
+        body.dark-mode input.bg-slate-50 {
+            background-color: #0f172a !important;
+        }
+        
+        body.dark-mode [class*="bg-slate-100"],
+        body.dark-mode .bg-slate-100 {
+            background-color: #1e293b !important;
+        }
+        
+        body.dark-mode [class*="bg-gray-50"],
+        body.dark-mode .bg-gray-50,
+        body.dark-mode input.bg-gray-50 {
+            background-color: #1e293b !important;
+        }
+        
+        body.dark-mode [class*="bg-gray-100"],
+        body.dark-mode .bg-gray-100 {
+            background-color: #1e293b !important;
+        }
+        
+        body.dark-mode [class*="bg-gray-200"],
+        body.dark-mode .bg-gray-200 {
+            background-color: #334155 !important;
+        }
+        
+        body.dark-mode [class*="bg-blue-50"],
+        body.dark-mode .bg-blue-50 {
+            background-color: #1e3a5f !important;
+        }
+        
+        body.dark-mode [class*="bg-blue-100"],
+        body.dark-mode .bg-blue-100 {
+            background-color: #1e3a5f !important;
+        }
+        
+        body.dark-mode [class*="bg-red-50"],
+        body.dark-mode .bg-red-50 {
+            background-color: #7f1d1d !important;
+        }
+        
+        body.dark-mode [class*="bg-orange-100"],
+        body.dark-mode .bg-orange-100 {
+            background-color: #7c2d12 !important;
+        }
+        
+        body.dark-mode [class*="bg-indigo-50"],
+        body.dark-mode .bg-indigo-50 {
+            background-color: #312e81 !important;
+        }
+        
+        body.dark-mode [class*="bg-indigo-100"],
+        body.dark-mode .bg-indigo-100 {
+            background-color: #3730a3 !important;
+        }
+        
+        body.dark-mode [class*="bg-green-100"],
+        body.dark-mode .bg-green-100 {
+            background-color: #14532d !important;
+        }
+        
+        /* Specific background color overrides */
+        body.dark-mode [style*="background-color: #f8fafc"],
+        body.dark-mode [class*="bg-[#f8fafc]"],
+        body.dark-mode .dark-mode-bg {
+            background-color: #0f172a !important;
+        }
+        
+        body.dark-mode .dark-mode-bg-accent {
+            background-color: rgba(51, 65, 85, 0.2) !important;
+        }
+        
+        /* Override inline styles and specific classes */
+        body.dark-mode [class*="rounded-2xl"],
+        body.dark-mode [class*="rounded-xl"] {
+            background-color: inherit;
+        }
+        
+        /* Force all divs with bg classes */
+        body.dark-mode div[class*="bg-"] {
+            background-color: inherit !important;
+        }
+        
+        /* Specific overrides for common patterns */
+        body.dark-mode div.bg-white,
+        body.dark-mode div[class*="bg-white"] {
+            background-color: #1e293b !important;
+        }
+        
+        body.dark-mode div.bg-slate-50,
+        body.dark-mode div[class*="bg-slate-50"] {
+            background-color: #0f172a !important;
+        }
+        
+        body.dark-mode div.bg-gray-50,
+        body.dark-mode div[class*="bg-gray-50"] {
+            background-color: #1e293b !important;
+        }
+        
+        /* Focus states */
+        body.dark-mode input:focus,
+        body.dark-mode textarea:focus,
+        body.dark-mode select:focus {
+            background-color: #1e293b !important;
+        }
+        
+        body.dark-mode input.focus\:bg-white:focus {
+            background-color: #1e293b !important;
+        }
+        
+        /* Text Colors */
+        body.dark-mode .text-slate-800,
+        body.dark-mode .text-gray-800 {
+            color: #e2e8f0 !important;
+        }
+        
+        body.dark-mode .text-slate-700,
+        body.dark-mode .text-gray-700 {
+            color: #cbd5e1 !important;
+        }
+        
+        body.dark-mode .text-slate-600,
+        body.dark-mode .text-gray-600 {
+            color: #cbd5e1 !important;
+        }
+        
+        body.dark-mode .text-slate-500,
+        body.dark-mode .text-gray-500 {
+            color: #94a3b8 !important;
+        }
+        
+        body.dark-mode .text-slate-400,
+        body.dark-mode .text-gray-400 {
+            color: #64748b !important;
+        }
+        
+        body.dark-mode .text-gray-300 {
+            color: #475569 !important;
+        }
+        
+        /* Borders */
+        body.dark-mode .border-gray-200,
+        body.dark-mode .border-slate-200 {
+            border-color: #334155 !important;
+        }
+        
+        body.dark-mode .border-gray-100,
+        body.dark-mode .border-slate-100 {
+            border-color: #475569 !important;
+        }
+        
+        body.dark-mode .border-gray-300,
+        body.dark-mode .border-slate-300 {
+            border-color: #475569 !important;
+        }
+        
+        body.dark-mode .border-orange-100 {
+            border-color: #7c2d12 !important;
+        }
+        
+        body.dark-mode .border-indigo-100 {
+            border-color: #3730a3 !important;
+        }
+        
+        body.dark-mode .border-red-100 {
+            border-color: #7f1d1d !important;
+        }
+        
+        /* Form Elements */
+        body.dark-mode input,
+        body.dark-mode textarea,
+        body.dark-mode select {
+            background-color: #1e293b !important;
+            color: #e2e8f0 !important;
+            border-color: #334155 !important;
+        }
+        
+        body.dark-mode input:focus,
+        body.dark-mode textarea:focus,
+        body.dark-mode select:focus {
+            background-color: #1e293b !important;
+            border-color: #475569 !important;
+        }
+        
+        body.dark-mode input::placeholder,
+        body.dark-mode textarea::placeholder {
+            color: #64748b !important;
+        }
+        
+        /* Tables */
+        body.dark-mode table thead {
+            background-color: #1e293b !important;
+        }
+        
+        body.dark-mode table tbody tr:hover {
+            background-color: #334155 !important;
+        }
+        
+        body.dark-mode table tbody tr {
+            border-color: #334155 !important;
+        }
+        
+        /* Shadows */
+        body.dark-mode .shadow-sm {
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.4) !important;
+        }
+        
+        body.dark-mode .shadow-lg {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3) !important;
+        }
+        
+        body.dark-mode .shadow-md {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3) !important;
+        }
+        
+        /* Hover Effects */
+        body.dark-mode .hover\:bg-gray-50:hover {
+            background-color: #334155 !important;
+        }
+        
+        body.dark-mode .hover\:bg-slate-50:hover {
+            background-color: #334155 !important;
+        }
+        
+        body.dark-mode .hover\:bg-slate-100:hover {
+            background-color: #475569 !important;
+        }
+        
+        body.dark-mode .hover\:bg-gray-100:hover {
+            background-color: #334155 !important;
+        }
+        
+        body.dark-mode .hover\:bg-red-50:hover {
+            background-color: #991b1b !important;
+        }
+        
+        body.dark-mode .hover\:bg-indigo-50:hover {
+            background-color: #3730a3 !important;
+        }
+        
+        body.dark-mode .hover\:bg-indigo-100:hover {
+            background-color: #4338ca !important;
+        }
+        
+        /* Buttons */
+        body.dark-mode button.text-red-500 {
+            color: #f87171 !important;
+        }
+        
+        body.dark-mode button.text-gray-500 {
+            color: #94a3b8 !important;
+        }
+        
+        /* Cards and Containers */
+        body.dark-mode #login-card {
+            background-color: #1e293b !important;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3) !important;
+        }
+        
+        body.dark-mode .bg-slate-50.fade-in {
+            background-color: #0f172a !important;
+        }
+        
+        /* All screens and containers */
+        body.dark-mode #login-container,
+        body.dark-mode #dashboard-screen,
+        body.dark-mode #ticket-management-screen,
+        body.dark-mode #team-management-screen,
+        body.dark-mode #page-detail-screen,
+        body.dark-mode #team-tickets-screen {
+            background-color: #0f172a !important;
+        }
+        
+        /* Headers - all variations */
+        body.dark-mode header,
+        body.dark-mode header.bg-white,
+        body.dark-mode [class*="header"] {
+            background-color: #1e293b !important;
+        }
+        
+        body.dark-mode header.shadow-sm {
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.4) !important;
+        }
+        
+        /* All main containers */
+        body.dark-mode main {
+            background-color: inherit !important;
+        }
+        
+        /* Empty States */
+        body.dark-mode .border-dashed {
+            border-color: #334155 !important;
+        }
+        
+        /* Status Badges */
+        body.dark-mode .bg-red-100 {
+            background-color: #7f1d1d !important;
+        }
+        
+        body.dark-mode .text-red-600 {
+            color: #f87171 !important;
+        }
+        
+        body.dark-mode .text-red-700 {
+            color: #fca5a5 !important;
+        }
+        
+        body.dark-mode .text-orange-600 {
+            color: #fb923c !important;
+        }
+        
+        body.dark-mode .text-orange-700 {
+            color: #fdba74 !important;
+        }
+        
+        body.dark-mode .text-indigo-600 {
+            color: #818cf8 !important;
+        }
+        
+        body.dark-mode .text-indigo-700 {
+            color: #a5b4fc !important;
+        }
+        
+        body.dark-mode .text-green-700 {
+            color: #86efac !important;
+        }
+        
+        body.dark-mode .text-blue-600 {
+            color: #60a5fa !important;
+        }
+        
+        body.dark-mode .text-gray-600 {
+            color: #cbd5e1 !important;
+        }
+        
+        /* Links */
+        body.dark-mode a.text-blue-600 {
+            color: #60a5fa !important;
+        }
+        
+        body.dark-mode a.text-blue-600:hover {
+            color: #93c5fd !important;
+        }
+        
+        /* Focus rings */
+        body.dark-mode .focus\:ring-slate-200:focus {
+            --tw-ring-color: rgba(51, 65, 85, 0.5) !important;
+        }
+        
+        body.dark-mode .focus\:ring-orange-200:focus {
+            --tw-ring-color: rgba(124, 45, 18, 0.5) !important;
+        }
+        
+        body.dark-mode .focus\:ring-indigo-200:focus {
+            --tw-ring-color: rgba(55, 48, 163, 0.5) !important;
+        }
+        
+        body.dark-mode .focus\:ring-red-200:focus {
+            --tw-ring-color: rgba(127, 29, 29, 0.5) !important;
+        }
+        
+        /* Background blur effects */
+        body.dark-mode .bg-blue-50.rounded-full {
+            background-color: rgba(30, 58, 95, 0.3) !important;
+        }
+        
+        body.dark-mode .bg-gray-200.rounded-full {
+            background-color: rgba(51, 65, 85, 0.2) !important;
+        }
+        
+        /* Scrollbar */
+        body.dark-mode ::-webkit-scrollbar-thumb {
+            background: #475569 !important;
+        }
+        
+        body.dark-mode ::-webkit-scrollbar-thumb:hover {
+            background: #64748b !important;
+        }
+        
+        body.dark-mode ::-webkit-scrollbar-track {
+            background: #0f172a !important;
+        }
+        
+        /* Modal Backgrounds */
+        body.dark-mode .fixed.inset-0.bg-black {
+            background-color: rgba(0, 0, 0, 0.7) !important;
+        }
+        
+        /* Animation for theme toggle */
+        @keyframes themeToggle {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.1); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+        
+        body.dark-mode #theme-toggle-btn svg {
+            animation: themeToggle 0.6s ease-in-out;
+        }
+    </style>
+</head>
+<body class="h-screen overflow-hidden flex flex-col text-slate-800">
+    <!-- Fixed Side Menu -->
+    <div id="side-menu-container" class="side-menu fixed right-0 top-0 h-full w-80 bg-gradient-to-b from-[#26466D] to-[#1e3a5f] shadow-2xl z-40 transition-all duration-300 overflow-y-auto hidden">
+            <!-- Header Section - اسم الموقع والوكيل والشركة -->
+            <div class="p-6 border-b border-white/10">
+                <div class="flex items-center justify-center mb-4">
+                    <div class="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                    </div>
+                </div>
+                <h2 id="site-name" class="text-xl font-bold text-white text-center mb-2">نظام إدارة FTTH</h2>
+                <div id="company-info" class="text-center space-y-1">
+                    <p id="agent-name" class="text-sm font-medium text-white/90"></p>
+                    <p id="company-name" class="text-xs text-white/70"></p>
+                </div>
+            </div>
+            
+            <!-- Navigation Links -->
+            <div class="p-4 space-y-1">
+                <!-- لوحة التحكم -->
+                <button class="side-menu-link w-full text-right" onclick="navigateToSection('section-dashboard')">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2zm-10 8a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    <span>لوحة التحكم</span>
+                </button>
+                
+                <!-- المشتركين -->
+                <button class="side-menu-link w-full text-right" onclick="navigateToSection('section-subscribers')">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span>المشتركين</span>
+                </button>
+                
+                <!-- قسم المبيعات -->
+                <div class="menu-section">
+                    <button class="menu-section-title cursor-pointer hover:bg-white/10 rounded-lg transition-colors" onclick="openSalesScreen()">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                        </svg>
+                        <span>المبيعات</span>
+                    </button>
+                </div>
+                
+                <!-- قسم المخازن -->
+                <div class="menu-section">
+                    <div class="menu-section-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                        <span>المخازن</span>
+                    </div>
+                    <div class="menu-subsection">
+                        <button class="side-menu-link-sub" onclick="openWarehouseScreen()">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                            <span>المخازن</span>
+                        </button>
+                        <button class="side-menu-link-sub" onclick="openPurchasesScreen()">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            <span>المشتريات</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- السندات والمالية -->
+                <div class="menu-section">
+                    <button class="menu-section-title cursor-pointer hover:bg-white/10 rounded-lg transition-colors" onclick="openFinanceScreen()">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span>السندات والمالية</span>
+                    </button>
+                </div>
+                
+                <!-- التقارير -->
+                <div class="menu-section">
+                    <button class="menu-section-title cursor-pointer hover:bg-white/10 rounded-lg transition-colors" onclick="openReportsScreen()">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span>التقارير</span>
+                    </button>
+                </div>
+                
+                <!-- الأكسباير -->
+                <button class="side-menu-link w-full text-right" data-screen-link="expiring" onclick="openExpiringScreen()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>الأكسباير</span>
+                </button>
+                
+                <!-- التذاكر -->
+                <button class="side-menu-link w-full text-right" data-screen-link="tickets" onclick="openTicketDashboardScreen()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                    </svg>
+                    <span>التذاكر</span>
+                </button>
+                
+                <!-- المحفظة -->
+                <button class="side-menu-link w-full text-right" data-screen-link="wallet" onclick="openWalletScreen()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <span>المحفظة</span>
+                </button>
+                
+                <!-- الإعدادات -->
+                <button class="side-menu-link w-full text-right" data-screen-link="settings" onclick="openGeneralSettingsScreen()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.607 2.296.07 2.572-1.065z" />
+                    </svg>
+                    <span>الإعدادات</span>
+                </button>
+            </div>
+        </div>
+    
+    <template id="side-menu-template">
+        <!-- Template kept for compatibility -->
+    </template>
+    <!-- ================= 1. شاشة تسجيل الدخول ================= -->
+    <div id="login-container" class="flex-1 flex items-center justify-center relative w-full fade-in bg-slate-50 dark-mode-bg">
+        <div class="absolute -top-20 -right-20 w-96 h-96 bg-blue-50 rounded-full opacity-60 blur-3xl pointer-events-none dark-mode-bg-accent"></div>
+        <div class="absolute -bottom-20 -left-20 w-96 h-96 bg-gray-200 rounded-full opacity-30 blur-3xl pointer-events-none dark-mode-bg-accent"></div>
+        <div id="login-card" class="bg-white p-10 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] w-full max-w-[400px] mx-4 relative z-10 border border-gray-100">
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 custom-blue rounded-full flex items-center justify-center mx-auto mb-5 shadow-lg text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-9 w-9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </div>
+                <h1 class="text-2xl font-bold text-slate-800 mb-2">تسجيل الدخول</h1>
+                <p class="text-gray-400 text-sm font-medium">نظام إدارة الصفحات الرئيسية</p>
+            </div>
+            <form id="loginForm" onsubmit="return handleLogin(event)" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-600 mb-2 mr-1">اسم المستخدم</label>
+                    <input type="text" id="login-username" class="w-full pl-4 pr-11 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-slate-200 outline-none transition-all text-slate-700 text-sm" placeholder="أدخل اسم المستخدم" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-600 mb-2 mr-1">كلمة المرور</label>
+                    <input type="password" id="login-password" class="w-full pl-11 pr-11 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-slate-200 outline-none transition-all text-slate-700 text-sm" placeholder="أدخل كلمة المرور" required>
+                </div>
+                <div id="error-msg" class="hidden bg-red-50 text-red-600 p-3 rounded-xl text-sm flex items-center gap-2 border border-red-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+                    <span>بيانات الدخول غير صحيحة</span>
+                </div>
+                <button type="submit" id="submit-btn" class="w-full custom-blue custom-blue-hover text-white font-bold py-3.5 px-4 rounded-xl transition duration-300 shadow-lg flex justify-center items-center gap-2 mt-4">
+                    <span>دخول</span>
+                </button>
+            </form>
+            <div class="mt-4 text-center">
+                <button type="button" onclick="openCreateAccountModal()" class="text-sm text-slate-600 hover:text-[#26466D] transition-colors flex items-center justify-center gap-2 mx-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>إنشاء حساب جديد</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= نافذة إنشاء حساب جديد ================= -->
+    <div id="create-account-modal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center fade-in backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden transform transition-all scale-100 max-h-[90vh] flex flex-col">
+            <div class="bg-[#26466D] p-5 flex justify-between items-center">
+                <h3 class="text-white font-bold text-lg">إنشاء حساب جديد</h3>
+                <button onclick="closeCreateAccountModal()" class="text-white/80 hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <form onsubmit="return handleCreateAccount(event)" class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">اسم الوكيل الثلاثي <span class="text-red-500">*</span></label>
+                    <input type="text" id="new-account-agent-name" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#26466D] focus:border-[#26466D] outline-none transition-all" placeholder="أدخل اسم الوكيل الثلاثي">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">اسم الشركة <span class="text-red-500">*</span></label>
+                    <input type="text" id="new-account-company-name" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#26466D] focus:border-[#26466D] outline-none transition-all" placeholder="أدخل اسم الشركة">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">المحافظة <span class="text-red-500">*</span></label>
+                    <select id="new-account-governorate" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#26466D] focus:border-[#26466D] outline-none transition-all">
+                        <option value="">اختر المحافظة</option>
+                        <option value="بغداد">بغداد</option>
+                        <option value="البصرة">البصرة</option>
+                        <option value="نينوى">نينوى</option>
+                        <option value="أربيل">أربيل</option>
+                        <option value="السليمانية">السليمانية</option>
+                        <option value="دهوك">دهوك</option>
+                        <option value="كركوك">كركوك</option>
+                        <option value="الأنبار">الأنبار</option>
+                        <option value="ديالى">ديالى</option>
+                        <option value="صلاح الدين">صلاح الدين</option>
+                        <option value="كربلاء">كربلاء</option>
+                        <option value="النجف">النجف</option>
+                        <option value="بابل">بابل</option>
+                        <option value="واسط">واسط</option>
+                        <option value="ميسان">ميسان</option>
+                        <option value="ذي قار">ذي قار</option>
+                        <option value="المثنى">المثنى</option>
+                        <option value="القادسية">القادسية</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">المنطقة <span class="text-red-500">*</span></label>
+                    <input type="text" id="new-account-region" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#26466D] focus:border-[#26466D] outline-none transition-all" placeholder="أدخل عنوانك الكامل">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">رقم الهاتف <span class="text-red-500">*</span></label>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm text-slate-600 bg-slate-100 px-3 py-2.5 rounded-r-lg border border-r-0 border-slate-300">+964</span>
+                        <input type="tel" id="new-account-phone" required maxlength="10" pattern="^7[0-9]{9}$" class="flex-1 border border-slate-300 rounded-lg rounded-r-none px-4 py-2.5 focus:ring-2 focus:ring-[#26466D] focus:border-[#26466D] outline-none transition-all" placeholder="7XXXXXXXXX (10 أرقام)" value="7" oninput="handlePhoneInput(this)">
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">يجب أن يبدأ برقم 7 (9 أرقام بعد الرقم 7)</p>
+                    <p id="phone-error" class="hidden text-xs text-red-500 mt-1">⚠️ هذا الرقم مستخدم مسبقاً</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">عنوان البريد الإلكتروني <span class="text-red-500">*</span></label>
+                    <input type="email" id="new-account-email" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#26466D] focus:border-[#26466D] outline-none transition-all" placeholder="example@gmail.com">
+                    <p class="text-xs text-slate-500 mt-1">النطاقات المسموحة: gmail.com, yahoo.com, hotmail.com, outlook.com, icloud.com</p>
+                    <p id="email-error" class="hidden text-xs text-red-500 mt-1">النطاق غير مسموح. النطاقات المسموحة: gmail.com, yahoo.com, hotmail.com, outlook.com, icloud.com</p>
+                    <p id="email-exists-error" class="hidden text-xs text-red-500 mt-1">⚠️ هذا البريد الإلكتروني مستخدم مسبقاً</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">
+                        <span>اسم المستخدم <span class="text-red-500">*</span></span>
+                        <div class="relative group">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 p-3 bg-slate-800 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 shadow-xl">
+                                <p class="mb-1 font-bold">ملاحظة:</p>
+                                <p>اسم المستخدم سوف يتضمنه جميع المستخدمين لديك. مثال: إذا أدخلت "tec" سوف يكون اسم المستخدم "admin@tec"</p>
+                                <div class="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
+                                    <div class="w-2 h-2 bg-slate-800 transform rotate-45"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    <input type="text" id="new-account-username" required minlength="3" pattern="[a-zA-Z]{3,}" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#26466D] focus:border-[#26466D] outline-none transition-all" placeholder="tec, smr, etc (3 أحرف إنجليزية على الأقل)" oninput="this.value = this.value.replace(/[^a-zA-Z]/g, '').toLowerCase()">
+                    <p class="text-xs text-slate-500 mt-1" id="username-preview">اسم المستخدم الكامل: <span class="font-bold">admin@<span id="username-preview-value">---</span></span></p>
+                    <p id="username-error" class="hidden text-xs text-red-500 mt-1">⚠️ مستخدم مسبقاً</p>
+                    <p id="username-available" class="hidden text-xs text-green-600 mt-1">✓ متاح</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">كلمة المرور <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <input type="password" id="new-account-password" required minlength="8" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 pr-11 focus:ring-2 focus:ring-[#26466D] focus:border-[#26466D] outline-none transition-all" placeholder="8 أحرف على الأقل (أحرف وأرقام)">
+                        <button type="button" onclick="togglePasswordVisibility('new-account-password', 'password-eye-icon')" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                            <svg id="password-eye-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="mt-2">
+                        <div class="flex items-center gap-2 mb-1">
+                            <div id="password-strength-bar" class="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                                <div id="password-strength-fill" class="h-full transition-all duration-300" style="width: 0%; background: #ef4444;"></div>
+                            </div>
+                            <span id="password-strength-text" class="text-xs font-medium text-slate-500">ضعيف</span>
+                        </div>
+                        <p id="password-requirements" class="text-xs text-slate-400">يجب أن تحتوي على 8 أحرف على الأقل وأرقام وأحرف مختلطة</p>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">تأكيد كلمة المرور <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <input type="password" id="new-account-password-confirm" required minlength="8" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 pr-11 focus:ring-2 focus:ring-[#26466D] focus:border-[#26466D] outline-none transition-all" placeholder="أعد إدخال كلمة المرور">
+                        <button type="button" onclick="togglePasswordVisibility('new-account-password-confirm', 'password-confirm-eye-icon')" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                            <svg id="password-confirm-eye-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                        </button>
+                    </div>
+                    <p id="password-match" class="hidden text-xs mt-1"></p>
+                </div>
+                <div id="create-account-error" class="hidden bg-red-50 text-red-600 p-3 rounded-xl text-sm flex items-center gap-2 border border-red-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    <span id="create-account-error-text"></span>
+                </div>
+                <div id="create-account-success" class="hidden bg-green-50 text-green-600 p-3 rounded-xl text-sm flex items-center gap-2 border border-green-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                    <span>تم إنشاء الحساب بنجاح! يمكنك تسجيل الدخول الآن</span>
+                </div>
+                <div class="pt-2 flex gap-3">
+                    <button type="button" onclick="closeCreateAccountModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-colors">
+                        إلغاء
+                    </button>
+                    <button type="submit" id="create-account-btn" class="flex-1 bg-[#26466D] hover:bg-[#1e3a5f] text-white font-bold py-3 rounded-xl transition-colors shadow-md">
+                        إنشاء الحساب
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= 2. شاشة لوحة التحكم الرئيسية (سوبر أدمن) ================= -->
+    <div id="dashboard-screen" class="hidden flex-col h-full w-full bg-slate-50 relative fade-in">
+        <header class="bg-white shadow-sm px-6 py-4 flex justify-between items-center z-20">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 custom-blue rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">A</div>
+                <div>
+                    <h2 class="font-bold text-slate-800 text-lg">لوحة التحكم الرئيسية</h2>
+                    <p class="text-xs text-slate-500">Super Admin Panel</p>
+                </div>
+            </div>
+            <button onclick="logout()" class="text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                <span>خروج</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+            </button>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6 max-w-6xl mx-auto w-full space-y-6">
+            <!-- إدارة تسجيل الدخول -->
+            <div id="tab-content-login" class="space-y-6">
+                <!-- قسم إضافة مستخدم جديد -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-2 h-full bg-[#26466D]"></div>
+                <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-[#26466D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                        إضافة مستخدم جديد ( ادخل حساب الوطني )
+                </h3>
+                <form onsubmit="handleAddPage(event)" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                    <div class="md:col-span-5">
+                        <label class="block text-sm font-medium text-slate-600 mb-2">اسم المستخدم</label>
+                            <input type="text" id="new-page-user" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl focus:ring-[#26466D] focus:border-[#26466D] block p-3 outline-none transition-all" placeholder="اسم المستخدم">
+                    </div>
+                    <div class="md:col-span-5">
+                        <label class="block text-sm font-medium text-slate-600 mb-2">كلمة المرور</label>
+                        <input type="text" id="new-page-pass" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl focus:ring-[#26466D] focus:border-[#26466D] block p-3 outline-none transition-all" placeholder="كلمة المرور">
+                    </div>
+                    <div class="md:col-span-2">
+                        <button type="submit" class="w-full text-white custom-blue hover:bg-[#1e3a5f] font-bold rounded-xl text-sm px-5 py-3.5 shadow-md transition-all flex justify-center items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                            إضافة
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+                <!-- قائمة المستخدمين -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[#26466D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                        قائمة المستخدمين المسجلين
+                    </h3>
+            <div id="pages-list-container" class="space-y-3">
+                        <div id="empty-state" class="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    </div>
+                            <p class="text-slate-500 font-medium">لم تتم إضافة أي مستخدمين بعد</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ================= 3. شاشة إدارة التكتات ================= -->
+    <div id="ticket-management-screen" class="hidden flex-col h-full w-full bg-[#f8fafc] relative fade-in overflow-hidden">
+        <header class="bg-white shadow-sm px-6 py-3 flex items-center justify-between z-30 flex-shrink-0 border-b border-orange-100">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="font-bold text-slate-800 text-lg leading-tight">إدارة التكتات</h2>
+                    <span class="text-xs text-orange-500 font-medium">الدعم الفني</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="openTeamManagement()" class="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition-colors text-sm font-bold border border-indigo-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    إدارة الفرق
+                </button>
+                <button onclick="backToDashboardFromTickets()" class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors text-sm font-medium">
+                    <span>العودة</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+            <!-- ملخص التكتات -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-white p-5 rounded-xl border border-orange-100 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-slate-500">التكتات المفتوحة</p>
+                        <h3 class="text-2xl font-bold text-slate-800" id="open-tickets-count">0</h3>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-blue-100 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-slate-500">قيد المعالجة</p>
+                        <h3 class="text-2xl font-bold text-slate-800" id="pending-tickets-count">0</h3>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-green-100 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-slate-500">تم الحل</p>
+                        <h3 class="text-2xl font-bold text-slate-800" id="closed-tickets-count">0</h3>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- فلترة وأدوات الجدول -->
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
+                    <button onclick="filterTickets('all')" class="px-4 py-2 text-sm font-bold rounded-md bg-[#26466D] text-white transition-all filter-btn" data-filter="all">الكل</button>
+                    <button onclick="filterTickets('open')" class="px-4 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-slate-50 transition-all filter-btn" data-filter="open">مفتوح</button>
+                    <button onclick="filterTickets('pending')" class="px-4 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-slate-50 transition-all filter-btn" data-filter="pending">قيد المعالجة</button>
+                    <button onclick="filterTickets('closed')" class="px-4 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-slate-50 transition-all filter-btn" data-filter="closed">مغلق</button>
+                </div>
+                <button onclick="openAddTicketModal()" class="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-orange-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span class="font-bold">تكت جديد</span>
+                </button>
+            </div>
+
+            <!-- جدول التكتات -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                    <h3 class="font-bold text-slate-700">آخر التكتات الواردة</h3>
+                    <div class="flex gap-2">
+                         <input type="text" id="search-tickets-input" placeholder="بحث برقم التكت أو اسم المشترك..." class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm outline-none focus:border-orange-500" oninput="searchTickets(this.value)">
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-right" id="tickets-table">
+                        <thead class="bg-slate-50 text-slate-500">
+                            <tr>
+                                <th class="p-3">رقم التكت</th>
+                                <th class="p-3">المشترك</th>
+                                <th class="p-3">الوصف</th>
+                                <th class="p-3">الفريق المسند</th>
+                                <th class="p-3">الحالة</th>
+                                <th class="p-3">التاريخ</th>
+                                <th class="p-3 text-center">الإجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100" id="tickets-table-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ================= 4. شاشة إدارة الفرق ================= -->
+    <div id="team-management-screen" class="hidden flex-col h-full w-full bg-[#f8fafc] relative fade-in overflow-hidden">
+        <header class="bg-white shadow-sm px-6 py-3 flex items-center justify-between z-30 flex-shrink-0 border-b border-indigo-100">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="font-bold text-slate-800 text-lg leading-tight">إدارة الفرق</h2>
+                    <span class="text-xs text-indigo-600 font-medium">توزيع المهام والتكتات</span>
+                </div>
+            </div>
+            <button onclick="backToTicketsFromTeams()" class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors text-sm font-medium">
+                <span>رجوع للتكتات</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+            </button>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+            <!-- إضافة فريق جديد -->
+            <div class="bg-white rounded-xl shadow-sm border border-indigo-100 p-5">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    إضافة فريق جديد
+                </h3>
+                <form onsubmit="handleAddTeam(event)" class="flex flex-col md:flex-row gap-4">
+                    <input type="text" id="new-team-name" required placeholder="اسم الفريق (مثال: فريق الصيانة B)" class="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                    <input type="text" id="new-team-desc" required placeholder="وصف الفريق / التخصص" class="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-colors">إضافة الفريق</button>
+                </form>
+            </div>
+
+            <!-- إضافة أعضاء إلى الفريق -->
+            <div class="bg-white rounded-xl shadow-sm border border-indigo-100 p-5">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                    </svg>
+                    إضافة أعضاء إلى الفريق
+                </h3>
+                <form onsubmit="handleAddTeamMember(event)" class="space-y-4">
+                    <div class="flex flex-col md:flex-row gap-4">
+                        <select id="team-select-for-member" required class="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                            <option value="">اختر الفريق</option>
+                        </select>
+                        <input type="text" id="member-name" required placeholder="اسم الفني" class="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                        <input type="tel" id="member-phone" required placeholder="رقم هاتف الفني" class="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div class="flex flex-col md:flex-row gap-4 items-start">
+                        <div class="flex-1">
+                            <label class="block text-sm font-medium text-slate-700 mb-2">صورة الفني (اختياري)</label>
+                            <div class="flex items-center gap-4">
+                                <div class="relative">
+                                    <input type="file" id="member-photo-input" accept="image/*" onchange="handleMemberPhotoSelect(event)" class="hidden">
+                                    <button type="button" onclick="document.getElementById('member-photo-input').click()" class="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                        اختر صورة
+                                    </button>
+                                    <img id="member-photo-preview" src="" alt="Preview" class="hidden w-16 h-16 rounded-full object-cover border-2 border-indigo-200 mt-2">
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-colors mt-6 md:mt-0">إضافة العضو</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- قائمة الفرق الحالية -->
+            <h3 class="font-bold text-slate-700">الفرق الحالية وتوزيع التكتات</h3>
+            <div id="teams-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- سيتم تحميل الفرق ديناميكياً من API -->
+            </div>
+        </main>
+    </div>
+
+    <!-- ================= Modal تعديل الفريق ================= -->
+    <div id="edit-team-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onclick="if(event.target === this) closeEditTeamModal()">
+        <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 transform transition-all" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-slate-800">تعديل الفريق</h3>
+                <button onclick="closeEditTeamModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <form onsubmit="handleUpdateTeam(event)" class="space-y-4">
+                <input type="hidden" id="edit-team-id">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">اسم الفريق</label>
+                    <input type="text" id="edit-team-name" required placeholder="اسم الفريق" class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">وصف الفريق / التخصص</label>
+                    <textarea id="edit-team-description" rows="3" placeholder="وصف الفريق / التخصص" class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="closeEditTeamModal()" class="flex-1 px-4 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-medium">
+                        إلغاء
+                    </button>
+                    <button type="submit" class="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-bold">
+                        حفظ التعديلات
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= 5. شاشة تفاصيل الصفحة (لوحة المشتركين) ================= -->
+    <div id="page-detail-screen" class="hidden flex-col h-full w-full bg-[#f8fafc] relative fade-in overflow-hidden">
+        <header class="bg-white shadow-sm px-6 py-3 flex items-center justify-between z-30 flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-[#26466D] rounded-lg flex items-center justify-center text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="font-bold text-[#26466D] text-lg leading-tight">إدارة المشتركين FTTH</h2>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <button id="theme-toggle-btn" onclick="toggleTheme()" class="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-500 dark:border-gray-700 dark:hover:bg-gray-800 dark:text-gray-300">
+                    <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                </button>
+                
+                <div onclick="showUserInfoModal()" class="h-9 w-9 bg-[#26466D] rounded-full flex items-center justify-center text-white font-bold cursor-pointer hover:bg-[#1e3a5f] transition-colors shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                </div>
+                <button id="admin-dashboard-btn" onclick="openAdminDashboard()" class="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-500 hidden" title="لوحة التحكم">
+                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                </button>
+                <button onclick="logout()" class="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-500" title="خروج">
+                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-4 md:p-6">
+            <div class="flex flex-col lg:flex-row gap-6">
+                <div class="flex-1 space-y-6">
+                    <section id="section-dashboard" class="space-y-6">
+                        <!-- بطاقات الإحصائيات السريعة -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <!-- بطاقة إجمالي المشتركين -->
+                            <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg p-6 text-white">
+                                <div class="flex items-center justify-between mb-4">
+                                    <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <h4 class="text-sm font-medium text-white/90 mb-1">إجمالي المشتركين</h4>
+                                <p id="dashboard-total-subscribers" class="text-3xl font-bold">0</p>
+                            </div>
+                            
+                            <!-- بطاقة التذاكر المفتوحة -->
+                            <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl shadow-lg p-6 text-white">
+                                <div class="flex items-center justify-between mb-4">
+                                    <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <h4 class="text-sm font-medium text-white/90 mb-1">التذاكر المفتوحة</h4>
+                                <p id="dashboard-open-tickets" class="text-3xl font-bold">0</p>
+                            </div>
+                            
+                            <!-- بطاقة الفرق النشطة -->
+                            <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl shadow-lg p-6 text-white">
+                                <div class="flex items-center justify-between mb-4">
+                                    <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <h4 class="text-sm font-medium text-white/90 mb-1">الفرق النشطة</h4>
+                                <p id="dashboard-active-teams" class="text-3xl font-bold">0</p>
+                            </div>
+                            
+                            <!-- بطاقة رصيد المحفظة -->
+                            <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl shadow-lg p-6 text-white">
+                                <div class="flex items-center justify-between mb-4">
+                                    <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <h4 class="text-sm font-medium text-white/90 mb-1">رصيد المحفظة</h4>
+                                <p id="dashboard-wallet-balance" class="text-3xl font-bold">0</p>
+                            </div>
+                        </div>
+
+                        <!-- محفظة النقود -->
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mt-6">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div>
+                                    <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[#26466D]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                        محفظة النقود
+                                    </h3>
+                                    <p class="text-xs text-slate-500 mt-1">عرض رصيد المحفظة والحوالات</p>
+                                </div>
+                            </div>
+                            
+                            <div id="wallet-balance-container" class="mt-6">
+                                <div class="text-center text-slate-400 text-sm py-4">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <svg class="animate-spin h-5 w-5 text-[#26466D]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        جاري تحميل بيانات المحفظة...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- ملخص النشاطات الأخيرة -->
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[#26466D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    النشاطات الأخيرة
+                                </h3>
+                                <button onclick="navigateToSection('section-subscribers')" class="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+                                    عرض حالة المشتركين
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div id="dashboard-recent-activities" class="space-y-3">
+                                <div class="text-center text-slate-400 text-sm py-4">
+                                    <svg class="animate-spin h-5 w-5 text-[#26466D] mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    جاري تحميل النشاطات...
+                                </div>
+                            </div>
+                        </div>
+
+                    </section>
+
+                    <!-- قسم المشتركين المنفصل -->
+                    <section id="section-subscribers" class="space-y-6 hidden">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div>
+                                    <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[#26466D]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        حالة المشتركين
+                                    </h3>
+                                    <p class="text-xs text-slate-500 mt-1">اضغط على أي حالة لعرض المشتركين المرتبطين بها</p>
+                                </div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <button onclick="reloadSubscribersFromCache()" class="flex items-center gap-2 px-4 py-2 rounded-xl border border-blue-200 bg-blue-50 text-sm font-bold text-blue-700 hover:bg-blue-100 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        تحديث البيانات
+                                    </button>
+                                    <button id="sync-customers-btn" onclick="refreshSubscribers()" class="flex items-center gap-2 px-4 py-2 rounded-xl border border-green-200 bg-green-50 text-sm font-bold text-green-700 hover:bg-green-100 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        <span id="sync-btn-text">تحديث البيانات</span>
+                                    </button>
+                                    <!-- تم إزالة زر إيقاف المزامنة - الآن البيانات تُجلب مباشرة من API -->
+                                </div>
+                            </div>
+                            <div id="sync-status" class="text-sm text-slate-500 mt-2"></div>
+                            
+                            <!-- Progress Bar and Counter -->
+                            <div id="sync-progress-container" class="hidden mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span id="sync-progress-message" class="text-sm font-medium text-blue-700">جاري المزامنة...</span>
+                                    <div class="flex items-center gap-3">
+                                        <span id="sync-progress-counter" class="text-sm font-bold text-blue-600">0 / 0</span>
+                                        <button onclick="stopSync()" class="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors">
+                                            إيقاف
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="w-full bg-blue-200 rounded-full h-2.5 mb-2">
+                                    <div id="sync-progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                </div>
+                                <div class="flex items-center justify-between text-xs text-blue-600">
+                                    <span id="sync-progress-phone-found">0 رقم هاتف تم العثور عليه</span>
+                                    <span id="sync-progress-percentage">0%</span>
+                                </div>
+                            </div>
+                            
+                            <div id="subscriber-status-grid" class="status-grid mt-6">
+                                <div class="col-span-full text-center text-slate-400 text-sm py-4">يتم تحميل البيانات...</div>
+                            </div>
+                        </div>
+                        
+                        <!-- جدول بيانات المشتركين -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden slide-up mt-6">
+                            <div class="p-5 border-b border-gray-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                                <div>
+                                    <h3 class="text-xl font-bold text-gray-800">بيانات المشتركين</h3>
+                                    <span id="subscriber-filter-summary" class="text-xs text-slate-500 mt-1 block">عرض 0 - جميع المشتركين</span>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-3">
+                                    <div class="relative">
+                                        <input type="text" id="search-subscribers" placeholder="بحث عن مشترك..." class="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#26466D] focus:border-transparent w-full md:w-64 bg-gray-50">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                    </div>
+                                    <button onclick="refreshSubscribers()" class="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                        تحديث
+                                    </button>
+                                    <button onclick="exportSubscribersToExcel()" class="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                        تصدير Excel
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm text-right">
+                                    <thead class="bg-gray-50 text-gray-500 font-medium">
+                                        <tr>
+                                            <th class="p-4">#</th>
+                                            <th class="p-4">الاسم</th>
+                                            <th class="p-4">معرف الحساب</th>
+                                            <th class="p-4">اسم الجهاز</th>
+                                            <th class="p-4">رقم الهاتف</th>
+                                            <th class="p-4">المنطقة</th>
+                                            <th class="p-4">رابط الصفحة</th>
+                                            <th class="p-4">تاريخ البدء</th>
+                                            <th class="p-4">تاريخ الانتهاء</th>
+                                            <th class="p-4">الحالة</th>
+                                            <th class="p-4 text-center">الإجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-100" id="subscribers-table-body">
+                                        <tr>
+                                            <td colspan="11" class="p-8 text-center text-gray-400">
+                                                <div class="flex flex-col items-center gap-2">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+                                                    <p>لا توجد بيانات</p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="p-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600">
+                                <div class="flex items-center gap-2">
+                                    <span>عدد العناصر في الصفحة:</span>
+                                    <select id="subscriber-page-size" class="border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#26466D]" onchange="handlePageSizeChange(this.value)">
+                                        <option value="10">10</option>
+                                        <option value="20">20</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                    </select>
+                                </div>
+                                <div id="subscriber-page-info">صفحة 1 من 1</div>
+                                <div class="flex gap-2">
+                                    <button id="subscriber-prev-page" onclick="goToPreviousPage()" class="px-3 py-1 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50">السابق</button>
+                                    <button id="subscriber-next-page" onclick="goToNextPage()" class="px-3 py-1 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50">التالي</button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- الأقسام التفصيلية تم نقلها لشاشات منفصلة -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ================= 6. شاشة تكتات الفريق ================= -->
+    <div id="team-tickets-screen" class="hidden flex-col h-full w-full bg-[#f8fafc] relative fade-in overflow-hidden">
+        <header class="bg-white shadow-sm px-6 py-3 flex items-center justify-between z-30 flex-shrink-0 border-b border-indigo-100">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                </div>
+                <div>
+                    <h2 id="team-tickets-title" class="font-bold text-slate-800 text-lg leading-tight">تكتات الفريق</h2>
+                    <span class="text-xs text-indigo-600 font-medium">عرض التفاصيل</span>
+                </div>
+            </div>
+            <button onclick="closeTeamTickets()" class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors text-sm font-medium">
+                <span>رجوع للفرق</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+            </button>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-slate-100 bg-slate-50">
+                    <h3 class="font-bold text-slate-700">قائمة المهام المسندة</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-right">
+                        <thead class="bg-slate-50 text-slate-500">
+                            <tr>
+                                <th class="p-3">رقم التكت</th>
+                                <th class="p-3">المشترك</th>
+                                <th class="p-3">الموضوع</th>
+                                <th class="p-3">الأولوية</th>
+                                <th class="p-3">الحالة</th>
+                                <th class="p-3 text-center">الإجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr>
+                                <td colspan="6" class="p-8 text-center text-gray-400">لا توجد تكتات مسندة لهذا الفريق</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ================= 7. نافذة معلومات المستخدم (Modal) ================= -->
+    <div id="user-info-modal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center fade-in backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden transform transition-all scale-100">
+            <div class="bg-[#26466D] p-6 text-center relative">
+                <button onclick="closeUserInfoModal()" class="absolute top-4 right-4 text-white/70 hover:text-white transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+                <div class="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-3 backdrop-blur-sm border border-white/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                </div>
+                <h3 class="text-white font-bold text-lg">معلومات المستخدم</h3>
+                <p class="text-blue-200 text-xs mt-1">تفاصيل الدخول لهذه الصفحة</p>
+            </div>
+            
+            <div class="p-6 space-y-4">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <span class="text-xs text-slate-400 block mb-1">اسم المستخدم</span>
+                    <p id="modal-username" class="font-bold text-slate-700 text-lg select-all">--</p>
+                </div>
+                
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <span class="text-xs text-slate-400 block mb-1">كلمة المرور</span>
+                    <div class="flex items-center justify-between">
+                        <input id="modal-password" type="password" readonly class="bg-transparent border-none w-full outline-none font-mono text-slate-600 text-lg" value="--">
+                        
+                        <button onclick="toggleModalPassword()" class="text-slate-400 hover:text-slate-600 focus:outline-none transition-colors ml-2">
+                            <svg id="modal-eye-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <button onclick="closeUserInfoModal()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-colors mt-2">
+                    إغلاق
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- شاشة المشتركين على وشك الانتهاء -->
+    <div id="expiring-screen" class="hidden flex-col h-full w-full bg-[#f8fafc] relative fade-in overflow-hidden">
+        <header class="bg-white shadow-sm px-6 py-3 flex items-center justify-between border-b border-orange-100">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </div>
+                <div>
+                    <h2 class="font-bold text-slate-800 text-lg">المشتركين على وشك الانتهاء</h2>
+                    <span class="text-xs text-orange-600 font-medium">قائمة يتم تحديثها حسب موعد الانتهاء</span>
+                </div>
+            </div>
+            <button onclick="closeExpiringScreen()" class="flex items-center gap-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 text-orange-600 rounded-lg text-sm font-medium">
+                <span>رجوع للرئيسية</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+            </button>
+        </header>
+        <main class="flex-1 overflow-y-auto p-4 md:p-6">
+            <div class="flex flex-col lg:flex-row gap-6">
+                <div class="flex-1 space-y-6">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                        <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+                            <div>
+                                <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    المشتركين على وشك الانتهاء
+                                </h3>
+                                <p class="text-xs text-slate-500 mt-1">قائمة مخصصة للمشتركين الذين تنتهي صلاحيتهم خلال 7 أيام.</p>
+                            </div>
+                            <div class="flex flex-col sm:flex-row lg:items-center gap-3 w-full xl:w-auto">
+                                <div class="flex flex-col">
+                                    <label for="expiring-sort-select" class="text-xs text-slate-500 mb-1">ترتيب القائمة</label>
+                                    <select id="expiring-sort-select" class="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200 bg-slate-50">
+                                        <option value="asc">الأقرب للانتهاء</option>
+                                        <option value="desc">الأبعد للانتهاء</option>
+                                    </select>
+                                </div>
+                                <button onclick="applySubscriberFilter('expiring')" class="px-4 py-2 rounded-xl text-sm font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 transition-colors">
+                                    عرض كل المشتركين
+                                </button>
+                            </div>
+                        </div>
+                        <div id="expiring-subscribers-list" class="mt-4 divide-y divide-slate-100 text-sm text-slate-600">
+                            <div class="py-6 text-center text-slate-400">لا يوجد بيانات</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- شاشة لوحة التكتات -->
+    <div id="tickets-dashboard-screen" class="hidden flex-col h-full w-full bg-[#f8fafc] relative fade-in overflow-hidden">
+        <header class="bg-white shadow-sm px-6 py-3 flex items-center justify-between border-b border-orange-100">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" /></svg>
+                </div>
+                <div>
+                    <h2 class="font-bold text-slate-800 text-lg">لوحة تحكم التكتات</h2>
+                    <span class="text-xs text-orange-600 font-medium">إدارة ومتابعة تذاكر الدعم</span>
+                </div>
+            </div>
+            <button onclick="closeTicketDashboardScreen()" class="flex items-center gap-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 text-orange-600 rounded-lg text-sm font-medium">
+                <span>رجوع للرئيسية</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+            </button>
+        </header>
+        <main class="flex-1 overflow-y-auto p-4 md:p-6">
+            <div class="flex flex-col lg:flex-row gap-6">
+                <div class="flex-1 space-y-6">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-2 h-full bg-orange-500"></div>
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div class="flex-1">
+                                <h3 class="text-xl font-bold text-slate-800 mb-2 flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" /></svg>
+                                    لوحة تحكم التكتات
+                                </h3>
+                                <p class="text-slate-500 text-sm">إدارة ومتابعة تذاكر الدعم الفني وتوزيعها على الفرق المختصة.</p>
+                            </div>
+                            <div class="md:w-48">
+                                <button onclick="openTicketManagement()" class="w-full text-white bg-orange-500 hover:bg-orange-600 font-bold rounded-xl text-sm px-5 py-3.5 shadow-md shadow-orange-100 transition-all flex justify-center items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                    إدارة التكتات
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- شاشة الإعدادات العامة -->
+    <div id="general-settings-screen" class="hidden flex-col h-full w-full bg-[#f8fafc] relative fade-in overflow-hidden">
+        <header class="bg-white shadow-sm px-6 py-3 flex items-center justify-between border-b border-slate-200">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-slate-700 rounded-lg flex items-center justify-center text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.607 2.296.07 2.572-1.065z" /></svg>
+                </div>
+                <div>
+                    <h2 class="font-bold text-slate-800 text-lg">الإعدادات العامة</h2>
+                    <span class="text-xs text-slate-500 font-medium">تحكم كامل بالوصول والمظهر</span>
+                </div>
+            </div>
+            <button onclick="closeGeneralSettingsScreen()" class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-sm font-medium">
+                <span>رجوع للرئيسية</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+            </button>
+        </header>
+        <main class="flex-1 overflow-y-auto p-4 md:p-6">
+            <div class="flex flex-col lg:flex-row gap-6">
+                <div class="flex-1 space-y-6">
+                    <!-- إدارة الموظفين -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                    </svg>
+                                    إدارة الموظفين
+                                </h3>
+                                <p class="text-sm text-slate-500 mt-1">إضافة وإدارة موظفين النظام وصلاحياتهم</p>
+                            </div>
+                            <button onclick="openAddEmployeeModal()" class="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold transition-colors shadow-md shadow-indigo-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                </svg>
+                                إضافة موظف
+                            </button>
+                        </div>
+                        
+                        <!-- قائمة الموظفين -->
+                        <div id="employees-list-container" class="space-y-3">
+                            <div class="text-center text-slate-400 text-sm py-8">
+                                <div class="flex items-center justify-center gap-2">
+                                    <svg class="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    جاري تحميل الموظفين...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- الإعدادات الأخرى -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="border border-slate-100 rounded-2xl p-4 flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-bold text-slate-700">الوضع الليلي</p>
+                                    <span class="text-xs text-slate-500">تبديل الواجهة بين الفاتح والداكن</span>
+                                </div>
+                                <button onclick="toggleTheme()" class="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-bold">تبديل الوضع</button>
+                            </div>
+                            <div class="border border-slate-100 rounded-2xl p-4 flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-bold text-slate-700">إدارة حسابات الوطني</p>
+                                    <span class="text-xs text-slate-500">فتح لوحة التحكم لإضافة حسابات جديدة</span>
+                                </div>
+                                <button onclick="openAdminDashboard()" class="px-4 py-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">فتح اللوحة</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ================= 5. شاشة محفظة النقود ================= -->
+    <div id="wallet-screen" class="hidden flex-col h-full w-full bg-[#f8fafc] relative fade-in overflow-hidden">
+        <header class="bg-white border-b border-slate-200 p-4 flex items-center justify-between sticky top-0 z-10">
+            <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-[#26466D]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                محفظة النقود
+            </h2>
+            <button onclick="closeWalletScreen()" class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-sm font-medium">
+                <span>رجوع للرئيسية</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+            </button>
+        </header>
+        <main class="flex-1 overflow-y-auto p-4 md:p-6">
+            <div class="flex flex-col lg:flex-row gap-6">
+                <div class="flex-1 space-y-6">
+                    <!-- رصيد المحفظة -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4">رصيد المحفظة</h3>
+                        <div id="wallet-balance-display" class="text-center py-8">
+                            <div class="flex items-center justify-center gap-2">
+                                <svg class="animate-spin h-5 w-5 text-[#26466D]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                جاري تحميل الرصيد...
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- الحوالات -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="text-lg font-bold text-slate-800">الحوالات</h3>
+                                <p id="wallet-transactions-summary" class="text-xs text-slate-500 mt-1">جاري التحميل...</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="wallet-auto-refresh-toggle" onchange="toggleWalletAutoRefresh(this.checked)" class="w-4 h-4 text-[#26466D] border-gray-300 rounded focus:ring-[#26466D]">
+                                    <span class="text-sm text-slate-600">تحديث تلقائي</span>
+                                </label>
+                                <button onclick="syncWalletTransactions()" class="flex items-center gap-2 px-3 py-1.5 border border-blue-200 bg-blue-50 rounded-lg text-sm text-blue-700 hover:bg-blue-100 transition-colors font-medium">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                    مزامنة
+                                </button>
+                                <button onclick="refreshWalletTransactions()" class="flex items-center gap-2 px-3 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                    تحديث
+                                </button>
+                            </div>
+                        </div>
+                        <div id="wallet-transactions-container" class="overflow-x-auto max-h-[600px] overflow-y-auto">
+                            <div class="text-center text-slate-400 text-sm py-8">
+                                <div class="flex items-center justify-center gap-2">
+                                    <svg class="animate-spin h-5 w-5 text-[#26466D]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    جاري تحميل الحوالات...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ================= 8. نافذة إضافة تكت ================= -->
+    <div id="add-ticket-modal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center fade-in backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden transform transition-all scale-100">
+            <div class="bg-orange-500 p-5 flex justify-between items-center">
+                <h3 class="text-white font-bold text-lg">إضافة تكت جديد</h3>
+                <button onclick="closeAddTicketModal()" class="text-white/80 hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <form onsubmit="handleAddTicket(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">اسم المشترك</label>
+                    <input type="text" id="ticket-subscriber" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-orange-200 focus:border-orange-500 outline-none transition-all" placeholder="مثال: محمد أحمد">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">وصف المشكلة</label>
+                    <textarea id="ticket-desc" rows="3" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-orange-200 focus:border-orange-500 outline-none transition-all" placeholder="اشرح المشكلة باختصار..."></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">الفريق المختص</label>
+                    <select id="ticket-team" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-orange-200 focus:border-orange-500 outline-none transition-all">
+                        <option value="">اختر الفريق...</option>
+                    </select>
+                </div>
+                <div class="pt-2">
+                    <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition-colors shadow-md shadow-orange-100">
+                        إضافة التكت
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= 9. نافذة إعادة توجيه التذكرة ================= -->
+    <div id="redirect-ticket-modal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center fade-in backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden transform transition-all scale-100">
+            <div class="bg-indigo-500 p-5 flex justify-between items-center">
+                <h3 class="text-white font-bold text-lg">إعادة توجيه التذكرة</h3>
+                <button onclick="closeRedirectTicketModal()" class="text-white/80 hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">التذكرة الحالية</label>
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <p class="text-sm font-medium text-slate-800" id="redirect-ticket-info">-</p>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">الفريق الحالي</label>
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <p class="text-sm font-medium text-slate-800" id="redirect-current-team">-</p>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">إعادة التوجيه إلى فريق</label>
+                    <select id="redirect-ticket-team" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 outline-none transition-all">
+                        <option value="">اختر الفريق...</option>
+                    </select>
+                    <p class="text-xs text-slate-500 mt-1">سيتم إعادة توجيه التذكرة إلى الفريق المختار</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">ملاحظة (مطلوبة)</label>
+                    <textarea id="redirect-ticket-note" rows="3" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 outline-none transition-all" placeholder="اكتب ملاحظة عن سبب إعادة التوجيه..."></textarea>
+                    <p class="text-xs text-slate-500 mt-1">يجب إدخال ملاحظة توضح سبب إعادة التوجيه</p>
+                </div>
+                <div class="pt-2 flex gap-3">
+                    <button onclick="closeRedirectTicketModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-colors">
+                        إلغاء
+                    </button>
+                    <button onclick="handleRedirectTicket()" class="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 rounded-xl transition-colors shadow-md shadow-indigo-100">
+                        إعادة التوجيه
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 10. نافذة إضافة/تعديل موظف ================= -->
+    <div id="add-employee-modal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center fade-in backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="bg-indigo-600 p-5 flex justify-between items-center sticky top-0 z-10">
+                <h3 class="text-white font-bold text-lg" id="add-employee-modal-title">إضافة موظف جديد</h3>
+                <button onclick="closeAddEmployeeModal()" class="text-white/80 hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <form onsubmit="handleAddEmployee(event)" class="p-6 space-y-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">اسم المستخدم <span class="text-red-500">*</span></label>
+                        <input type="text" id="employee-username" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 outline-none transition-all" placeholder="مثال: ahmed (سيصبح تلقائياً: ahmed@tec)" oninput="this.value = this.value.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()">
+                        <p class="text-xs text-slate-500 mt-1" id="employee-username-preview">اسم المستخدم الكامل: ---</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">الاسم الظاهر <span class="text-red-500">*</span></label>
+                        <input type="text" id="employee-display-name" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 outline-none transition-all" placeholder="مثال: أحمد محمد">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">كلمة المرور <span class="text-red-500">*</span></label>
+                        <input type="password" id="employee-password" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 outline-none transition-all" placeholder="••••••••">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">تأكيد كلمة المرور <span class="text-red-500">*</span></label>
+                        <input type="password" id="employee-password-confirm" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 outline-none transition-all" placeholder="••••••••">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">المنصب <span class="text-red-500">*</span></label>
+                    <select id="employee-position" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 outline-none transition-all">
+                        <option value="">اختر المنصب...</option>
+                        <option value="مدير">👔 مدير</option>
+                        <option value="محاسب">💼 محاسب</option>
+                        <option value="مبيعات">📊 مبيعات</option>
+                        <option value="متابعة">📋 متابعة</option>
+                        <option value="دعم فني">🛠️ دعم فني</option>
+                        <option value="مندوب">🚚 مندوب</option>
+                    </select>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">البريد الإلكتروني</label>
+                        <input type="email" id="employee-email" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 outline-none transition-all" placeholder="example@gmail.com">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">رقم الهاتف</label>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm text-slate-600 bg-slate-100 px-3 py-2.5 rounded-r-lg border border-r-0 border-slate-300">+964</span>
+                            <input type="tel" id="employee-phone" maxlength="10" pattern="^7[0-9]{9}$" class="flex-1 border border-slate-300 rounded-lg rounded-r-none px-4 py-2.5 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 outline-none transition-all" placeholder="7XXXXXXXXX" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)">
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-3">الصلاحيات <span class="text-red-500">*</span></label>
+                    <div id="permissions-container" class="border border-slate-200 rounded-lg p-4 bg-slate-50 max-h-96 overflow-y-auto">
+                        <div class="space-y-4">
+                            <!-- سيتم ملؤها ديناميكياً -->
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">حدد الصلاحيات التي يمكن للموظف الوصول إليها</p>
+                </div>
+                
+                <div class="pt-4 flex gap-3 border-t border-slate-200">
+                    <button type="button" onclick="closeAddEmployeeModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-colors">
+                        إلغاء
+                    </button>
+                    <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-colors shadow-md shadow-indigo-100">
+                        <span id="add-employee-submit-text">إضافة الموظف</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

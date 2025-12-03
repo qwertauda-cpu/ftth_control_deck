@@ -1,0 +1,31 @@
+{
+  "name": "ftth-control-deck-api",
+  "version": "1.0.0",
+  "description": "API Server for FTTH Control Deck Management System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "init-db": "node init-db.js",
+    "init-master-db": "node init-master-db.js",
+    "init-owner-db": "node init-owner-db.js",
+    "migrate": "node migration-add-user-id.js",
+    "delete-old-tables": "node delete-old-database.js --confirm",
+    "delete-old-database": "node delete-old-database-complete.js --confirm",
+    "dev": "nodemon server.js",
+    "test": "node test-connection.js"
+  },
+  "keywords": ["ftth", "api", "mysql", "xampp"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "mysql2": "^3.6.5",
+    "dotenv": "^16.3.1",
+    "cheerio": "^1.0.0-rc.12"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
+
