@@ -2993,6 +2993,9 @@ async function stopSync() {
         return;
     }
     
+    // إيقاف مراقبة التقدم فوراً قبل أي شيء
+    stopSyncProgressMonitoring();
+    
     const userId = currentUserId;
     const stopSyncBtn = document.getElementById('stop-sync-btn');
     const syncButton = document.getElementById('sync-customers-btn');
