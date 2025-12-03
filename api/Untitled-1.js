@@ -225,6 +225,116 @@ app.post('/api/admin/login', (req, res) => {
     }
 });
 
+// Database Statistics Endpoint
+app.get('/api/admin/database/stats', requireAuth, async (req, res) => {
+    try {
+        const mysql = require('mysql2/promise');
+        const config = require('./config');
+        
+        const pool = mysql.createPool(config.db);
+        
+        // إحصائيات قاعدة البيانات الرئيسية
+        const [usersCount] = await pool.query('SELECT COUNT(*) as count FROM users');
+        const [subscribersCount] = await pool.query('SELECT COUNT(*) as count FROM subscribers');
+        const [alwataniLoginCount] = await pool.query('SELECT COUNT(*) as count FROM alwatani_login');
+        const [ticketsCount] = await pool.query('SELECT COUNT(*) as count FROM tickets');
+        const [teamsCount] = await pool.query('SELECT COUNT(*) as count FROM teams');
+        
+        // إحصائيات من قاعدة البيانات الرئيسية
+        const masterPool = mysql.createPool({ ...config.db, database: config.master.database });
+        const [ownersCount] = await masterPool.query('SELECT COUNT(*) as count FROM owners_databases');
+        
+        // حجم قاعدة البيانات
+        const [dbSize] = await pool.query(`
+            SELECT 
+                table_schema AS 'Database',
+                ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS 'Size (MB)'
+            FROM information_schema.tables 
+            WHERE table_schema = ?
+            GROUP BY table_schema
+        `, [config.db.database]);
+        
+        res.json({
+            success: true,
+            data: {
+                users: usersCount[0].count,
+                subscribers: subscribersCount[0].count,
+                alwataniLogins: alwataniLoginCount[0].count,
+                tickets: ticketsCount[0].count,
+                teams: teamsCount[0].count,
+                owners: ownersCount[0].count,
+                databaseSize: dbSize[0] ? dbSize[0]['Size (MB)'] : 0
+            }
+        });
+        
+        await pool.end();
+        await masterPool.end();
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get Database Tables Data
+app.get('/api/admin/database/tables', requireAuth, async (req, res) => {
+    try {
+        const mysql = require('mysql2/promise');
+        const config = require('./config');
+        const { table, limit = 100, offset = 0 } = req.query;
+        
+        if (!table) {
+            return res.status(400).json({ success: false, error: 'Table name is required' });
+        }
+        
+        const pool = mysql.createPool(config.db);
+        const [rows] = await pool.query(`SELECT * FROM ?? LIMIT ? OFFSET ?`, [table, parseInt(limit), parseInt(offset)]);
+        const [count] = await pool.query(`SELECT COUNT(*) as total FROM ??`, [table]);
+        
+        res.json({
+            success: true,
+            data: rows,
+            total: count[0].total,
+            limit: parseInt(limit),
+            offset: parseInt(offset)
+        });
+        
+        await pool.end();
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get All Tables List
+app.get('/api/admin/database/tables-list', requireAuth, async (req, res) => {
+    try {
+        const mysql = require('mysql2/promise');
+        const config = require('./config');
+        const { database } = req.query;
+        
+        const dbName = database || config.db.database;
+        const pool = mysql.createPool({ ...config.db, database: dbName });
+        
+        const [tables] = await pool.query(`
+            SELECT 
+                TABLE_NAME as name,
+                TABLE_ROWS as rows,
+                ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2) AS size_mb
+            FROM information_schema.TABLES 
+            WHERE TABLE_SCHEMA = ?
+            ORDER BY TABLE_NAME
+        `, [dbName]);
+        
+        res.json({
+            success: true,
+            database: dbName,
+            tables: tables
+        });
+        
+        await pool.end();
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 const PORT = process.env.ADMIN_PORT || 8081;
 
 app.listen(PORT, () => {

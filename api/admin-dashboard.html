@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم الإدارية - قاعدة البيانات</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .stat-card {
+            transition: transform 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-[#26466D] text-white p-4 shadow-lg">
+            <div class="container mx-auto flex justify-between items-center">
+                <h1 class="text-2xl font-bold">لوحة التحكم الإدارية</h1>
+                <div class="flex items-center gap-4">
+                    <span id="server-status" class="px-3 py-1 rounded-full text-sm bg-green-500">متصل</span>
+                    <button onclick="logout()" class="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg">تسجيل الخروج</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="container mx-auto p-6">
+            <!-- Statistics Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="stat-card bg-white rounded-xl shadow-lg p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm mb-1">المستخدمين</p>
+                            <p id="stat-users" class="text-3xl font-bold text-blue-600">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card bg-white rounded-xl shadow-lg p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm mb-1">المشتركين</p>
+                            <p id="stat-subscribers" class="text-3xl font-bold text-green-600">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card bg-white rounded-xl shadow-lg p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm mb-1">حسابات الوطني</p>
+                            <p id="stat-alwatani" class="text-3xl font-bold text-purple-600">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card bg-white rounded-xl shadow-lg p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm mb-1">حجم قاعدة البيانات</p>
+                            <p id="stat-db-size" class="text-3xl font-bold text-orange-600">0 MB</p>
+                        </div>
+                        <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                            <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Database Tables Section -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-gray-800">الجداول في قاعدة البيانات</h2>
+                    <select id="database-select" class="px-4 py-2 border rounded-lg">
+                        <option value="ftth_control_deck">ftth_control_deck</option>
+                        <option value="ftth_master">ftth_master</option>
+                    </select>
+                </div>
+                <div id="tables-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Tables will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Table Data Viewer -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-gray-800">عرض بيانات الجدول</h2>
+                    <div class="flex gap-2">
+                        <select id="table-select" class="px-4 py-2 border rounded-lg">
+                            <option value="">اختر جدول</option>
+                        </select>
+                        <button onclick="loadTableData()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">تحميل البيانات</button>
+                    </div>
+                </div>
+                <div id="table-data-container" class="overflow-x-auto">
+                    <p class="text-gray-500 text-center py-8">اختر جدول لعرض البيانات</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin;
+        let authToken = localStorage.getItem('admin_token');
+
+        // Check authentication
+        if (!authToken) {
+            window.location.href = '/admin-login.html';
+        }
+
+        // Load statistics
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API_URL}/api/admin/database/stats`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('stat-users').textContent = data.data.users;
+                    document.getElementById('stat-subscribers').textContent = data.data.subscribers;
+                    document.getElementById('stat-alwatani').textContent = data.data.alwataniLogins;
+                    document.getElementById('stat-db-size').textContent = data.data.databaseSize.toFixed(2) + ' MB';
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        // Load tables list
+        async function loadTablesList() {
+            const database = document.getElementById('database-select').value;
+            try {
+                const response = await fetch(`${API_URL}/api/admin/database/tables-list?database=${database}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const tablesList = document.getElementById('tables-list');
+                    tablesList.innerHTML = '';
+                    
+                    data.tables.forEach(table => {
+                        const card = document.createElement('div');
+                        card.className = 'border rounded-lg p-4 hover:bg-gray-50 cursor-pointer';
+                        card.onclick = () => {
+                            document.getElementById('table-select').value = table.name;
+                            loadTableData();
+                        };
+                        card.innerHTML = `
+                            <h3 class="font-bold text-gray-800 mb-2">${table.name}</h3>
+                            <div class="flex justify-between text-sm text-gray-600">
+                                <span>${table.rows} صف</span>
+                                <span>${table.size_mb} MB</span>
+                            </div>
+                        `;
+                        tablesList.appendChild(card);
+                    });
+
+                    // Update table select
+                    const tableSelect = document.getElementById('table-select');
+                    tableSelect.innerHTML = '<option value="">اختر جدول</option>';
+                    data.tables.forEach(table => {
+                        const option = document.createElement('option');
+                        option.value = table.name;
+                        option.textContent = `${table.name} (${table.rows} صف)`;
+                        tableSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading tables:', error);
+            }
+        }
+
+        // Load table data
+        async function loadTableData() {
+            const table = document.getElementById('table-select').value;
+            if (!table) return;
+
+            const container = document.getElementById('table-data-container');
+            container.innerHTML = '<p class="text-center py-4">جاري التحميل...</p>';
+
+            try {
+                const response = await fetch(`${API_URL}/api/admin/database/tables?table=${table}&limit=100`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success && data.data.length > 0) {
+                    const keys = Object.keys(data.data[0]);
+                    let html = `
+                        <div class="mb-4 text-sm text-gray-600">
+                            إجمالي السجلات: ${data.total} | عرض: ${data.data.length}
+                        </div>
+                        <table class="min-w-full border-collapse border border-gray-300">
+                            <thead>
+                                <tr class="bg-gray-100">
+                                    ${keys.map(key => `<th class="border border-gray-300 px-4 py-2 text-right">${key}</th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    
+                    data.data.forEach(row => {
+                        html += '<tr>';
+                        keys.forEach(key => {
+                            const value = row[key];
+                            const displayValue = value === null ? '<span class="text-gray-400">NULL</span>' : 
+                                                typeof value === 'object' ? JSON.stringify(value) : 
+                                                String(value);
+                            html += `<td class="border border-gray-300 px-4 py-2 text-sm">${displayValue}</td>`;
+                        });
+                        html += '</tr>';
+                    });
+                    
+                    html += '</tbody></table>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<p class="text-gray-500 text-center py-8">لا توجد بيانات في هذا الجدول</p>';
+                }
+            } catch (error) {
+                container.innerHTML = `<p class="text-red-500 text-center py-8">خطأ: ${error.message}</p>`;
+            }
+        }
+
+        // Logout
+        function logout() {
+            localStorage.removeItem('admin_token');
+            window.location.href = '/admin-login.html';
+        }
+
+        // Event listeners
+        document.getElementById('database-select').addEventListener('change', loadTablesList);
+
+        // Initial load
+        loadStats();
+        loadTablesList();
+        
+        // Refresh stats every 30 seconds
+        setInterval(loadStats, 30000);
+    </script>
+</body>
+</html>
+
