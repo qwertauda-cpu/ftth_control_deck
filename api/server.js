@@ -3671,26 +3671,32 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
 
         const totalFetched = allCustomers.length;
         if (useSmartSync) {
-            console.log(`[SYNC] ✅ Smart sync: Fetched ${totalFetched} missing subscribers (out of ${missingAccountIds.length} identified), starting to process...`);
+            console.log(`[SYNC] ✅ Smart sync: Fetched ${totalFetched} missing subscribers (out of ${missingAccountIds.length} identified)`);
         } else {
-            console.log(`[SYNC] Fetched ${totalFetched} subscribers, starting to save to database...`);
+            console.log(`[SYNC] ✅ Fetched ${totalFetched} subscribers from all pages`);
         }
         
-        // تحديث حالة التقدم بعد جلب جميع المشتركين
+        // تحديث حالة التقدم بعد جلب جميع الصفحات
         updateSyncProgress(id, {
-            stage: 'fetching_complete',
-            current: totalFetched,
-            total: totalFetched,
-            message: useSmartSync
-                ? `تم جلب ${totalFetched} مشترك ناقص - جاري جلب العناوين...`
-                : `تم جلب ${totalFetched} مشترك - جاري جلب العناوين...`
+            stage: 'pages_complete',
+            current: totalPages,
+            total: totalPages,
+            message: `✅ تم جلب جميع الصفحات (${totalPages} صفحة، ${totalFetched} مشترك) - جاري جلب العناوين...`
         });
 
+        // ========== المرحلة 1: جلب العناوين ==========
         const accountIds = Array.from(new Set(allCustomers
             .map((customer) => extractAlwataniAccountId(customer))
             .filter((value) => value !== null && value !== undefined)
             .map((value) => String(value))
         ));
+
+        updateSyncProgress(id, {
+            stage: 'fetching_addresses',
+            current: 0,
+            total: accountIds.length,
+            message: `جاري جلب العناوين لـ ${accountIds.length} مشترك...`
+        });
 
         const addressesResp = await fetchAlwataniResource(
             `/api/addresses?${accountIds.map(id => `accountIds=${encodeURIComponent(id)}`).join('&')}`,
@@ -3714,7 +3720,14 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         
         const addressMap = buildAlwataniAddressMap(addressesResp.data || {});
 
-        // تحضير البيانات للحفظ مع جلب التفاصيل من صفحة المشترك
+        updateSyncProgress(id, {
+            stage: 'addresses_complete',
+            current: accountIds.length,
+            total: accountIds.length,
+            message: `✅ تم جلب العناوين - جاري تحضير البيانات...`
+        });
+
+        // تحضير البيانات الأساسية (بدون تفاصيل من صفحات المشتركين بعد)
         const combinedRecords = [];
         for (const customer of allCustomers) {
             const accountId = extractAlwataniAccountId(customer);
@@ -3728,7 +3741,7 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
             });
         }
 
-        console.log(`[SYNC] Preparing ${combinedRecords.length} subscribers to fetch details...`);
+        console.log(`[SYNC] ✅ Prepared ${combinedRecords.length} subscribers. Now starting to fetch details from subscriber pages...`);
         
         // التحقق من البيانات الموجودة في قاعدة البيانات (مزامنة ذكية)
         let recordsToEnrich = combinedRecords;
