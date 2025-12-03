@@ -2041,8 +2041,17 @@ async function refreshSubscribersDataOnly() {
         const response = await fetch(apiUrl, addUsernameToFetchOptions());
         const data = await response.json();
         
+        console.log('[AUTO-REFRESH] Response:', {
+            success: data.success,
+            hasData: !!data.data,
+            hasCombined: !!data.data?.combined,
+            combinedLength: data.data?.combined?.length || 0,
+            dataKeys: data.data ? Object.keys(data.data) : []
+        });
+        
         if (data.success && data.data && data.data.combined && Array.isArray(data.data.combined)) {
             const combinedList = data.data.combined;
+            console.log('[AUTO-REFRESH] Processing', combinedList.length, 'subscribers');
             
             // تحديث subscribersCache فقط
             subscribersCache = combinedList.map((sub) => {
@@ -2092,7 +2101,13 @@ async function refreshSubscribersDataOnly() {
             console.log('[AUTO-REFRESH] Data updated successfully:', combinedList.length, 'subscribers');
         } else {
             showSubscribersLoading(false);
-            console.warn('[AUTO-REFRESH] No data received');
+            console.warn('[AUTO-REFRESH] No data received. Response:', {
+                success: data.success,
+                hasData: !!data.data,
+                hasCombined: !!data.data?.combined,
+                message: data.message || 'No message',
+                data: data.data ? Object.keys(data.data) : 'No data object'
+            });
         }
     } catch (error) {
         showSubscribersLoading(false);
