@@ -1122,25 +1122,32 @@
         .mobile-menu-toggle {
             display: none;
             position: fixed;
-            top: 16px;
-            right: 16px;
+            top: 12px;
+            right: 12px;
             z-index: 1001;
-            background: var(--mdc-primary);
+            background: linear-gradient(135deg, var(--mdc-primary) 0%, var(--mdc-primary-dark) 100%);
             color: var(--mdc-on-primary);
             border: none;
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
             cursor: pointer;
-            box-shadow: var(--mdc-elevation-4);
-            font-size: 24px;
+            box-shadow: var(--mdc-elevation-8);
+            font-size: 28px;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s;
+            transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            font-weight: bold;
+        }
+
+        .mobile-menu-toggle:hover {
+            background: linear-gradient(135deg, var(--mdc-primary-dark) 0%, var(--mdc-primary) 100%);
+            box-shadow: var(--mdc-elevation-8);
+            transform: translateY(-2px);
         }
 
         .mobile-menu-toggle:active {
-            transform: scale(0.95);
+            transform: scale(0.95) translateY(0);
         }
 
         /* Sidebar Overlay */
@@ -1169,7 +1176,8 @@
             }
 
             .sidebar {
-                width: 280px;
+                width: 85%;
+                max-width: 320px;
                 transform: translateX(100%);
                 transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
                 box-shadow: var(--mdc-elevation-8);
@@ -1179,19 +1187,27 @@
                 transform: translateX(0);
             }
 
+            .sidebar-overlay {
+                display: block;
+            }
+
             .main-content {
                 margin-right: 0;
-                padding: 16px;
+                padding: 12px;
                 padding-top: 80px;
             }
 
             .header {
                 padding: 16px;
                 margin-bottom: 16px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
             }
 
             .header h2 {
                 font-size: 20px;
+                width: 100%;
             }
 
             .stats-grid {
@@ -1201,31 +1217,45 @@
             }
 
             .stat-card {
-                padding: 16px;
+                padding: 18px;
+                border-radius: 12px;
             }
 
             .stat-card-value {
-                font-size: 28px;
+                font-size: 32px;
             }
 
             .stat-card-title {
-                font-size: 13px;
+                font-size: 14px;
+            }
+
+            .stat-card-change {
+                font-size: 12px;
             }
 
             .table-container {
                 overflow-x: auto;
                 -webkit-overflow-scrolling: touch;
+                border-radius: 12px;
+                margin: 0 -12px;
+                padding: 0 12px;
             }
 
             table {
                 min-width: 600px;
-                font-size: 14px;
+                font-size: 13px;
             }
 
             table th,
             table td {
-                padding: 12px 8px;
+                padding: 14px 10px;
                 font-size: 13px;
+                white-space: nowrap;
+            }
+
+            table th {
+                font-size: 12px;
+                font-weight: 500;
             }
 
             .btn {
@@ -1289,6 +1319,23 @@
             .section-details-container {
                 padding: 16px;
                 margin-top: 16px;
+                margin-left: -12px;
+                margin-right: -12px;
+                border-radius: 0;
+            }
+
+            .section-details-title {
+                font-size: 18px;
+                margin-bottom: 16px;
+            }
+
+            .section-details-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .section-details-item {
+                padding: 16px;
             }
 
             .sidebar-header {
@@ -1312,16 +1359,22 @@
         }
 
         @media (max-width: 480px) {
+            .mobile-menu-toggle {
+                width: 52px;
+                height: 52px;
+                font-size: 24px;
+                top: 10px;
+                right: 10px;
+            }
+
             .main-content {
-                padding: 12px;
-                padding-top: 70px;
+                padding: 10px;
+                padding-top: 75px;
             }
 
             .header {
-                padding: 12px;
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 8px;
+                padding: 14px;
+                margin-bottom: 14px;
             }
 
             .header h2 {
@@ -1330,14 +1383,19 @@
 
             .stats-grid {
                 gap: 10px;
+                margin-bottom: 16px;
             }
 
             .stat-card {
-                padding: 14px;
+                padding: 16px;
             }
 
             .stat-card-value {
-                font-size: 24px;
+                font-size: 28px;
+            }
+
+            .stat-card-title {
+                font-size: 13px;
             }
 
             table {
@@ -1347,8 +1405,31 @@
 
             table th,
             table td {
-                padding: 10px 6px;
+                padding: 12px 8px;
                 font-size: 12px;
+            }
+
+            .section-details-container {
+                padding: 12px;
+                margin-left: -10px;
+                margin-right: -10px;
+            }
+
+            .section-details-item {
+                padding: 14px;
+            }
+
+            .modal-container {
+                width: 98%;
+                margin: 8px;
+            }
+
+            .modal-header {
+                padding: 14px;
+            }
+
+            .modal-body {
+                padding: 14px;
             }
 
             .modal-container {
@@ -1410,6 +1491,14 @@
                 <button class="logout-btn" onclick="logout()">🚪 تسجيل الخروج</button>
             </div>
         </div>
+
+        <!-- Sidebar Overlay for Mobile -->
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileMenu()"></div>
+
+        <!-- Mobile Menu Toggle Button -->
+        <button class="mobile-menu-toggle" id="mobileMenuToggle" onclick="toggleMobileMenu()" aria-label="Toggle Menu">
+            ☰
+        </button>
 
         <!-- Main Content -->
         <div class="main-content">
@@ -1699,6 +1788,30 @@
                 overlay.classList.remove('active');
             }
         }
+
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', function(e) {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const toggle = document.getElementById('mobileMenuToggle');
+            
+            if (window.innerWidth <= 768 && sidebar && overlay) {
+                // If clicking outside sidebar and toggle button, close menu
+                if (!sidebar.contains(e.target) && 
+                    e.target !== toggle && 
+                    !toggle.contains(e.target) &&
+                    sidebar.classList.contains('open')) {
+                    closeMobileMenu();
+                }
+            }
+        });
+
+        // Close mobile menu on window resize if it becomes desktop
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768) {
+                closeMobileMenu();
+            }
+        });
 
         document.querySelectorAll('.menu-item').forEach(item => {
             item.addEventListener('click', function() {
