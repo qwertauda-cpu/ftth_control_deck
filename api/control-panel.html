@@ -1110,6 +1110,9 @@
                 document.getElementById('usersCount').textContent = 0; // Users section is not used, set to 0
                 document.getElementById('subscribersCount').textContent = Array.isArray(subscribers) ? subscribers.length : (subscribers.total || 0);
 
+                // Update accordion details
+                updateStatCardDetails(stats, owners, users, subscribers);
+
                 // Update chart
                 updateChart(stats);
             } catch (error) {
