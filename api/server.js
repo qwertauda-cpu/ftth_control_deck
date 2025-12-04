@@ -103,19 +103,44 @@ app.use((req, res, next) => {
 
 // Control Panel Routes (before static middleware)
 app.get('/control-login.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'control-login.html'));
+    const filePath = path.join(__dirname, 'control-login.html');
+    console.log(`[CONTROL] Serving control-login.html from: ${filePath}`);
+    console.log(`[CONTROL] File exists: ${fs.existsSync(filePath)}`);
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error(`[CONTROL] Error serving control-login.html:`, err);
+            res.status(500).json({ success: false, message: 'خطأ في تحميل الصفحة' });
+        }
+    });
 });
 
 app.get('/control-panel.html', (req, res) => {
+    const filePath = path.join(__dirname, 'control-panel.html');
+    console.log(`[CONTROL] Serving control-panel.html from: ${filePath}`);
+    console.log(`[CONTROL] File exists: ${fs.existsSync(filePath)}`);
     // Allow access - authentication will be checked client-side and via API
-    res.sendFile(path.join(__dirname, 'control-panel.html'));
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error(`[CONTROL] Error serving control-panel.html:`, err);
+            res.status(500).json({ success: false, message: 'خطأ في تحميل الصفحة' });
+        }
+    });
 });
 
-// Serve static files
-app.use(express.static(path.join(__dirname), {
-    index: false,
-    extensions: ['html', 'htm']
-}));
+// Serve static files (but skip control panel files - they're handled by routes above)
+app.use((req, res, next) => {
+    const requestPath = req.path.toLowerCase();
+    // Skip static middleware for control panel files
+    if (requestPath === '/control-login.html' || requestPath === '/control-panel.html') {
+        console.log(`[STATIC] Skipping static middleware for: ${req.path}`);
+        return next(); // Let it fall through to 404 handler if route wasn't matched
+    }
+    // For other files, use static middleware
+    express.static(path.join(__dirname), {
+        index: false,
+        extensions: ['html', 'htm']
+    })(req, res, next);
+});
 
 // Store sync progress for each user (in-memory)
 const syncProgressStore = new Map(); // userId -> { stage, current, total, message, startedAt, updatedAt, phoneFound }
