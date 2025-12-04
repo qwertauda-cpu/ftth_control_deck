@@ -489,6 +489,77 @@
             flex: 1;
         }
 
+        /* Confirm Modal Styles */
+        .confirm-modal-container {
+            background: var(--mdc-surface);
+            border-radius: 8px;
+            box-shadow: var(--mdc-elevation-24);
+            max-width: 400px;
+            width: 90%;
+            padding: 0;
+            animation: slideUp 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+
+        .confirm-modal-header {
+            padding: 24px 24px 16px;
+            text-align: center;
+        }
+
+        .confirm-modal-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .confirm-modal-title {
+            font-size: 20px;
+            font-weight: 500;
+            color: var(--mdc-on-surface);
+            margin-bottom: 8px;
+        }
+
+        .confirm-modal-message {
+            font-size: 14px;
+            color: var(--mdc-on-surface-secondary);
+            line-height: 1.5;
+        }
+
+        .confirm-modal-actions {
+            padding: 16px 24px 24px;
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .confirm-btn {
+            padding: 10px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            min-width: 100px;
+        }
+
+        .confirm-btn-primary {
+            background: var(--mdc-error);
+            color: white;
+        }
+
+        .confirm-btn-primary:hover {
+            background: #D32F2F;
+            box-shadow: var(--mdc-elevation-2);
+        }
+
+        .confirm-btn-secondary {
+            background: var(--mdc-surface-variant);
+            color: var(--mdc-on-surface-variant);
+        }
+
+        .confirm-btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
         .agent-details-section {
             margin-bottom: 32px;
         }
@@ -2692,11 +2763,43 @@
             document.getElementById('chatImagePreview').style.display = 'none';
         }
 
-        // Delete chat message
-        async function deleteChatMessage(messageId, roomId) {
-            if (!confirm('هل أنت متأكد من حذف هذه الرسالة؟')) {
-                return;
+        // Show confirm delete modal
+        function showDeleteConfirmModal(messageId, roomId) {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'deleteConfirmModal';
+            modal.innerHTML = `
+                <div class="confirm-modal-container">
+                    <div class="confirm-modal-header">
+                        <div class="confirm-modal-icon">⚠️</div>
+                        <div class="confirm-modal-title">حذف الرسالة</div>
+                        <div class="confirm-modal-message">هل أنت متأكد من حذف هذه الرسالة؟<br>لا يمكن التراجع عن هذا الإجراء.</div>
+                    </div>
+                    <div class="confirm-modal-actions">
+                        <button class="confirm-btn confirm-btn-secondary" onclick="closeDeleteConfirmModal()">إلغاء</button>
+                        <button class="confirm-btn confirm-btn-primary" onclick="confirmDeleteMessage(${messageId}, ${roomId})">حذف</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // Close on overlay click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeDeleteConfirmModal();
+                }
+            });
+        }
+
+        function closeDeleteConfirmModal() {
+            const modal = document.getElementById('deleteConfirmModal');
+            if (modal) {
+                modal.remove();
             }
+        }
+
+        async function confirmDeleteMessage(messageId, roomId) {
+            closeDeleteConfirmModal();
             
             try {
                 const response = await fetchWithAuth(`${API_BASE}/api/control/chat/rooms/${roomId}/messages/${messageId}`, {
@@ -2722,6 +2825,11 @@
                 console.error('Error deleting message:', error);
                 alert('حدث خطأ في حذف الرسالة');
             }
+        }
+
+        // Delete chat message
+        function deleteChatMessage(messageId, roomId) {
+            showDeleteConfirmModal(messageId, roomId);
         }
 
         // Logout
