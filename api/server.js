@@ -7087,13 +7087,24 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const requireAdminAuth = (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        if (token === ADMIN_PASSWORD) {
+        const token = authHeader.substring(7).trim();
+        const correctPassword = ADMIN_PASSWORD.trim();
+        
+        if (token === correctPassword) {
             next();
             return;
+        } else {
+            console.log('[ADMIN AUTH] ❌ Invalid token provided');
         }
+    } else {
+        console.log('[ADMIN AUTH] ❌ No authorization header found');
     }
-    res.status(401).json({ success: false, error: 'Unauthorized - Invalid token' });
+    
+    res.status(401).json({ 
+        success: false, 
+        error: 'غير مصرح - يرجى تسجيل الدخول مرة أخرى',
+        message: 'Unauthorized - Invalid or missing token'
+    });
 };
 
 // Admin Login Endpoint
