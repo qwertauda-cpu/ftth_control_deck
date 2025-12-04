@@ -1569,8 +1569,30 @@
         }
 
         // Menu navigation
+        // Mobile menu functions
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (sidebar && overlay) {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('active');
+            }
+        }
+
+        function closeMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (sidebar && overlay) {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('active');
+            }
+        }
+
         document.querySelectorAll('.menu-item').forEach(item => {
             item.addEventListener('click', function() {
+                if (window.innerWidth <= 768) {
+                    closeMobileMenu();
+                }
                 const section = this.dataset.section;
                 
                 // Update active menu item
@@ -2485,17 +2507,17 @@
                     }
                 }
                 
-                // Send message
+                // Send message (allow empty message if image is present)
                 const response = await fetchWithAuth(`${API_BASE}/api/control/chat/rooms/${currentChatRoomId}/messages`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        message: message || '',
+                        message: message || (fileUrl ? '' : undefined), // Allow empty string if image exists
                         sender_username: 'admin', // Control panel admin
-                        message_type: selectedChatImage ? 'image' : 'text',
-                        file_url: fileUrl
+                        message_type: fileUrl ? 'image' : 'text',
+                        file_url: fileUrl || undefined
                     })
                 });
                 

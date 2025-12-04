@@ -7603,8 +7603,12 @@ app.post('/api/control/chat/rooms/:roomId/messages', requireControlAuth, async (
         const { message, message_type, file_url } = req.body;
         const senderUsername = req.body.sender_username || req.headers['x-owner-username'];
         
-        if (!message || message.trim().length === 0) {
-            return res.status(400).json({ success: false, message: 'الرسالة مطلوبة' });
+        // Allow sending message with image only, or text only, or both
+        const hasMessage = message && message.trim().length > 0;
+        const hasFile = file_url && file_url.trim().length > 0;
+        
+        if (!hasMessage && !hasFile) {
+            return res.status(400).json({ success: false, message: 'يجب إرسال رسالة نصية أو صورة على الأقل' });
         }
         
         if (!senderUsername) {
@@ -7623,9 +7627,12 @@ app.post('/api/control/chat/rooms/:roomId/messages', requireControlAuth, async (
         }
         
         // Insert message
+        const messageText = hasMessage ? message.trim() : '';
+        const finalMessageType = hasFile ? (message_type || 'image') : 'text';
+        
         const [result] = await masterPool.query(
             'INSERT INTO chat_messages (chat_room_id, sender_username, message, message_type, file_url) VALUES (?, ?, ?, ?, ?)',
-            [roomId, senderUsername, message.trim(), message_type || 'text', file_url || null]
+            [roomId, senderUsername, messageText, finalMessageType, file_url || null]
         );
         
         res.json({ success: true, message_id: result.insertId, message: 'تم إرسال الرسالة بنجاح' });
