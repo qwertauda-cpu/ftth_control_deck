@@ -6800,6 +6800,17 @@ app.get('/admin', (req, res) => {
     res.redirect('/admin-login.html');
 });
 
+// Admin link page - Shows the direct link
+app.get('/admin-link.html', (req, res) => {
+    const filePath = path.join(__dirname, 'admin.html');
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error('[ADMIN] Error serving admin.html:', err);
+            res.status(500).send('Error loading admin link page');
+        }
+    });
+});
+
 // Get direct admin link endpoint - Returns the exact URL to use
 app.get('/api/admin/link', (req, res) => {
     const protocol = req.protocol || 'http';

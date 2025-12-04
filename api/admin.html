@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم الإدارية - رابط الوصول</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-2xl">
+        <div class="text-center mb-8">
+            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-800">لوحة التحكم الإدارية</h1>
+            <p class="text-gray-600 mt-2">رابط الوصول المباشر</p>
+        </div>
+
+        <div class="space-y-6">
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <h2 class="text-lg font-bold text-blue-800 mb-4">🔗 رابط تسجيل الدخول:</h2>
+                <div class="bg-white rounded-lg p-4 border border-blue-300">
+                    <p id="login-link" class="text-blue-600 font-mono text-sm break-all mb-4"></p>
+                    <button onclick="copyLink('login-link')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-colors">
+                        📋 نسخ الرابط
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+                <h2 class="text-lg font-bold text-green-800 mb-4">🔐 معلومات تسجيل الدخول:</h2>
+                <div class="bg-white rounded-lg p-4 border border-green-300">
+                    <p class="text-gray-700 mb-2"><strong>كلمة المرور:</strong> <span class="font-mono bg-gray-100 px-2 py-1 rounded">admin123</span></p>
+                    <button onclick="copyPassword()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-lg transition-colors">
+                        📋 نسخ كلمة المرور
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex gap-4">
+                <a id="direct-login-link" href="#" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors text-center">
+                    🚀 فتح صفحة تسجيل الدخول
+                </a>
+            </div>
+
+            <div class="text-center text-sm text-gray-500 mt-6">
+                <p>💡 يمكنك نسخ الرابط أعلاه واستخدامه من أي مكان في العالم</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get current URL and construct admin login link
+        const currentUrl = window.location.origin;
+        const loginUrl = `${currentUrl}/admin-login.html`;
+        
+        // Display the link
+        document.getElementById('login-link').textContent = loginUrl;
+        document.getElementById('direct-login-link').href = loginUrl;
+        
+        // Copy link function
+        function copyLink(elementId) {
+            const link = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(link).then(() => {
+                alert('✅ تم نسخ الرابط بنجاح!');
+            }).catch(() => {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = link;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                alert('✅ تم نسخ الرابط بنجاح!');
+            });
+        }
+        
+        // Copy password function
+        function copyPassword() {
+            navigator.clipboard.writeText('admin123').then(() => {
+                alert('✅ تم نسخ كلمة المرور بنجاح!');
+            }).catch(() => {
+                const textarea = document.createElement('textarea');
+                textarea.value = 'admin123';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                alert('✅ تم نسخ كلمة المرور بنجاح!');
+            });
+        }
+        
+        // Auto-redirect after 3 seconds (optional)
+        // setTimeout(() => {
+        //     window.location.href = loginUrl;
+        // }, 3000);
+    </script>
+</body>
+</html>
+
