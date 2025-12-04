@@ -930,6 +930,7 @@
             padding: 20px;
             background: rgba(0, 0, 0, 0.2);
             min-height: 400px;
+            position: relative;
         }
 
         .chat-input-area {
@@ -2066,7 +2067,7 @@
                     </div>
                     
                     <div class="chat-messages-container">
-                        <div id="chatMessagesHeader" style="display: none; padding: 16px; border-bottom: 1px solid var(--mdc-divider); background: var(--mdc-surface); border-radius: 8px 8px 0 0;">
+                        <div id="chatMessagesHeader" style="display: none; padding: 16px; border-bottom: 1px solid var(--mdc-divider); background: var(--mdc-surface); border-radius: 8px 8px 0 0; position: sticky; top: 0; z-index: 10;">
                             <h3 id="chatMessagesTitle" style="margin: 0; color: var(--mdc-on-surface); font-size: 18px; font-weight: 500;">المحادثة</h3>
                         </div>
                         <div id="chatMessagesArea" class="chat-messages-area" style="display: none;">
@@ -3481,7 +3482,7 @@
             const isAdmin = true; // Control panel user is always admin
             const canDelete = isAdmin || msg.sender_username === 'admin';
             return `
-            <div class="chat-message" id="message-${msg.id}" style="position: relative;">
+            <div class="chat-message" id="message-${msg.id}">
                 <div class="chat-message-header">
                     <span class="chat-message-sender">${msg.sender_username || 'مجهول'}</span>
                     <span class="chat-message-time">${dateStr} ${timeStr}</span>
