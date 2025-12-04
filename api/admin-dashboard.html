@@ -95,7 +95,7 @@
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-bold text-gray-800">الجداول في قاعدة البيانات</h2>
                     <select id="database-select" class="px-4 py-2 border rounded-lg">
-                        <option value="ftth_master">ftth_master</option>
+                        <option value="ftth_master">جاري التحميل...</option>
                     </select>
                 </div>
                 <div id="tables-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -257,12 +257,41 @@
             window.location.href = '/admin-login.html';
         }
 
+        // Load databases list
+        async function loadDatabasesList() {
+            try {
+                const response = await fetch(`${API_URL}/api/admin/database/databases-list`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const databaseSelect = document.getElementById('database-select');
+                    databaseSelect.innerHTML = '';
+                    
+                    data.databases.forEach(db => {
+                        const option = document.createElement('option');
+                        option.value = db.name;
+                        option.textContent = `${db.name}${db.type === 'owner' ? ` (${db.username})` : ' (Master)'}`;
+                        databaseSelect.appendChild(option);
+                    });
+                    
+                    // Load tables for first database
+                    loadTablesList();
+                }
+            } catch (error) {
+                console.error('Error loading databases:', error);
+            }
+        }
+
         // Event listeners
         document.getElementById('database-select').addEventListener('change', loadTablesList);
 
         // Initial load
         loadStats();
-        loadTablesList();
+        loadDatabasesList();
         
         // Refresh stats every 30 seconds
         setInterval(loadStats, 30000);
