@@ -859,7 +859,24 @@
         }
 
         /* Chat Styles */
+        .chat-container {
+            display: flex;
+            gap: 20px;
+            height: calc(100vh - 200px);
+            min-height: 600px;
+        }
+
+        .desktop-chat-container {
+            display: flex;
+        }
+
+        .mobile-chat-container {
+            display: none;
+        }
+
         .chat-rooms-sidebar {
+            width: 350px;
+            min-width: 300px;
             background: linear-gradient(135deg, rgba(30, 30, 30, 0.9) 0%, rgba(25, 25, 25, 0.9) 100%);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.05);
@@ -1806,13 +1823,6 @@
                 border-radius: 0;
             }
 
-            .chat-rooms-sidebar {
-                max-height: 150px;
-            }
-
-            .chat-messages-container {
-                height: calc(100vh - 250px);
-            }
         }
     </style>
 </head>
