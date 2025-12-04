@@ -7178,8 +7178,9 @@ app.get('/api/admin/owners/list', requireAdminAuth, async (req, res) => {
                     agent_name: owner.agent_name || 'غير محدد',
                     phone: owner.phone || 'غير محدد',
                     email: owner.email || 'غير محدد',
-                    is_active: owner.is_active === 1 || owner.is_active === true,
-                    status: owner.is_active === 1 || owner.is_active === true ? 'نشط' : 'غير نشط',
+                    is_active: false, // غير نشط لأن قاعدة البيانات غير متاحة
+                    status: 'غير نشط',
+                    last_activity: null,
                     alwatani_pages_count: 0,
                     days_used: daysDiff,
                     created_at: owner.created_at,
