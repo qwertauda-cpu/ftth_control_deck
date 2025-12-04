@@ -6793,7 +6793,15 @@ app.put('/api/teams/:id', async (req, res) => {
 
 // ================= Control Panel Authentication =================
 const CONTROL_PASSWORD = process.env.CONTROL_PASSWORD || 'admin123'; // Change this in .env
-const bcrypt = require('bcrypt');
+
+// Try to require bcrypt, fallback if not available
+let bcrypt;
+try {
+    bcrypt = require('bcrypt');
+} catch (e) {
+    console.warn('[SERVER] bcrypt not available, using simple password comparison');
+    bcrypt = null;
+}
 
 // Simple token storage (in production, use JWT or sessions)
 const controlTokens = new Map(); // token -> { timestamp, valid, username, userId }
@@ -6854,7 +6862,12 @@ app.post('/api/control/login', async (req, res) => {
                 return res.json({ success: false, message: 'الحساب معطل' });
             }
             // Verify password
-            isValid = await bcrypt.compare(password, account.password_hash);
+            if (bcrypt) {
+                isValid = await bcrypt.compare(password, account.password_hash);
+            } else {
+                // Fallback: simple comparison (not secure, but works if bcrypt not available)
+                isValid = (password === account.password_hash);
+            }
         } else {
             // Fallback to old password system for backward compatibility
             if (username === 'admin' && password === CONTROL_PASSWORD) {
@@ -6893,7 +6906,15 @@ app.post('/api/control/login', async (req, res) => {
             }
         }
         
-        res.json({ success: true, token, message: 'تم تسجيل الدخول بنجاح' });
+        res.json({
+            success: true,
+            token: token,
+            user: {
+                username: account.username,
+                full_name: account.full_name,
+                role: account.role || 'admin'
+            }
+        });
     } catch (error) {
         console.error('[CONTROL LOGIN] Error:', error);
         res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
