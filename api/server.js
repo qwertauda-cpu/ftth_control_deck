@@ -193,16 +193,16 @@ app.get('/admin/dashboard', (req, res) => {
 });
 
 // Serve static files (HTML files in api directory) - AFTER specific routes
-// BUT exclude admin files that are handled by explicit routes
-app.use(express.static(path.join(__dirname), {
-    index: false, // Don't serve index.html automatically
-    extensions: ['html', 'htm'],
-    setHeaders: (res, path) => {
-        // Don't serve admin files via static - they're handled by explicit routes
-        if (path.includes('admin-login.html') || path.includes('admin-dashboard.html')) {
-            return;
-        }
+// Exclude admin files that are handled by explicit routes
+app.use((req, res, next) => {
+    // Skip static middleware for admin files - they're handled by explicit routes
+    if (req.path === '/admin-login.html' || req.path === '/admin-dashboard.html') {
+        return next();
     }
+    next();
+}, express.static(path.join(__dirname), {
+    index: false, // Don't serve index.html automatically
+    extensions: ['html', 'htm']
 }));
 
 // Store sync progress for each user (in-memory)
