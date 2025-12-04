@@ -7096,6 +7096,177 @@ app.get('/api/admin/database/tables-list', requireAdminAuth, async (req, res) =>
     }
 });
 
+// Get Owners/Agents List with Details
+app.get('/api/admin/owners/list', requireAdminAuth, async (req, res) => {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        const [owners] = await masterPool.query(
+            'SELECT id, username, domain, database_name, agent_name, phone, email, is_active, created_at FROM owners_databases ORDER BY created_at DESC'
+        );
+        
+        const ownersWithDetails = [];
+        
+        for (const owner of owners) {
+            try {
+                const ownerPool = await dbManager.getOwnerPool(owner.domain);
+                
+                // عدد صفحات الوطني
+                const [alwataniCount] = await ownerPool.query('SELECT COUNT(*) as count FROM alwatani_login');
+                const alwataniPagesCount = alwataniCount[0]?.count || 0;
+                
+                // حساب عدد الأيام من تاريخ الإنشاء
+                const createdAt = new Date(owner.created_at);
+                const now = new Date();
+                const daysDiff = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
+                
+                ownersWithDetails.push({
+                    id: owner.id,
+                    username: owner.username,
+                    domain: owner.domain,
+                    database_name: owner.database_name,
+                    agent_name: owner.agent_name || 'غير محدد',
+                    phone: owner.phone || 'غير محدد',
+                    email: owner.email || 'غير محدد',
+                    is_active: owner.is_active === 1 || owner.is_active === true,
+                    status: owner.is_active === 1 || owner.is_active === true ? 'نشط' : 'غير نشط',
+                    alwatani_pages_count: alwataniPagesCount,
+                    days_used: daysDiff,
+                    created_at: owner.created_at
+                });
+            } catch (error) {
+                // إذا فشل الاتصال بقاعدة البيانات، أضف البيانات الأساسية فقط
+                const createdAt = new Date(owner.created_at);
+                const now = new Date();
+                const daysDiff = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
+                
+                ownersWithDetails.push({
+                    id: owner.id,
+                    username: owner.username,
+                    domain: owner.domain,
+                    database_name: owner.database_name,
+                    agent_name: owner.agent_name || 'غير محدد',
+                    phone: owner.phone || 'غير محدد',
+                    email: owner.email || 'غير محدد',
+                    is_active: owner.is_active === 1 || owner.is_active === true,
+                    status: owner.is_active === 1 || owner.is_active === true ? 'نشط' : 'غير نشط',
+                    alwatani_pages_count: 0,
+                    days_used: daysDiff,
+                    created_at: owner.created_at,
+                    error: 'فشل الاتصال بقاعدة البيانات'
+                });
+            }
+        }
+        
+        res.json({
+            success: true,
+            owners: ownersWithDetails,
+            total: ownersWithDetails.length
+        });
+    } catch (error) {
+        console.error('[ADMIN DASHBOARD] Error loading owners list:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get System Insights and Recommendations
+app.get('/api/admin/insights', requireAdminAuth, async (req, res) => {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        const [owners] = await masterPool.query('SELECT * FROM owners_databases WHERE is_active = TRUE');
+        
+        const insights = {
+            recommendations: [],
+            warnings: [],
+            statistics: {},
+            improvements: []
+        };
+        
+        // إحصائيات عامة
+        const totalOwners = owners.length;
+        const activeOwners = owners.filter(o => o.is_active === 1 || o.is_active === true).length;
+        const inactiveOwners = totalOwners - activeOwners;
+        
+        insights.statistics = {
+            total_owners: totalOwners,
+            active_owners: activeOwners,
+            inactive_owners: inactiveOwners
+        };
+        
+        // تحليل البيانات
+        for (const owner of owners) {
+            try {
+                const ownerPool = await dbManager.getOwnerPool(owner.domain);
+                
+                // عدد صفحات الوطني
+                const [alwataniCount] = await ownerPool.query('SELECT COUNT(*) as count FROM alwatani_login');
+                const pagesCount = alwataniCount[0]?.count || 0;
+                
+                // عدد المشتركين
+                const [subscribersCount] = await ownerPool.query('SELECT COUNT(*) as count FROM subscribers');
+                const subscribers = subscribersCount[0]?.count || 0;
+                
+                // توصيات بناءً على البيانات
+                if (pagesCount === 0) {
+                    insights.warnings.push({
+                        type: 'warning',
+                        owner: owner.agent_name || owner.username,
+                        message: `الوكيل ${owner.agent_name || owner.username} لا يملك صفحات وطني مفتوحة`
+                    });
+                }
+                
+                if (subscribers === 0 && pagesCount > 0) {
+                    insights.recommendations.push({
+                        type: 'info',
+                        owner: owner.agent_name || owner.username,
+                        message: `يُنصح بمزامنة المشتركين للوكيل ${owner.agent_name || owner.username}`
+                    });
+                }
+                
+            } catch (error) {
+                // تجاهل الأخطاء
+            }
+        }
+        
+        // تحسينات عامة
+        if (inactiveOwners > 0) {
+            insights.improvements.push({
+                type: 'improvement',
+                title: 'إدارة الحسابات غير النشطة',
+                description: `يوجد ${inactiveOwners} حساب غير نشط. يُنصح بمراجعة هذه الحسابات.`
+            });
+        }
+        
+        if (totalOwners === 0) {
+            insights.improvements.push({
+                type: 'improvement',
+                title: 'إضافة وكلاء جدد',
+                description: 'لا يوجد وكلاء مسجلين في النظام. يُنصح بإضافة وكلاء جدد.'
+            });
+        }
+        
+        // توصيات الأداء
+        insights.improvements.push({
+            type: 'performance',
+            title: 'تحسين الأداء',
+            description: 'يُنصح بإجراء مزامنة دورية للبيانات لضمان تحديثها باستمرار.'
+        });
+        
+        insights.improvements.push({
+            type: 'security',
+            title: 'الأمان',
+            description: 'تأكد من تحديث كلمات المرور بانتظام واستخدام كلمات مرور قوية.'
+        });
+        
+        res.json({
+            success: true,
+            insights: insights
+        });
+    } catch (error) {
+        console.error('[ADMIN DASHBOARD] Error loading insights:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Get Database Table Data
 app.get('/api/admin/database/tables', requireAdminAuth, async (req, res) => {
     try {

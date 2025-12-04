@@ -3,29 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة التحكم الإدارية - قاعدة البيانات</title>
+    <title>لوحة التحكم الإدارية - إدارة الوكيلين</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         .stat-card {
-            transition: transform 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
         .stat-card:hover {
             transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .table-row {
+            transition: all 0.2s;
+        }
+        .table-row:hover {
+            background-color: #f9fafb;
+        }
+        .insight-card {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .loading-spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
-<body class="bg-gray-100">
+<body class="bg-gray-50">
     <div class="min-h-screen">
         <!-- Header -->
-        <header class="bg-[#26466D] text-white p-4 shadow-lg">
+        <header class="bg-gradient-to-r from-[#26466D] to-[#1e3550] text-white p-4 shadow-lg">
             <div class="container mx-auto flex justify-between items-center">
-                <h1 class="text-2xl font-bold">لوحة التحكم الإدارية</h1>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold">لوحة التحكم الإدارية</h1>
+                        <p class="text-sm text-blue-100">إدارة الوكيلين والأنظمة</p>
+                    </div>
+                </div>
                 <div class="flex items-center gap-4">
-                    <span id="server-status" class="px-3 py-1 rounded-full text-sm bg-green-500">متصل</span>
-                    <button onclick="logout()" class="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg">تسجيل الخروج</button>
+                    <span id="server-status" class="px-3 py-1 rounded-full text-sm bg-green-500 flex items-center gap-2">
+                        <span class="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                        متصل
+                    </span>
+                    <button onclick="logout()" class="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                        </svg>
+                        تسجيل الخروج
+                    </button>
                 </div>
             </div>
         </header>
@@ -33,89 +77,155 @@
         <main class="container mx-auto p-6">
             <!-- Statistics Cards -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div class="stat-card bg-white rounded-xl shadow-lg p-6">
+                <div class="stat-card bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-gray-600 text-sm mb-1">المستخدمين</p>
-                            <p id="stat-users" class="text-3xl font-bold text-blue-600">0</p>
+                            <p class="text-gray-600 text-sm mb-1">إجمالي الوكيلين</p>
+                            <p id="stat-total-owners" class="text-3xl font-bold text-blue-600">0</p>
                         </div>
                         <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                             <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="stat-card bg-white rounded-xl shadow-lg p-6">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-gray-600 text-sm mb-1">المشتركين</p>
-                            <p id="stat-subscribers" class="text-3xl font-bold text-green-600">0</p>
-                        </div>
-                        <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path>
                             </svg>
                         </div>
                     </div>
                 </div>
 
-                <div class="stat-card bg-white rounded-xl shadow-lg p-6">
+                <div class="stat-card bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-gray-600 text-sm mb-1">حسابات الوطني</p>
-                            <p id="stat-alwatani" class="text-3xl font-bold text-purple-600">0</p>
+                            <p class="text-gray-600 text-sm mb-1">الوكيلين النشطين</p>
+                            <p id="stat-active-owners" class="text-3xl font-bold text-green-600">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm mb-1">إجمالي صفحات الوطني</p>
+                            <p id="stat-total-pages" class="text-3xl font-bold text-purple-600">0</p>
                         </div>
                         <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                             <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                             </svg>
                         </div>
                     </div>
                 </div>
 
-                <div class="stat-card bg-white rounded-xl shadow-lg p-6">
+                <div class="stat-card bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-gray-600 text-sm mb-1">حجم قاعدة البيانات</p>
-                            <p id="stat-db-size" class="text-3xl font-bold text-orange-600">0 MB</p>
+                            <p class="text-gray-600 text-sm mb-1">متوسط الأيام</p>
+                            <p id="stat-avg-days" class="text-3xl font-bold text-orange-600">0</p>
                         </div>
                         <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                             <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                             </svg>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Database Tables Section -->
+            <!-- Owners Table -->
             <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold text-gray-800">الجداول في قاعدة البيانات</h2>
-                    <select id="database-select" class="px-4 py-2 border rounded-lg">
-                        <option value="ftth_master">جاري التحميل...</option>
-                    </select>
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">جدول الوكيلين</h2>
+                        <p class="text-gray-600 text-sm mt-1">عرض جميع الوكيلين المسجلين في النظام</p>
+                    </div>
+                    <button onclick="loadOwnersList()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        تحديث
+                    </button>
                 </div>
-                <div id="tables-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <!-- Tables will be loaded here -->
+                
+                <div id="owners-loading" class="text-center py-8">
+                    <div class="loading-spinner mx-auto mb-4"></div>
+                    <p class="text-gray-600">جاري تحميل البيانات...</p>
+                </div>
+                
+                <div id="owners-table-container" class="hidden overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">اسم الوكيل الثلاثي</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">رقم الهاتف</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">عدد صفحات الوطني</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الحالة</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">عدد الأيام</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">اسم المستخدم</th>
+                            </tr>
+                        </thead>
+                        <tbody id="owners-table-body" class="bg-white divide-y divide-gray-200">
+                            <!-- Data will be loaded here -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
-            <!-- Table Data Viewer -->
+            <!-- Manager Insights Section -->
             <div class="bg-white rounded-xl shadow-lg p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold text-gray-800">عرض بيانات الجدول</h2>
-                    <div class="flex gap-2">
-                        <select id="table-select" class="px-4 py-2 border rounded-lg">
-                            <option value="">اختر جدول</option>
-                        </select>
-                        <button onclick="loadTableData()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">تحميل البيانات</button>
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">قسم المدير</h2>
+                        <p class="text-gray-600 text-sm">تحسينات وملاحظات واقتراحات</p>
                     </div>
                 </div>
-                <div id="table-data-container" class="overflow-x-auto">
-                    <p class="text-gray-500 text-center py-8">اختر جدول لعرض البيانات</p>
+
+                <div id="insights-loading" class="text-center py-8">
+                    <div class="loading-spinner mx-auto mb-4"></div>
+                    <p class="text-gray-600">جاري تحميل التحليلات...</p>
+                </div>
+
+                <div id="insights-container" class="hidden space-y-4">
+                    <!-- Recommendations -->
+                    <div id="recommendations-section" class="hidden">
+                        <h3 class="text-lg font-bold text-blue-800 mb-3 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            التوصيات
+                        </h3>
+                        <div id="recommendations-list" class="space-y-2"></div>
+                    </div>
+
+                    <!-- Warnings -->
+                    <div id="warnings-section" class="hidden">
+                        <h3 class="text-lg font-bold text-red-800 mb-3 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                            </svg>
+                            تحذيرات
+                        </h3>
+                        <div id="warnings-list" class="space-y-2"></div>
+                    </div>
+
+                    <!-- Improvements -->
+                    <div id="improvements-section" class="hidden">
+                        <h3 class="text-lg font-bold text-green-800 mb-3 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            التحسينات المقترحة
+                        </h3>
+                        <div id="improvements-list" class="space-y-3"></div>
+                    </div>
                 </div>
             </div>
         </main>
@@ -132,7 +242,6 @@
             throw new Error('Redirecting to login');
         }
         
-        // Verify token is valid by checking format
         if (typeof authToken !== 'string' || authToken.trim() === '') {
             console.log('[ADMIN] Invalid token format, redirecting to login');
             localStorage.removeItem('admin_token');
@@ -140,124 +249,215 @@
             throw new Error('Invalid token');
         }
 
-        // Load statistics
-        async function loadStats() {
+        // Load owners list
+        async function loadOwnersList() {
+            const loadingDiv = document.getElementById('owners-loading');
+            const container = document.getElementById('owners-table-container');
+            const tbody = document.getElementById('owners-table-body');
+            
+            loadingDiv.classList.remove('hidden');
+            container.classList.add('hidden');
+            tbody.innerHTML = '';
+            
             try {
-                const response = await fetch(`${API_URL}/api/admin/database/stats`, {
+                const response = await fetch(`${API_URL}/api/admin/owners/list`, {
                     headers: {
                         'Authorization': `Bearer ${authToken}`
                     }
                 });
                 const data = await response.json();
                 
-                if (data.success) {
-                    document.getElementById('stat-users').textContent = data.data.users;
-                    document.getElementById('stat-subscribers').textContent = data.data.subscribers;
-                    document.getElementById('stat-alwatani').textContent = data.data.alwataniLogins;
-                    document.getElementById('stat-db-size').textContent = data.data.databaseSize.toFixed(2) + ' MB';
-                }
-            } catch (error) {
-                console.error('Error loading stats:', error);
-            }
-        }
-
-        // Load tables list
-        async function loadTablesList() {
-            const database = document.getElementById('database-select').value;
-            try {
-                const response = await fetch(`${API_URL}/api/admin/database/tables-list?database=${database}`, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    }
-                });
-                const data = await response.json();
-                
-                if (data.success) {
-                    const tablesList = document.getElementById('tables-list');
-                    tablesList.innerHTML = '';
+                if (data.success && data.owners) {
+                    loadingDiv.classList.add('hidden');
+                    container.classList.remove('hidden');
                     
-                    data.tables.forEach(table => {
-                        const card = document.createElement('div');
-                        card.className = 'border rounded-lg p-4 hover:bg-gray-50 cursor-pointer';
-                        card.onclick = () => {
-                            document.getElementById('table-select').value = table.name;
-                            loadTableData();
-                        };
-                        card.innerHTML = `
-                            <h3 class="font-bold text-gray-800 mb-2">${table.name}</h3>
-                            <div class="flex justify-between text-sm text-gray-600">
-                                <span>${table.rows} صف</span>
-                                <span>${table.size_mb} MB</span>
-                            </div>
+                    if (data.owners.length === 0) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                                    لا يوجد وكلاء مسجلين في النظام
+                                </td>
+                            </tr>
                         `;
-                        tablesList.appendChild(card);
+                        return;
+                    }
+                    
+                    data.owners.forEach((owner, index) => {
+                        const row = document.createElement('tr');
+                        row.className = 'table-row';
+                        row.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${index + 1}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 font-semibold">${owner.agent_name}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-mono">${owner.phone}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                <span class="px-3 py-1 bg-purple-100 text-purple-800 rounded-full font-semibold">${owner.alwatani_pages_count}</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="px-3 py-1 rounded-full font-semibold ${owner.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                    ${owner.status}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full font-semibold">${owner.days_used} يوم</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">${owner.username}</td>
+                        `;
+                        tbody.appendChild(row);
                     });
-
-                    // Update table select
-                    const tableSelect = document.getElementById('table-select');
-                    tableSelect.innerHTML = '<option value="">اختر جدول</option>';
-                    data.tables.forEach(table => {
-                        const option = document.createElement('option');
-                        option.value = table.name;
-                        option.textContent = `${table.name} (${table.rows} صف)`;
-                        tableSelect.appendChild(option);
-                    });
+                    
+                    // Update statistics
+                    updateStatistics(data.owners);
+                } else {
+                    loadingDiv.classList.add('hidden');
+                    container.classList.remove('hidden');
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="px-6 py-8 text-center text-red-500">
+                                خطأ في تحميل البيانات: ${data.error || 'خطأ غير معروف'}
+                            </td>
+                        </tr>
+                    `;
                 }
             } catch (error) {
-                console.error('Error loading tables:', error);
+                console.error('Error loading owners:', error);
+                loadingDiv.classList.add('hidden');
+                container.classList.remove('hidden');
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="px-6 py-8 text-center text-red-500">
+                            خطأ في الاتصال بالسيرفر: ${error.message}
+                        </td>
+                    </tr>
+                `;
             }
         }
 
-        // Load table data
-        async function loadTableData() {
-            const table = document.getElementById('table-select').value;
-            if (!table) return;
+        // Update statistics
+        function updateStatistics(owners) {
+            const totalOwners = owners.length;
+            const activeOwners = owners.filter(o => o.is_active).length;
+            const totalPages = owners.reduce((sum, o) => sum + (o.alwatani_pages_count || 0), 0);
+            const avgDays = owners.length > 0 ? Math.round(owners.reduce((sum, o) => sum + (o.days_used || 0), 0) / owners.length) : 0;
+            
+            document.getElementById('stat-total-owners').textContent = totalOwners;
+            document.getElementById('stat-active-owners').textContent = activeOwners;
+            document.getElementById('stat-total-pages').textContent = totalPages;
+            document.getElementById('stat-avg-days').textContent = avgDays;
+        }
 
-            const container = document.getElementById('table-data-container');
-            container.innerHTML = '<p class="text-center py-4">جاري التحميل...</p>';
-
+        // Load insights
+        async function loadInsights() {
+            const loadingDiv = document.getElementById('insights-loading');
+            const container = document.getElementById('insights-container');
+            
+            loadingDiv.classList.remove('hidden');
+            container.classList.add('hidden');
+            
             try {
-                const response = await fetch(`${API_URL}/api/admin/database/tables?table=${table}&limit=100`, {
+                const response = await fetch(`${API_URL}/api/admin/insights`, {
                     headers: {
                         'Authorization': `Bearer ${authToken}`
                     }
                 });
                 const data = await response.json();
                 
-                if (data.success && data.data.length > 0) {
-                    const keys = Object.keys(data.data[0]);
-                    let html = `
-                        <div class="mb-4 text-sm text-gray-600">
-                            إجمالي السجلات: ${data.total} | عرض: ${data.data.length}
-                        </div>
-                        <table class="min-w-full border-collapse border border-gray-300">
-                            <thead>
-                                <tr class="bg-gray-100">
-                                    ${keys.map(key => `<th class="border border-gray-300 px-4 py-2 text-right">${key}</th>`).join('')}
-                                </tr>
-                            </thead>
-                            <tbody>
-                    `;
+                if (data.success && data.insights) {
+                    loadingDiv.classList.add('hidden');
+                    container.classList.remove('hidden');
                     
-                    data.data.forEach(row => {
-                        html += '<tr>';
-                        keys.forEach(key => {
-                            const value = row[key];
-                            const displayValue = value === null ? '<span class="text-gray-400">NULL</span>' : 
-                                                typeof value === 'object' ? JSON.stringify(value) : 
-                                                String(value);
-                            html += `<td class="border border-gray-300 px-4 py-2 text-sm">${displayValue}</td>`;
+                    const insights = data.insights;
+                    
+                    // Recommendations
+                    if (insights.recommendations && insights.recommendations.length > 0) {
+                        const section = document.getElementById('recommendations-section');
+                        const list = document.getElementById('recommendations-list');
+                        section.classList.remove('hidden');
+                        list.innerHTML = '';
+                        
+                        insights.recommendations.forEach(rec => {
+                            const card = document.createElement('div');
+                            card.className = 'insight-card bg-blue-50 border-r-4 border-blue-500 p-4 rounded-lg';
+                            card.innerHTML = `
+                                <div class="flex items-start gap-3">
+                                    <svg class="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <div>
+                                        <p class="text-blue-800 font-semibold">${rec.owner}</p>
+                                        <p class="text-blue-700 text-sm mt-1">${rec.message}</p>
+                                    </div>
+                                </div>
+                            `;
+                            list.appendChild(card);
                         });
-                        html += '</tr>';
-                    });
+                    }
                     
-                    html += '</tbody></table>';
-                    container.innerHTML = html;
-                } else {
-                    container.innerHTML = '<p class="text-gray-500 text-center py-8">لا توجد بيانات في هذا الجدول</p>';
+                    // Warnings
+                    if (insights.warnings && insights.warnings.length > 0) {
+                        const section = document.getElementById('warnings-section');
+                        const list = document.getElementById('warnings-list');
+                        section.classList.remove('hidden');
+                        list.innerHTML = '';
+                        
+                        insights.warnings.forEach(warn => {
+                            const card = document.createElement('div');
+                            card.className = 'insight-card bg-red-50 border-r-4 border-red-500 p-4 rounded-lg';
+                            card.innerHTML = `
+                                <div class="flex items-start gap-3">
+                                    <svg class="w-5 h-5 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                    </svg>
+                                    <div>
+                                        <p class="text-red-800 font-semibold">${warn.owner}</p>
+                                        <p class="text-red-700 text-sm mt-1">${warn.message}</p>
+                                    </div>
+                                </div>
+                            `;
+                            list.appendChild(card);
+                        });
+                    }
+                    
+                    // Improvements
+                    if (insights.improvements && insights.improvements.length > 0) {
+                        const section = document.getElementById('improvements-section');
+                        const list = document.getElementById('improvements-list');
+                        section.classList.remove('hidden');
+                        list.innerHTML = '';
+                        
+                        insights.improvements.forEach(improvement => {
+                            const iconColor = improvement.type === 'performance' ? 'text-yellow-600' : 
+                                            improvement.type === 'security' ? 'text-red-600' : 'text-green-600';
+                            const bgColor = improvement.type === 'performance' ? 'bg-yellow-50 border-yellow-500' : 
+                                           improvement.type === 'security' ? 'bg-red-50 border-red-500' : 'bg-green-50 border-green-500';
+                            const textColor = improvement.type === 'performance' ? 'text-yellow-800' : 
+                                            improvement.type === 'security' ? 'text-red-800' : 'text-green-800';
+                            
+                            const card = document.createElement('div');
+                            card.className = `insight-card ${bgColor} border-r-4 p-4 rounded-lg`;
+                            card.innerHTML = `
+                                <div class="flex items-start gap-3">
+                                    <svg class="w-5 h-5 ${iconColor} mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <div>
+                                        <p class="${textColor} font-bold text-lg">${improvement.title}</p>
+                                        <p class="${textColor.replace('800', '700')} text-sm mt-1">${improvement.description}</p>
+                                    </div>
+                                </div>
+                            `;
+                            list.appendChild(card);
+                        });
+                    }
                 }
             } catch (error) {
-                container.innerHTML = `<p class="text-red-500 text-center py-8">خطأ: ${error.message}</p>`;
+                console.error('Error loading insights:', error);
+                loadingDiv.classList.add('hidden');
+                container.classList.remove('hidden');
+                container.innerHTML = `
+                    <div class="bg-red-50 border-r-4 border-red-500 p-4 rounded-lg">
+                        <p class="text-red-800">خطأ في تحميل التحليلات: ${error.message}</p>
+                    </div>
+                `;
             }
         }
 
@@ -267,46 +467,15 @@
             window.location.href = '/admin-login.html';
         }
 
-        // Load databases list
-        async function loadDatabasesList() {
-            try {
-                const response = await fetch(`${API_URL}/api/admin/database/databases-list`, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    }
-                });
-                const data = await response.json();
-                
-                if (data.success) {
-                    const databaseSelect = document.getElementById('database-select');
-                    databaseSelect.innerHTML = '';
-                    
-                    data.databases.forEach(db => {
-                        const option = document.createElement('option');
-                        option.value = db.name;
-                        option.textContent = `${db.name}${db.type === 'owner' ? ` (${db.username})` : ' (Master)'}`;
-                        databaseSelect.appendChild(option);
-                    });
-                    
-                    // Load tables for first database
-                    loadTablesList();
-                }
-            } catch (error) {
-                console.error('Error loading databases:', error);
-            }
-        }
-
-        // Event listeners
-        document.getElementById('database-select').addEventListener('change', loadTablesList);
-
         // Initial load
-        loadStats();
-        loadDatabasesList();
+        loadOwnersList();
+        loadInsights();
         
-        // Refresh stats every 30 seconds
-        setInterval(loadStats, 30000);
+        // Auto-refresh every 60 seconds
+        setInterval(() => {
+            loadOwnersList();
+            loadInsights();
+        }, 60000);
     </script>
 </body>
 </html>
-
-
