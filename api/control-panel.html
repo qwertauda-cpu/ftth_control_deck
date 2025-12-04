@@ -1737,6 +1737,19 @@
         </div>
     </div>
 
+    <!-- Alwatani Accounts Modal -->
+    <div id="alwataniAccountsModal" class="modal-overlay" style="display: none; z-index: 2000;">
+        <div class="modal-container" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2 class="modal-title">حسابات الوطني</h2>
+                <button class="modal-close" onclick="closeAlwataniAccountsModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="alwataniAccountsContent">
+                <div class="loading">جاري التحميل...</div>
+            </div>
+        </div>
+    </div>
+
     <!-- Create Chat Modal -->
     <div id="createChatModal" class="modal-overlay" style="display: none; z-index: 2000;">
         <div class="modal-container" style="max-width: 500px;">
@@ -2272,11 +2285,9 @@
                             <td>${agent.user?.email || 'غير محدد'}</td>
                             <td>${agent.user?.phone || 'غير محدد'}</td>
                             <td>
-                                <span class="badge badge-info">${agent.alwatani_accounts_count || 0} حساب</span>
-                                ${agent.alwatani_accounts && agent.alwatani_accounts.length > 0 ? 
-                                    `<br><small>${agent.alwatani_accounts.map(acc => acc.username).join(', ')}</small>` : 
-                                    '<br><small>لا توجد حسابات</small>'
-                                }
+                                <span class="badge badge-info" style="cursor: pointer;" onclick="showAlwataniAccounts(${index})" title="اضغط لعرض حسابات الوطني">
+                                    ${agent.alwatani_accounts_count || 0} حساب
+                                </span>
                             </td>
                             <td>
                                 <span class="badge badge-success">${agent.subscribers_count || 0}</span>
@@ -2468,11 +2479,118 @@
             }
         }
 
+        // Show Alwatani accounts modal
+        function showAlwataniAccounts(index) {
+            const agent = window.agentsData && window.agentsData[index];
+            if (!agent) {
+                console.error('Agent not found at index:', index);
+                return;
+            }
+            
+            const modal = document.getElementById('alwataniAccountsModal');
+            const content = document.getElementById('alwataniAccountsContent');
+            
+            // Show modal
+            modal.style.display = 'flex';
+            
+            // Build content
+            let html = `
+                <div style="margin-bottom: 20px;">
+                    <h3 style="color: var(--mdc-on-surface); margin-bottom: 8px;">${agent.owner_username || 'N/A'}</h3>
+                    <p style="color: var(--mdc-on-surface-secondary); font-size: 14px;">عدد الحسابات: ${agent.alwatani_accounts_count || 0}</p>
+                </div>
+            `;
+            
+            if (agent.alwatani_accounts && agent.alwatani_accounts.length > 0) {
+                html += `
+                    <div class="alwatani-accounts-grid">
+                `;
+                
+                agent.alwatani_accounts.forEach(account => {
+                    html += `
+                        <div class="alwatani-account-card">
+                            <div class="alwatani-account-header">
+                                <div class="alwatani-account-username">${account.username || 'N/A'}</div>
+                                <div class="alwatani-account-role">${account.role || 'N/A'}</div>
+                            </div>
+                            <div class="alwatani-account-info">
+                                <div class="alwatani-account-info-item">
+                                    <span class="alwatani-account-info-label">معرف الحساب</span>
+                                    <span class="alwatani-account-info-value">#${account.id || 'N/A'}</span>
+                                </div>
+                                <div class="alwatani-account-info-item">
+                                    <span class="alwatani-account-info-label">اسم الحساب</span>
+                                    <span class="alwatani-account-info-value">${account.username || 'N/A'}</span>
+                                </div>
+                                <div class="alwatani-account-info-item">
+                                    <span class="alwatani-account-info-label">كلمة المرور</span>
+                                    <span class="alwatani-account-info-value" style="display: flex; align-items: center; gap: 8px;">
+                                        <span id="alwatani-password-display-${account.id}" style="font-family: monospace;">${'*'.repeat(account.password ? account.password.length : 8)}</span>
+                                        <button class="btn btn-sm" id="alwatani-password-btn-${account.id}" onclick="toggleAlwataniPassword(${account.id})" data-password="${(account.password || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;')}" style="padding: 4px 8px; font-size: 12px;">عرض</button>
+                                    </span>
+                                </div>
+                                <div class="alwatani-account-info-item">
+                                    <span class="alwatani-account-info-label">عدد المشتركين</span>
+                                    <span class="alwatani-account-info-value">
+                                        <span class="badge badge-success">${account.subscribers_count || 0}</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="loading">لا توجد حسابات وطني مسجلة</div>
+                `;
+            }
+            
+            content.innerHTML = html;
+        }
+
+        // Close Alwatani accounts modal
+        function closeAlwataniAccountsModal() {
+            document.getElementById('alwataniAccountsModal').style.display = 'none';
+        }
+
+        // Toggle password visibility in Alwatani accounts modal
+        function toggleAlwataniPassword(accountId) {
+            const displayElement = document.getElementById(`alwatani-password-display-${accountId}`);
+            const button = document.getElementById(`alwatani-password-btn-${accountId}`);
+            
+            if (!displayElement || !button) {
+                console.error('Password elements not found for account:', accountId);
+                return;
+            }
+            
+            // Get password from data attribute
+            const password = button.getAttribute('data-password') || '';
+            
+            if (displayElement.textContent.includes('*') || displayElement.textContent.trim() === '') {
+                // Show password
+                displayElement.textContent = password || 'غير محدد';
+                button.textContent = 'إخفاء';
+            } else {
+                // Hide password
+                const pwdLength = password ? password.length : 8;
+                displayElement.textContent = '*'.repeat(pwdLength);
+                button.textContent = 'عرض';
+            }
+        }
+
         // Close modal when clicking outside
         document.addEventListener('click', function(e) {
-            const modal = document.getElementById('agentDetailsModal');
-            if (e.target === modal) {
+            const agentModal = document.getElementById('agentDetailsModal');
+            const alwataniModal = document.getElementById('alwataniAccountsModal');
+            if (e.target === agentModal) {
                 closeAgentDetailsModal();
+            }
+            if (e.target === alwataniModal) {
+                closeAlwataniAccountsModal();
             }
         });
 
