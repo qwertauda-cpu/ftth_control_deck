@@ -8080,7 +8080,7 @@ async function startServer() {
             }
             await masterPool.query(
                 'INSERT INTO control_accounts (username, password_hash, full_name, email, role, is_active) VALUES (?, ?, ?, ?, ?, ?)',
-                ['admin', passwordHash, 'مدير النظام', 'admin@example.com', 'admin', TRUE]
+                ['admin', passwordHash, 'مدير النظام', 'admin@example.com', 'admin', 1]
             );
             console.log('✅ تم إضافة حساب المدير الافتراضي (admin/admin123)');
         }
