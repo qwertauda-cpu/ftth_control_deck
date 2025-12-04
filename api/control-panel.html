@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لوحة التحكم - Control Panel</title>
+    <!-- vis-network for Flowchart -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <style>
@@ -1863,6 +1865,10 @@
                     <span class="menu-item-icon">💬</span>
                     <span>المحادثة</span>
                 </a>
+                <a class="menu-item" data-section="flowchart">
+                    <span class="menu-item-icon">🕸️</span>
+                    <span>المخطط الانسيابي</span>
+                </a>
             </div>
             <div class="sidebar-footer">
                 <button class="logout-btn" onclick="logout()">🚪 تسجيل الخروج</button>
@@ -2145,6 +2151,31 @@
                                 <button class="mobile-chat-send-btn" onclick="sendChatMessage()" title="إرسال">➤</button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flowchart Section -->
+            <div id="flowchart-section" class="content-section hidden">
+                <div class="section-title">المخطط الانسيابي</div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+                    <div style="display: flex; gap: 12px;">
+                        <button class="btn btn-primary" onclick="showCreateFlowchartModal()">➕ مخطط جديد</button>
+                        <button class="btn btn-secondary" onclick="loadFlowchartList()">🔄 تحديث</button>
+                    </div>
+                    <select id="flowchartSelector" class="form-input" style="width: 300px; max-width: 100%; padding: 10px;" onchange="loadSelectedFlowchart()">
+                        <option value="">اختر مخطط...</option>
+                    </select>
+                </div>
+
+                <div id="flowchartContainer" style="width: 100%; height: calc(100vh - 300px); min-height: 600px; background: var(--mdc-surface); border: 1px solid var(--mdc-divider); border-radius: 8px; position: relative; overflow: hidden;">
+                    <div id="flowchartNetwork" style="width: 100%; height: 100%;"></div>
+                    <div id="flowchartToolbar" style="position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 100; flex-wrap: wrap;">
+                        <button class="btn btn-secondary btn-sm" onclick="addFlowchartNode()" title="إضافة عقدة">➕ عقدة</button>
+                        <button class="btn btn-secondary btn-sm" onclick="deleteSelectedNode()" title="حذف المحدد">🗑️ حذف</button>
+                        <button class="btn btn-secondary btn-sm" onclick="saveFlowchart()" title="حفظ المخطط">💾 حفظ</button>
+                        <button class="btn btn-secondary btn-sm" onclick="clearFlowchart()" title="مسح الكل">🗑️ مسح</button>
                     </div>
                 </div>
             </div>
@@ -3693,6 +3724,337 @@
             selectedChatImage = null;
             document.getElementById('chatImageInput').value = '';
             document.getElementById('chatImagePreview').style.display = 'none';
+        }
+
+        // ==================== Flowchart Functions ====================
+        let flowchartNetwork = null;
+        let flowchartNodes = new vis.DataSet([]);
+        let flowchartEdges = new vis.DataSet([]);
+        let currentFlowchartId = null;
+        let isFlowchartEditMode = true; // Control panel users can edit
+
+        function initFlowchart() {
+            const container = document.getElementById('flowchartNetwork');
+            if (!container) return;
+
+            // Create network
+            const data = {
+                nodes: flowchartNodes,
+                edges: flowchartEdges
+            };
+
+            const options = {
+                nodes: {
+                    shape: 'box',
+                    size: 30,
+                    font: {
+                        size: 14,
+                        color: '#FFFFFF'
+                    },
+                    borderWidth: 2,
+                    shadow: true,
+                    color: {
+                        border: '#90CAF9',
+                        background: '#2196F3',
+                        highlight: {
+                            border: '#FFB74D',
+                            background: '#FF9800'
+                        }
+                    }
+                },
+                edges: {
+                    width: 2,
+                    color: {
+                        color: '#90CAF9',
+                        highlight: '#FFB74D'
+                    },
+                    arrows: {
+                        to: {
+                            enabled: true,
+                            scaleFactor: 1.2
+                        }
+                    },
+                    smooth: {
+                        type: 'dynamic',
+                        roundness: 0.5
+                    },
+                    shadow: true
+                },
+                physics: {
+                    enabled: true,
+                    stabilization: {
+                        enabled: true,
+                        iterations: 200
+                    },
+                    barnesHut: {
+                        gravitationalConstant: -2000,
+                        centralGravity: 0.3,
+                        springLength: 95,
+                        springConstant: 0.04,
+                        damping: 0.09
+                    }
+                },
+                interaction: {
+                    dragNodes: isFlowchartEditMode,
+                    dragView: true,
+                    zoomView: true,
+                    selectConnectedEdges: true,
+                    hover: true,
+                    tooltipDelay: 100
+                }
+            };
+
+            flowchartNetwork = new vis.Network(container, data, options);
+
+            // Event listeners
+            flowchartNetwork.on('click', function(params) {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    const node = flowchartNodes.get(nodeId);
+                    if (node && isFlowchartEditMode) {
+                        showEditNodeModal(nodeId, node);
+                    }
+                } else if (params.edges.length > 0) {
+                    const edgeId = params.edges[0];
+                    const edge = flowchartEdges.get(edgeId);
+                    if (edge && isFlowchartEditMode) {
+                        showEditEdgeModal(edgeId, edge);
+                    }
+                }
+            });
+
+            flowchartNetwork.on('doubleClick', function(params) {
+                if (params.nodes.length === 0 && isFlowchartEditMode) {
+                    // Double click on empty space to add node
+                    const pos = params.pointer;
+                    addNodeAtPosition(pos.x, pos.y);
+                }
+            });
+
+            // Enable edge creation on drag
+            if (isFlowchartEditMode) {
+                flowchartNetwork.on('oncontext', function(params) {
+                    params.event.preventDefault();
+                    if (params.nodes.length > 0) {
+                        startEdgeCreation(params.nodes[0]);
+                    }
+                });
+            }
+        }
+
+        function addFlowchartNode() {
+            if (!isFlowchartEditMode) return;
+            const container = document.getElementById('flowchartNetwork');
+            if (!container) return;
+            
+            const rect = container.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            
+            addNodeAtPosition(centerX, centerY);
+        }
+
+        function addNodeAtPosition(x, y) {
+            if (!isFlowchartEditMode) return;
+            const nodeId = Date.now().toString();
+            const newNode = {
+                id: nodeId,
+                label: 'عقدة جديدة',
+                x: x,
+                y: y,
+                color: {
+                    border: '#90CAF9',
+                    background: '#2196F3',
+                    highlight: {
+                        border: '#FFB74D',
+                        background: '#FF9800'
+                    }
+                },
+                font: {
+                    color: '#FFFFFF',
+                    size: 14
+                }
+            };
+            flowchartNodes.add(newNode);
+        }
+
+        function deleteSelectedNode() {
+            if (!isFlowchartEditMode) return;
+            const selectedNodes = flowchartNetwork.getSelectedNodes();
+            const selectedEdges = flowchartNetwork.getSelectedEdges();
+            
+            if (selectedNodes.length > 0) {
+                // Delete connected edges first
+                selectedNodes.forEach(nodeId => {
+                    const connectedEdges = flowchartNetwork.getConnectedEdges(nodeId);
+                    connectedEdges.forEach(edgeId => {
+                        flowchartEdges.remove(edgeId);
+                    });
+                });
+                flowchartNodes.remove(selectedNodes);
+            }
+            
+            if (selectedEdges.length > 0) {
+                flowchartEdges.remove(selectedEdges);
+            }
+        }
+
+        function showEditNodeModal(nodeId, node) {
+            const label = prompt('أدخل نص العقدة:', node.label || '');
+            if (label !== null && label.trim() !== '') {
+                flowchartNodes.update({
+                    id: nodeId,
+                    label: label.trim()
+                });
+            }
+        }
+
+        function showEditEdgeModal(edgeId, edge) {
+            const label = prompt('أدخل نص الرابط (اختياري):', edge.label || '');
+            if (label !== null) {
+                flowchartEdges.update({
+                    id: edgeId,
+                    label: label.trim() || undefined
+                });
+            }
+        }
+
+        let edgeCreationMode = false;
+        let edgeFromNode = null;
+
+        function startEdgeCreation(fromNodeId) {
+            edgeCreationMode = true;
+            edgeFromNode = fromNodeId;
+            document.getElementById('flowchartNetwork').style.cursor = 'crosshair';
+        }
+
+        function clearFlowchart() {
+            if (!isFlowchartEditMode) return;
+            if (confirm('هل أنت متأكد من مسح المخطط بالكامل؟')) {
+                flowchartNodes.clear();
+                flowchartEdges.clear();
+                currentFlowchartId = null;
+            }
+        }
+
+        async function loadFlowchartList() {
+            try {
+                const response = await fetchWithAuth(`${API_BASE}/api/control/flowchart`);
+                if (!response) return;
+                const data = await response.json();
+                
+                const selector = document.getElementById('flowchartSelector');
+                if (data.success && data.flowcharts) {
+                    selector.innerHTML = '<option value="">اختر مخطط...</option>' +
+                        data.flowcharts.map(f => 
+                            `<option value="${f.id}">${escapeHtml(f.name || 'بدون اسم')}</option>`
+                        ).join('');
+                } else {
+                    selector.innerHTML = '<option value="">لا توجد مخططات</option>';
+                }
+            } catch (error) {
+                console.error('Error loading flowchart list:', error);
+            }
+        }
+
+        async function loadSelectedFlowchart() {
+            const selector = document.getElementById('flowchartSelector');
+            const flowchartId = selector.value;
+            
+            if (!flowchartId) {
+                flowchartNodes.clear();
+                flowchartEdges.clear();
+                currentFlowchartId = null;
+                return;
+            }
+            
+            try {
+                const response = await fetchWithAuth(`${API_BASE}/api/control/flowchart/${flowchartId}`);
+                if (!response) return;
+                const data = await response.json();
+                
+                if (data.success && data.flowchart) {
+                    currentFlowchartId = flowchartId;
+                    const nodes = Array.isArray(data.flowchart.nodes) ? data.flowchart.nodes : JSON.parse(data.flowchart.nodes || '[]');
+                    const edges = Array.isArray(data.flowchart.edges) ? data.flowchart.edges : JSON.parse(data.flowchart.edges || '[]');
+                    
+                    flowchartNodes.clear();
+                    flowchartEdges.clear();
+                    
+                    if (nodes.length > 0) {
+                        flowchartNodes.add(nodes);
+                    }
+                    if (edges.length > 0) {
+                        flowchartEdges.add(edges);
+                    }
+                    
+                    // Fit to screen
+                    setTimeout(() => {
+                        flowchartNetwork.fit();
+                    }, 100);
+                }
+            } catch (error) {
+                console.error('Error loading flowchart:', error);
+                alert('حدث خطأ في تحميل المخطط');
+            }
+        }
+
+        async function saveFlowchart() {
+            if (!isFlowchartEditMode) {
+                alert('ليس لديك صلاحية للتعديل');
+                return;
+            }
+            
+            const name = prompt('أدخل اسم المخطط:', currentFlowchartId ? 'المخطط الحالي' : '');
+            if (!name || name.trim() === '') {
+                return;
+            }
+            
+            const nodes = flowchartNodes.get();
+            const edges = flowchartEdges.get();
+            
+            try {
+                const url = currentFlowchartId 
+                    ? `${API_BASE}/api/control/flowchart/${currentFlowchartId}`
+                    : `${API_BASE}/api/control/flowchart`;
+                
+                const method = currentFlowchartId ? 'PUT' : 'POST';
+                
+                const response = await fetchWithAuth(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: name.trim(),
+                        nodes: nodes,
+                        edges: edges
+                    })
+                });
+                
+                if (!response) return;
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('تم حفظ المخطط بنجاح');
+                    currentFlowchartId = data.flowchart_id || currentFlowchartId;
+                    await loadFlowchartList();
+                } else {
+                    alert(data.message || 'فشل حفظ المخطط');
+                }
+            } catch (error) {
+                console.error('Error saving flowchart:', error);
+                alert('حدث خطأ في حفظ المخطط');
+            }
+        }
+
+        function showCreateFlowchartModal() {
+            if (confirm('هل تريد إنشاء مخطط جديد؟ سيتم مسح المخطط الحالي.')) {
+                flowchartNodes.clear();
+                flowchartEdges.clear();
+                currentFlowchartId = null;
+                document.getElementById('flowchartSelector').value = '';
+            }
         }
 
         // Show confirm delete modal

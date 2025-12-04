@@ -8066,6 +8066,25 @@ async function startServer() {
         `);
         console.log('✅ تم إنشاء جدول: control_accounts (حسابات لوحة التحكم)');
         
+        // ==================== جدول flowchart_data (مخططات Flowchart) ====================
+        await masterPool.query(`
+            CREATE TABLE IF NOT EXISTS flowchart_data (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                name VARCHAR(255) NOT NULL COMMENT 'اسم المخطط',
+                description TEXT COMMENT 'وصف المخطط',
+                nodes JSON NOT NULL COMMENT 'العقد (Nodes)',
+                edges JSON NOT NULL COMMENT 'الروابط (Edges)',
+                created_by VARCHAR(255) NOT NULL COMMENT 'منشئ المخطط',
+                updated_by VARCHAR(255) COMMENT 'آخر من عدل المخطط',
+                is_active BOOLEAN DEFAULT TRUE COMMENT 'حالة المخطط',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_created_by (created_by),
+                INDEX idx_is_active (is_active)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        console.log('✅ تم إنشاء جدول: flowchart_data (مخططات Flowchart)');
+        
         // إضافة حساب افتراضي إذا لم يكن موجوداً
         const [existingAdmin] = await masterPool.query('SELECT id FROM control_accounts WHERE username = ?', ['admin']);
         if (existingAdmin.length === 0) {
@@ -8285,6 +8304,155 @@ async function performAutoSync(accountId, ownerUsername, ownerDomain, isFullSync
         autoSyncRunning.set(accountId, false);
     }
 }
+
+// ==================== Flowchart API Endpoints ====================
+
+// Get all flowcharts
+app.get('/api/control/flowchart', requireControlAuth, async (req, res) => {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        const [flowcharts] = await masterPool.query(`
+            SELECT id, name, description, created_by, updated_by, is_active, created_at, updated_at
+            FROM flowchart_data
+            WHERE is_active = TRUE
+            ORDER BY updated_at DESC
+        `);
+        
+        res.json({ success: true, flowcharts });
+    } catch (error) {
+        console.error('[CONTROL FLOWCHART LIST] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Get single flowchart
+app.get('/api/control/flowchart/:id', requireControlAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const masterPool = await dbManager.initMasterPool();
+        const [flowcharts] = await masterPool.query(
+            'SELECT * FROM flowchart_data WHERE id = ? AND is_active = TRUE',
+            [id]
+        );
+        
+        if (flowcharts.length === 0) {
+            return res.status(404).json({ success: false, message: 'المخطط غير موجود' });
+        }
+        
+        const flowchart = flowcharts[0];
+        // Parse JSON fields
+        flowchart.nodes = typeof flowchart.nodes === 'string' ? JSON.parse(flowchart.nodes) : flowchart.nodes;
+        flowchart.edges = typeof flowchart.edges === 'string' ? JSON.parse(flowchart.edges) : flowchart.edges;
+        
+        res.json({ success: true, flowchart });
+    } catch (error) {
+        console.error('[CONTROL FLOWCHART GET] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Create new flowchart
+app.post('/api/control/flowchart', requireControlAuth, async (req, res) => {
+    try {
+        const { name, description, nodes, edges } = req.body;
+        const username = req.controlUser?.username || 'admin';
+        
+        if (!name || !name.trim()) {
+            return res.status(400).json({ success: false, message: 'اسم المخطط مطلوب' });
+        }
+        
+        const masterPool = await dbManager.initMasterPool();
+        const [result] = await masterPool.query(
+            'INSERT INTO flowchart_data (name, description, nodes, edges, created_by) VALUES (?, ?, ?, ?, ?)',
+            [
+                name.trim(),
+                description || null,
+                JSON.stringify(Array.isArray(nodes) ? nodes : []),
+                JSON.stringify(Array.isArray(edges) ? edges : []),
+                username
+            ]
+        );
+        
+        res.json({ success: true, flowchart_id: result.insertId, message: 'تم إنشاء المخطط بنجاح' });
+    } catch (error) {
+        console.error('[CONTROL FLOWCHART CREATE] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Update flowchart
+app.put('/api/control/flowchart/:id', requireControlAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, description, nodes, edges } = req.body;
+        const username = req.controlUser?.username || 'admin';
+        
+        const masterPool = await dbManager.initMasterPool();
+        
+        // Check if flowchart exists
+        const [existing] = await masterPool.query(
+            'SELECT id FROM flowchart_data WHERE id = ? AND is_active = TRUE',
+            [id]
+        );
+        
+        if (existing.length === 0) {
+            return res.status(404).json({ success: false, message: 'المخطط غير موجود' });
+        }
+        
+        const updates = [];
+        const values = [];
+        
+        if (name !== undefined) {
+            updates.push('name = ?');
+            values.push(name.trim());
+        }
+        if (description !== undefined) {
+            updates.push('description = ?');
+            values.push(description || null);
+        }
+        if (nodes !== undefined) {
+            updates.push('nodes = ?');
+            values.push(JSON.stringify(Array.isArray(nodes) ? nodes : []));
+        }
+        if (edges !== undefined) {
+            updates.push('edges = ?');
+            values.push(JSON.stringify(Array.isArray(edges) ? edges : []));
+        }
+        
+        updates.push('updated_by = ?');
+        values.push(username);
+        
+        values.push(id);
+        
+        await masterPool.query(
+            `UPDATE flowchart_data SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+            values
+        );
+        
+        res.json({ success: true, message: 'تم تحديث المخطط بنجاح' });
+    } catch (error) {
+        console.error('[CONTROL FLOWCHART UPDATE] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Delete flowchart
+app.delete('/api/control/flowchart/:id', requireControlAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const masterPool = await dbManager.initMasterPool();
+        
+        await masterPool.query(
+            'UPDATE flowchart_data SET is_active = FALSE WHERE id = ?',
+            [id]
+        );
+        
+        res.json({ success: true, message: 'تم حذف المخطط بنجاح' });
+    } catch (error) {
+        console.error('[CONTROL FLOWCHART DELETE] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
 
 // ==================== Chat API Endpoints - REMOVED ====================
 

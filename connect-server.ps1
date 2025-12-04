@@ -11,7 +11,7 @@ Write-Host "==========================================" -ForegroundColor Green
 Write-Host ""
 
 # Commands to execute (single line)
-$commands = "cd /var/www/ftth_control_deck && git pull origin main && cd api && npm install bcrypt && cd .. && pm2 delete ftth-control-deck 2>/dev/null; pm2 start api/server.js --name ftth-control-deck && pm2 save && sleep 2 && pm2 status && pm2 logs ftth-control-deck --lines 30 --nostream"
+$commands = "cd /var/www/ftth_control_deck && git pull origin main && cd api && npm install bcrypt --save && cd .. && pm2 delete ftth-control-deck 2>/dev/null || true && pm2 start api/server.js --name ftth-control-deck && pm2 save && sleep 3 && pm2 status && pm2 logs ftth-control-deck --lines 30 --nostream"
 
 # Try using plink (PuTTY) if available
 if (Get-Command plink -ErrorAction SilentlyContinue) {

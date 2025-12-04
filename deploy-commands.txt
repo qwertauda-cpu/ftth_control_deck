@@ -1,0 +1,15 @@
+# Commands to run on server
+# Copy and paste these commands in Git Bash after connecting to server
+
+# Connect to server:
+ssh qwertauda@130.211.200.58
+
+# After connecting, run these commands:
+cd /var/www/ftth_control_deck
+git pull origin main
+pm2 restart ftth-control-deck
+pm2 logs ftth-control-deck --lines 50
+
+# Or use the deployment script:
+# bash deploy-control-panel.sh
+

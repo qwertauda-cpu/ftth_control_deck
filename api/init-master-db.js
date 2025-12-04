@@ -148,6 +148,25 @@ async function initMasterDatabase() {
         `);
         console.log('✅ تم إنشاء جدول: control_accounts (حسابات لوحة التحكم)');
         
+        // ==================== جدول flowchart_data (مخططات Flowchart) ====================
+        await connection.query(`
+            CREATE TABLE IF NOT EXISTS flowchart_data (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                name VARCHAR(255) NOT NULL COMMENT 'اسم المخطط',
+                description TEXT COMMENT 'وصف المخطط',
+                nodes JSON NOT NULL COMMENT 'العقد (Nodes)',
+                edges JSON NOT NULL COMMENT 'الروابط (Edges)',
+                created_by VARCHAR(255) NOT NULL COMMENT 'منشئ المخطط',
+                updated_by VARCHAR(255) COMMENT 'آخر من عدل المخطط',
+                is_active BOOLEAN DEFAULT TRUE COMMENT 'حالة المخطط',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_created_by (created_by),
+                INDEX idx_is_active (is_active)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        console.log('✅ تم إنشاء جدول: flowchart_data (مخططات Flowchart)');
+        
         console.log('\n🎉 تم إعداد قاعدة البيانات الرئيسية بنجاح!');
         console.log('📝 الآن يمكنك إنشاء قواعد البيانات للعملاء');
         
