@@ -1549,7 +1549,9 @@
                 
                 const tbody = document.getElementById('ownersTableBody');
                 if (data.success && data.owners && data.owners.length > 0) {
-                    tbody.innerHTML = data.owners.map(agent => `
+                    tbody.innerHTML = data.owners.map((agent, index) => {
+                        const agentData = JSON.stringify(agent).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                        return `
                         <tr>
                             <td>
                                 <strong>${agent.owner_username || 'N/A'}</strong>
@@ -1571,10 +1573,14 @@
                             </td>
                             <td>${agent.user?.position || 'غير محدد'}</td>
                             <td>
-                                <button class="btn btn-primary btn-sm" onclick="viewAgentDetails('${agent.owner_username}')">عرض</button>
+                                <button class="btn btn-primary btn-sm" onclick="viewAgentDetails(${index})" data-agent-index="${index}">عرض</button>
                             </td>
                         </tr>
-                    `).join('');
+                    `;
+                    }).join('');
+                    
+                    // Store agents data globally for access in viewAgentDetails
+                    window.agentsData = data.owners;
                 } else {
                     tbody.innerHTML = '<tr><td colspan="8" class="loading">لا توجد بيانات</td></tr>';
                 }
