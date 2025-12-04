@@ -90,11 +90,11 @@ app.use(express.urlencoded({ extended: true }));
 // BLOCK ALL ADMIN ROUTES - Complete removal
 // This middleware blocks ANY request that starts with /admin
 app.use((req, res, next) => {
-    const path = req.path.toLowerCase();
-    if (path.startsWith('/admin') || 
-        path.includes('/admin-dashboard') || 
-        path.includes('/admin-login') ||
-        path.includes('/admin-link')) {
+    const requestPath = req.path.toLowerCase();
+    if (requestPath.startsWith('/admin') || 
+        requestPath.includes('/admin-dashboard') || 
+        requestPath.includes('/admin-login') ||
+        requestPath.includes('/admin-link')) {
         console.log(`[BLOCKED] Admin route blocked: ${req.method} ${req.path}`);
         return res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
     }
@@ -6785,11 +6785,11 @@ function escapeHtml(text) {
 // NOTE: This MUST be the last route handler!
 app.use((req, res) => {
     // BLOCK admin files even in 404 handler
-    const path = req.path.toLowerCase();
-    if (path.startsWith('/admin') || 
-        path.includes('/admin-dashboard') || 
-        path.includes('/admin-login') ||
-        path.includes('/admin-link')) {
+    const requestPath = req.path.toLowerCase();
+    if (requestPath.startsWith('/admin') || 
+        requestPath.includes('/admin-dashboard') || 
+        requestPath.includes('/admin-login') ||
+        requestPath.includes('/admin-link')) {
         console.log(`[404 BLOCKED] Admin file blocked: ${req.method} ${req.path}`);
         return res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
     }
