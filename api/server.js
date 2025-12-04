@@ -7413,10 +7413,28 @@ app.use((err, req, res, next) => {
     });
 });
 
+// Helper function to escape HTML special characters
+function escapeHtml(text) {
+    if (typeof text !== 'string') {
+        return '';
+    }
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, (m) => map[m]);
+}
+
 // 404 handler (only for API routes, not for static files)
 app.use((req, res) => {
-    // Log the 404 request for debugging
+    // Log the 404 request for debugging (server-side only)
     console.log(`[404] ${req.method} ${req.path} - Not found`);
+    
+    // Escape the path for safe HTML rendering
+    const safePath = escapeHtml(req.path);
     
     // إذا كان الطلب لملف HTML أو static file، أرسل 404 HTML
     if (req.path.endsWith('.html') || req.path.includes('.')) {
@@ -7434,24 +7452,22 @@ app.use((req, res) => {
             <body>
                 <h1>404 - الصفحة غير موجودة</h1>
                 <p>الصفحة التي تبحث عنها غير موجودة.</p>
-                <p style="color: #666; font-size: 12px;">المسار: ${req.path}</p>
+                <p style="color: #666; font-size: 12px;">المسار: ${safePath}</p>
                 <a href="/admin-login.html">العودة إلى تسجيل الدخول</a>
             </body>
             </html>
         `);
     } else {
-        // للـ API routes، أرسل JSON مع معلومات أكثر
+        // للـ API routes، أرسل JSON مع معلومات محدودة (لا تكشف معلومات حساسة)
         res.status(404).json({ 
             success: false, 
             message: 'الصفحة غير موجودة',
-            path: req.path,
-            method: req.method,
+            // Removed path and method to prevent information disclosure
+            // Only show public endpoints
             availableEndpoints: {
                 admin: {
                     login: '/api/admin/login',
-                    dashboard: '/admin-dashboard.html',
-                    info: '/api/admin/info',
-                    link: '/api/admin/link'
+                    dashboard: '/admin-dashboard.html'
                 },
                 static: {
                     login: '/admin-login.html',
