@@ -45,11 +45,15 @@ async function getOwnerUsernameFromAlwataniLoginId(alwataniLoginId) {
 }
 
 const app = express();
+const path = require('path');
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files (HTML files in api directory)
+app.use(express.static(path.join(__dirname)));
 
 // Store sync progress for each user (in-memory)
 const syncProgressStore = new Map(); // userId -> { stage, current, total, message, startedAt, updatedAt, phoneFound }
@@ -3939,10 +3943,10 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         // الحصول على عدد السجلات الموجودة قبل المزامنة
         let beforeTotal = 0;
         if (hasPartnerId) {
-            const [beforeCount] = await alwataniPool.query(
-                'SELECT COUNT(*) as total FROM alwatani_customers_cache WHERE partner_id = ?',
-                [partnerId]
-            );
+        const [beforeCount] = await alwataniPool.query(
+            'SELECT COUNT(*) as total FROM alwatani_customers_cache WHERE partner_id = ?',
+            [partnerId]
+        );
             beforeTotal = beforeCount[0]?.total || 0;
         } else {
             const [beforeCount] = await alwataniPool.query(
@@ -3961,20 +3965,20 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
             try {
                 if (hasPartnerId && hasCustomerData) {
                     // البنية الجديدة: partner_id + customer_data (JSON)
-                    const values = [];
-                    const placeholders = [];
-                    for (const customer of batch) {
-                        values.push(customer.accountId, customer.partnerId, customer.customerData);
-                        placeholders.push('(?, ?, ?, CURRENT_TIMESTAMP)');
-                    }
-                    const query = `
-                        INSERT INTO alwatani_customers_cache (account_id, partner_id, customer_data, synced_at) 
-                        VALUES ${placeholders.join(', ')}
-                        ON DUPLICATE KEY UPDATE 
-                            customer_data = VALUES(customer_data),
-                            updated_at = CURRENT_TIMESTAMP
-                    `;
-                    await alwataniPool.query(query, values);
+            const values = [];
+            const placeholders = [];
+            for (const customer of batch) {
+                values.push(customer.accountId, customer.partnerId, customer.customerData);
+                placeholders.push('(?, ?, ?, CURRENT_TIMESTAMP)');
+            }
+                const query = `
+                    INSERT INTO alwatani_customers_cache (account_id, partner_id, customer_data, synced_at) 
+                    VALUES ${placeholders.join(', ')}
+                    ON DUPLICATE KEY UPDATE 
+                        customer_data = VALUES(customer_data),
+                        updated_at = CURRENT_TIMESTAMP
+                `;
+                await alwataniPool.query(query, values);
                 } else {
                     // البنية القديمة: أعمدة منفصلة
                     for (const customer of batch) {
@@ -4034,14 +4038,14 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                 for (const customer of batch) {
                     try {
                         if (hasPartnerId && hasCustomerData) {
-                            await alwataniPool.query(
-                                `INSERT INTO alwatani_customers_cache (account_id, partner_id, customer_data) 
-                                 VALUES (?, ?, ?) 
-                                 ON DUPLICATE KEY UPDATE 
-                                     customer_data = VALUES(customer_data),
-                                     updated_at = CURRENT_TIMESTAMP`,
-                                [customer.accountId, customer.partnerId, customer.customerData]
-                            );
+                        await alwataniPool.query(
+                            `INSERT INTO alwatani_customers_cache (account_id, partner_id, customer_data) 
+                             VALUES (?, ?, ?) 
+                             ON DUPLICATE KEY UPDATE 
+                                 customer_data = VALUES(customer_data),
+                                 updated_at = CURRENT_TIMESTAMP`,
+                            [customer.accountId, customer.partnerId, customer.customerData]
+                        );
                         } else {
                             const record = typeof customer.customerData === 'string' 
                                 ? JSON.parse(customer.customerData) 
@@ -4084,10 +4088,10 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         // حساب العدد الفعلي بعد المزامنة
         let afterTotal = 0;
         if (hasPartnerId) {
-            const [afterCount] = await alwataniPool.query(
-                'SELECT COUNT(*) as total FROM alwatani_customers_cache WHERE partner_id = ?',
-                [partnerId]
-            );
+        const [afterCount] = await alwataniPool.query(
+            'SELECT COUNT(*) as total FROM alwatani_customers_cache WHERE partner_id = ?',
+            [partnerId]
+        );
             afterTotal = afterCount[0]?.total || 0;
         } else {
             const [afterCount] = await alwataniPool.query(
@@ -4270,8 +4274,8 @@ app.get('/api/alwatani-login/:id/customers/cache', async (req, res) => {
             try {
                 await alwataniPool.query(
                     'SELECT COUNT(*) as total FROM alwatani_customers_cache WHERE partner_id = ? LIMIT 1',
-                    [partnerId]
-                );
+            [partnerId]
+        );
                 hasPartnerId = true;
                 console.log('[CACHE] Table has partner_id column');
             } catch (e) {
@@ -4323,9 +4327,9 @@ app.get('/api/alwatani-login/:id/customers/cache', async (req, res) => {
             try {
                 // إذا كان الجدول يحتوي على customer_data (JSON)
                 if (row.customer_data) {
-                    return typeof row.customer_data === 'string' 
-                        ? JSON.parse(row.customer_data) 
-                        : row.customer_data;
+                return typeof row.customer_data === 'string' 
+                    ? JSON.parse(row.customer_data) 
+                    : row.customer_data;
                 } else {
                     // إذا كان الجدول يحتوي على أعمدة منفصلة، بناء object
                     return {
@@ -4355,9 +4359,9 @@ app.get('/api/alwatani-login/:id/customers/cache', async (req, res) => {
         let lastSyncRow;
         if (hasPartnerId && hasCustomerData) {
             [lastSyncRow] = await alwataniPool.query(
-                'SELECT MAX(synced_at) as last_sync FROM alwatani_customers_cache WHERE partner_id = ?',
-                [partnerId]
-            );
+            'SELECT MAX(synced_at) as last_sync FROM alwatani_customers_cache WHERE partner_id = ?',
+            [partnerId]
+        );
         } else {
             [lastSyncRow] = await alwataniPool.query(
                 'SELECT MAX(created_at) as last_sync FROM alwatani_customers_cache'
@@ -4373,7 +4377,7 @@ app.get('/api/alwatani-login/:id/customers/cache', async (req, res) => {
             pageNumber: pageNumber,
             pageSize: pageSize,
             totalPages: Math.ceil(total / pageSize),
-            lastSync: lastSyncRow[0]?.last_sync || null
+                lastSync: lastSyncRow[0]?.last_sync || null
         });
     } catch (error) {
         console.error('Get cached customers error:', error);
@@ -6886,6 +6890,209 @@ async function performAutoSync(accountId, ownerUsername, ownerDomain, isFullSync
         autoSyncRunning.set(accountId, false);
     }
 }
+
+// ================= Admin Dashboard Routes =================
+
+// Admin Password (from environment or default)
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+
+// Admin Authentication Middleware
+const requireAdminAuth = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        if (token === ADMIN_PASSWORD) {
+            next();
+            return;
+        }
+    }
+    res.status(401).json({ success: false, error: 'Unauthorized - Invalid token' });
+};
+
+// Admin Login Endpoint
+app.post('/api/admin/login', (req, res) => {
+    try {
+        const { password } = req.body;
+        if (password === ADMIN_PASSWORD) {
+            res.json({ success: true, token: ADMIN_PASSWORD });
+        } else {
+            res.status(401).json({ success: false, error: 'كلمة المرور غير صحيحة' });
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Database Statistics Endpoint
+app.get('/api/admin/database/stats', requireAdminAuth, async (req, res) => {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        
+        // إحصائيات من قاعدة البيانات الرئيسية
+        const [ownersCount] = await masterPool.query('SELECT COUNT(*) as count FROM owners_databases WHERE is_active = TRUE');
+        
+        // إحصائيات من جميع قواعد البيانات
+        const [owners] = await masterPool.query('SELECT username, domain, database_name FROM owners_databases WHERE is_active = TRUE');
+        
+        let totalUsers = 0;
+        let totalSubscribers = 0;
+        let totalAlwataniLogins = 0;
+        let totalTickets = 0;
+        let totalTeams = 0;
+        let totalDatabaseSize = 0;
+        
+        // جمع الإحصائيات من جميع قواعد البيانات
+        for (const owner of owners) {
+            try {
+                const ownerPool = await dbManager.getOwnerPool(owner.domain);
+                
+                const [usersCount] = await ownerPool.query('SELECT COUNT(*) as count FROM users');
+                const [subscribersCount] = await ownerPool.query('SELECT COUNT(*) as count FROM subscribers');
+                const [alwataniLoginCount] = await ownerPool.query('SELECT COUNT(*) as count FROM alwatani_login');
+                const [ticketsCount] = await ownerPool.query('SELECT COUNT(*) as count FROM tickets');
+                const [teamsCount] = await ownerPool.query('SELECT COUNT(*) as count FROM teams');
+                
+                totalUsers += usersCount[0].count;
+                totalSubscribers += subscribersCount[0].count;
+                totalAlwataniLogins += alwataniLoginCount[0].count;
+                totalTickets += ticketsCount[0].count;
+                totalTeams += teamsCount[0].count;
+                
+                // حجم قاعدة البيانات
+                try {
+                    const [dbSize] = await ownerPool.query(`
+                        SELECT 
+                            ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS size_mb
+                        FROM information_schema.tables 
+                        WHERE table_schema = ?
+                    `, [owner.database_name]);
+                    
+                    if (dbSize[0] && dbSize[0].size_mb) {
+                        totalDatabaseSize += dbSize[0].size_mb;
+                    }
+                } catch (err) {
+                    // تجاهل خطأ حجم قاعدة البيانات
+                }
+            } catch (error) {
+                // تجاهل الأخطاء والانتقال إلى قاعدة البيانات التالية
+                continue;
+            }
+        }
+        
+        res.json({
+            success: true,
+            data: {
+                users: totalUsers,
+                subscribers: totalSubscribers,
+                alwataniLogins: totalAlwataniLogins,
+                tickets: totalTickets,
+                teams: totalTeams,
+                owners: ownersCount[0].count,
+                databaseSize: totalDatabaseSize
+            }
+        });
+    } catch (error) {
+        console.error('[ADMIN DASHBOARD] Error loading stats:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get Database Tables List
+app.get('/api/admin/database/tables-list', requireAdminAuth, async (req, res) => {
+    try {
+        const { database } = req.query;
+        
+        if (!database) {
+            return res.status(400).json({ success: false, error: 'Database name is required' });
+        }
+        
+        let pool;
+        
+        if (database === 'ftth_master') {
+            pool = await dbManager.initMasterPool();
+        } else {
+            // البحث عن قاعدة البيانات في owners_databases
+            const masterPool = await dbManager.initMasterPool();
+            const [owners] = await masterPool.query(
+                'SELECT domain, database_name FROM owners_databases WHERE database_name = ? AND is_active = TRUE LIMIT 1',
+                [database]
+            );
+            
+            if (owners.length === 0) {
+                return res.status(404).json({ success: false, error: 'Database not found' });
+            }
+            
+            pool = await dbManager.getOwnerPool(owners[0].domain);
+        }
+        
+        const [tables] = await pool.query(`
+            SELECT 
+                TABLE_NAME as name,
+                TABLE_ROWS as rows,
+                ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2) AS size_mb
+            FROM information_schema.TABLES 
+            WHERE TABLE_SCHEMA = ?
+            ORDER BY TABLE_NAME
+        `, [database]);
+        
+        res.json({
+            success: true,
+            database: database,
+            tables: tables
+        });
+    } catch (error) {
+        console.error('[ADMIN DASHBOARD] Error loading tables list:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get Database Table Data
+app.get('/api/admin/database/tables', requireAdminAuth, async (req, res) => {
+    try {
+        const { table, database, limit = 100, offset = 0 } = req.query;
+        
+        if (!table) {
+            return res.status(400).json({ success: false, error: 'Table name is required' });
+        }
+        
+        if (!database) {
+            return res.status(400).json({ success: false, error: 'Database name is required' });
+        }
+        
+        let pool;
+        
+        if (database === 'ftth_master') {
+            pool = await dbManager.initMasterPool();
+        } else {
+            // البحث عن قاعدة البيانات في owners_databases
+            const masterPool = await dbManager.initMasterPool();
+            const [owners] = await masterPool.query(
+                'SELECT domain, database_name FROM owners_databases WHERE database_name = ? AND is_active = TRUE LIMIT 1',
+                [database]
+            );
+            
+            if (owners.length === 0) {
+                return res.status(404).json({ success: false, error: 'Database not found' });
+            }
+            
+            pool = await dbManager.getOwnerPool(owners[0].domain);
+        }
+        
+        const [rows] = await pool.query(`SELECT * FROM ?? LIMIT ? OFFSET ?`, [table, parseInt(limit), parseInt(offset)]);
+        const [count] = await pool.query(`SELECT COUNT(*) as total FROM ??`, [table]);
+        
+        res.json({
+            success: true,
+            data: rows,
+            total: count[0].total,
+            limit: parseInt(limit),
+            offset: parseInt(offset)
+        });
+    } catch (error) {
+        console.error('[ADMIN DASHBOARD] Error loading table data:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
 
 // Handle shutdown gracefully
 process.on('SIGINT', async () => {
