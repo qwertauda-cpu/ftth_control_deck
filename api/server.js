@@ -7112,8 +7112,14 @@ app.post('/api/admin/login', (req, res) => {
     try {
         const { password } = req.body;
         
+        // Log for debugging
+        console.log('[ADMIN LOGIN] Login attempt received');
+        console.log('[ADMIN LOGIN] Expected password length:', ADMIN_PASSWORD.length);
+        console.log('[ADMIN LOGIN] Expected password (first 3 chars):', ADMIN_PASSWORD.substring(0, 3) + '***');
+        
         // التحقق من وجود كلمة المرور
         if (!password || typeof password !== 'string' || password.trim() === '') {
+            console.log('[ADMIN LOGIN] ❌ Empty password provided');
             return res.status(400).json({ 
                 success: false, 
                 error: 'يرجى إدخال كلمة المرور' 
@@ -7124,6 +7130,11 @@ app.post('/api/admin/login', (req, res) => {
         const trimmedPassword = password.trim();
         const correctPassword = ADMIN_PASSWORD.trim();
         
+        // Log for debugging (without exposing password)
+        console.log('[ADMIN LOGIN] Provided password length:', trimmedPassword.length);
+        console.log('[ADMIN LOGIN] Password match:', trimmedPassword === correctPassword);
+        
+        // مقارنة دقيقة
         if (trimmedPassword === correctPassword) {
             console.log('[ADMIN LOGIN] ✅ Login successful');
             res.json({ 
@@ -7133,9 +7144,17 @@ app.post('/api/admin/login', (req, res) => {
             });
         } else {
             console.log('[ADMIN LOGIN] ❌ Invalid password attempt');
+            console.log('[ADMIN LOGIN] Expected:', correctPassword);
+            console.log('[ADMIN LOGIN] Received:', trimmedPassword);
             res.status(401).json({ 
                 success: false, 
-                error: 'كلمة المرور غير صحيحة. كلمة المرور الافتراضية: admin123' 
+                error: 'كلمة المرور غير صحيحة',
+                hint: 'كلمة المرور الافتراضية هي: admin123',
+                debug: process.env.NODE_ENV === 'development' ? {
+                    expectedLength: correctPassword.length,
+                    receivedLength: trimmedPassword.length,
+                    firstCharMatch: correctPassword[0] === trimmedPassword[0]
+                } : undefined
             });
         }
     } catch (error) {
@@ -7145,6 +7164,25 @@ app.post('/api/admin/login', (req, res) => {
             error: 'حدث خطأ في الخادم: ' + error.message 
         });
     }
+});
+
+// Debug endpoint to check current password (only in development)
+app.get('/api/admin/check-password', (req, res) => {
+    if (process.env.NODE_ENV === 'production') {
+        return res.status(403).json({ 
+            success: false, 
+            error: 'Not available in production' 
+        });
+    }
+    
+    res.json({
+        success: true,
+        passwordLength: ADMIN_PASSWORD.length,
+        passwordFirstChar: ADMIN_PASSWORD[0],
+        passwordLastChar: ADMIN_PASSWORD[ADMIN_PASSWORD.length - 1],
+        hint: 'Default password is: admin123',
+        note: 'This endpoint is only available in development mode'
+    });
 });
 
 // Database Statistics Endpoint
