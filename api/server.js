@@ -80,7 +80,6 @@ async function getOwnerUsernameFromAlwataniLoginId(alwataniLoginId) {
 }
 
 const app = express();
-const path = require('path');
 
 // Middleware
 app.use(cors());
