@@ -6711,17 +6711,36 @@ app.get('/api/health', async (req, res) => {
 
 // Root route
 app.get('/', (req, res) => {
+    const protocol = req.protocol || 'http';
+    const host = req.get('host') || 'localhost:3000';
+    const baseUrl = `${protocol}://${host}`;
+    
     res.json({
         name: 'FTTH Control Deck API',
         version: '1.0.0',
         status: 'running',
+        server: {
+            protocol: protocol,
+            host: host,
+            baseUrl: baseUrl
+        },
+        admin: {
+            login: `${baseUrl}/admin-login.html`,
+            dashboard: `${baseUrl}/admin-dashboard.html`
+        },
         endpoints: {
             auth: '/api/auth/login',
             users: '/api/users',
             subscribers: '/api/subscribers',
             tickets: '/api/tickets',
             teams: '/api/teams',
-            health: '/api/health'
+            health: '/api/health',
+            admin: {
+                login: '/api/admin/login',
+                stats: '/api/admin/database/stats',
+                databases: '/api/admin/database/databases-list',
+                tables: '/api/admin/database/tables-list'
+            }
         }
     });
 });
