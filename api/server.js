@@ -7126,6 +7126,162 @@ app.get('/api/control/owners', requireControlAuth, async (req, res) => {
     }
 });
 
+// ================= Control Panel Additional Routes =================
+
+// Get all users from all databases (for control panel)
+app.get('/api/control/users', requireControlAuth, async (req, res) => {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        const [owners] = await masterPool.query(
+            'SELECT username, domain FROM owners_databases WHERE is_active = TRUE'
+        );
+        
+        const allUsers = [];
+        for (const owner of owners) {
+            try {
+                const ownerPool = await dbManager.getOwnerPool(owner.domain);
+                const [users] = await ownerPool.query(
+                    'SELECT id, username, email, phone, display_name, agent_name, position, created_at FROM users ORDER BY created_at DESC'
+                );
+                
+                for (const user of users) {
+                    allUsers.push({
+                        ...user,
+                        owner_username: owner.username,
+                        owner_domain: owner.domain
+                    });
+                }
+            } catch (error) {
+                console.error(`[CONTROL USERS] Error for owner ${owner.username}:`, error.message);
+                continue;
+            }
+        }
+        
+        res.json(allUsers);
+    } catch (error) {
+        console.error('[CONTROL USERS] Error:', error);
+        res.status(500).json({ error: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Get all subscribers from all databases (for control panel)
+app.get('/api/control/subscribers', requireControlAuth, async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 50;
+        const masterPool = await dbManager.initMasterPool();
+        const [owners] = await masterPool.query(
+            'SELECT username, domain FROM owners_databases WHERE is_active = TRUE'
+        );
+        
+        const allSubscribers = [];
+        for (const owner of owners) {
+            try {
+                const ownerPool = await dbManager.getOwnerPool(owner.domain);
+                const [subscribers] = await ownerPool.query(
+                    'SELECT id, name, phone, zone, status, created_at FROM subscribers ORDER BY created_at DESC LIMIT ?',
+                    [limit]
+                );
+                
+                for (const sub of subscribers) {
+                    allSubscribers.push({
+                        ...sub,
+                        owner_username: owner.username
+                    });
+                }
+            } catch (error) {
+                console.error(`[CONTROL SUBSCRIBERS] Error for owner ${owner.username}:`, error.message);
+                continue;
+            }
+        }
+        
+        res.json(allSubscribers.slice(0, limit));
+    } catch (error) {
+        console.error('[CONTROL SUBSCRIBERS] Error:', error);
+        res.status(500).json({ error: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Get all tickets from all databases (for control panel)
+app.get('/api/control/tickets', requireControlAuth, async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 50;
+        const masterPool = await dbManager.initMasterPool();
+        const [owners] = await masterPool.query(
+            'SELECT username, domain FROM owners_databases WHERE is_active = TRUE'
+        );
+        
+        const allTickets = [];
+        for (const owner of owners) {
+            try {
+                const ownerPool = await dbManager.getOwnerPool(owner.domain);
+                const [tickets] = await ownerPool.query(
+                    'SELECT id, ticket_number, subscriber_name, description, team, status, priority, created_at FROM tickets ORDER BY created_at DESC LIMIT ?',
+                    [limit]
+                );
+                
+                for (const ticket of tickets) {
+                    allTickets.push({
+                        ...ticket,
+                        owner_username: owner.username
+                    });
+                }
+            } catch (error) {
+                console.error(`[CONTROL TICKETS] Error for owner ${owner.username}:`, error.message);
+                continue;
+            }
+        }
+        
+        res.json(allTickets.slice(0, limit));
+    } catch (error) {
+        console.error('[CONTROL TICKETS] Error:', error);
+        res.status(500).json({ error: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Get all teams from all databases (for control panel)
+app.get('/api/control/teams', requireControlAuth, async (req, res) => {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        const [owners] = await masterPool.query(
+            'SELECT username, domain FROM owners_databases WHERE is_active = TRUE'
+        );
+        
+        const allTeams = [];
+        for (const owner of owners) {
+            try {
+                const ownerPool = await dbManager.getOwnerPool(owner.domain);
+                const [teams] = await ownerPool.query(`
+                    SELECT 
+                        t.id,
+                        t.name,
+                        t.description,
+                        t.status,
+                        COUNT(DISTINCT tm.id) as members_count
+                    FROM teams t
+                    LEFT JOIN team_members tm ON tm.team_id = t.id
+                    GROUP BY t.id, t.name, t.description, t.status
+                    ORDER BY t.created_at DESC
+                `);
+                
+                for (const team of teams) {
+                    allTeams.push({
+                        ...team,
+                        owner_username: owner.username
+                    });
+                }
+            } catch (error) {
+                console.error(`[CONTROL TEAMS] Error for owner ${owner.username}:`, error.message);
+                continue;
+            }
+        }
+        
+        res.json(allTeams);
+    } catch (error) {
+        console.error('[CONTROL TEAMS] Error:', error);
+        res.status(500).json({ error: 'حدث خطأ في الخادم' });
+    }
+});
+
 // ================= Control Panel Chat Routes =================
 
 // Get all chat rooms

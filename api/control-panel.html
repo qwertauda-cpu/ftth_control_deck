@@ -719,8 +719,8 @@
                 const [statsRes, ownersRes, usersRes, subscribersRes] = await Promise.all([
                     fetchWithAuth(`${API_BASE}/api/control/stats`),
                     fetchWithAuth(`${API_BASE}/api/control/owners`),
-                    fetch(`${API_BASE}/api/users`),
-                    fetch(`${API_BASE}/api/subscribers/stats`)
+                    fetchWithAuth(`${API_BASE}/api/control/users`),
+                    fetchWithAuth(`${API_BASE}/api/control/subscribers?limit=1`)
                 ]);
                 
                 if (!statsRes || !ownersRes) return;
@@ -734,8 +734,8 @@
 
                 document.getElementById('dbCount').textContent = stats.databases || 0;
                 document.getElementById('ownersCount').textContent = owners.length || 0;
-                document.getElementById('usersCount').textContent = users.length || 0;
-                document.getElementById('subscribersCount').textContent = subscribers.total || 0;
+                document.getElementById('usersCount').textContent = Array.isArray(users) ? users.length : 0;
+                document.getElementById('subscribersCount').textContent = Array.isArray(subscribers) ? subscribers.length : (subscribers.total || 0);
 
                 // Update chart
                 updateChart(stats);
@@ -936,7 +936,8 @@
         // Load users
         async function loadUsers() {
             try {
-                const response = await fetch(`${API_BASE}/api/users`);
+                const response = await fetchWithAuth(`${API_BASE}/api/control/users`);
+                if (!response) return;
                 const data = await response.json();
                 
                 const tbody = document.getElementById('usersTableBody');
@@ -964,7 +965,8 @@
         // Load subscribers
         async function loadSubscribers() {
             try {
-                const response = await fetch(`${API_BASE}/api/subscribers?limit=50`);
+                const response = await fetchWithAuth(`${API_BASE}/api/control/subscribers?limit=50`);
+                if (!response) return;
                 const data = await response.json();
                 
                 const tbody = document.getElementById('subscribersTableBody');
@@ -992,7 +994,8 @@
         // Load tickets
         async function loadTickets() {
             try {
-                const response = await fetch(`${API_BASE}/api/tickets?limit=50`);
+                const response = await fetchWithAuth(`${API_BASE}/api/control/tickets?limit=50`);
+                if (!response) return;
                 const data = await response.json();
                 
                 const tbody = document.getElementById('ticketsTableBody');
@@ -1020,7 +1023,8 @@
         // Load teams
         async function loadTeams() {
             try {
-                const response = await fetch(`${API_BASE}/api/teams`);
+                const response = await fetchWithAuth(`${API_BASE}/api/control/teams`);
+                if (!response) return;
                 const data = await response.json();
                 
                 const tbody = document.getElementById('teamsTableBody');
