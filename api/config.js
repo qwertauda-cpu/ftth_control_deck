@@ -1,40 +1,5 @@
 // Database Configuration for XAMPP MySQL
-const path = require('path');
-const fs = require('fs');
-
-// Try to load .env from multiple locations
-const homeDir = process.env.HOME || process.env.USERPROFILE || require('os').homedir() || '';
-const envPaths = [
-    path.join(__dirname, '.env'),           // api/.env
-    path.join(__dirname, '..', '.env'),    // project root .env
-    homeDir ? path.join(homeDir, '.env') : null,  // home directory .env
-    '/var/www/ftth_control_deck/.env',     // server project root
-    '/var/www/ftth_control_deck/api/.env'  // server api folder
-].filter(Boolean); // Remove null values
-
-let envLoaded = false;
-for (const envPath of envPaths) {
-    if (fs.existsSync(envPath)) {
-        require('dotenv').config({ path: envPath });
-        console.log(`[CONFIG] ✅ Loaded .env from: ${envPath}`);
-        envLoaded = true;
-        break;
-    }
-}
-
-// If no .env found, try default location
-if (!envLoaded) {
-    console.log(`[CONFIG] ⚠️  No .env file found in: ${envPaths.join(', ')}`);
-    console.log(`[CONFIG] ⚠️  Trying default dotenv.config()...`);
-    require('dotenv').config();
-}
-
-// Debug: Show what environment variables are loaded
-if (process.env.DB_PASSWORD) {
-    console.log(`[CONFIG] ✅ DB_PASSWORD is set (length: ${process.env.DB_PASSWORD.length})`);
-} else {
-    console.log(`[CONFIG] ❌ DB_PASSWORD is NOT set!`);
-}
+require('dotenv').config();
 
 function parseHeadersEnv(value) {
     if (!value || typeof value !== 'string') {

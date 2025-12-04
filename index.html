@@ -1023,8 +1023,8 @@
     </div>
 
     <!-- ================= نافذة إنشاء حساب جديد ================= -->
-    <div id="create-account-modal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center fade-in backdrop-blur-sm p-4" oncontextmenu="return false;">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden transform transition-all scale-100 max-h-[90vh] flex flex-col" onclick="event.stopPropagation()">
+    <div id="create-account-modal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center fade-in backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden transform transition-all scale-100 max-h-[90vh] flex flex-col">
             <div class="bg-[#26466D] p-5 flex justify-between items-center">
                 <h3 class="text-white font-bold text-lg">إنشاء حساب جديد</h3>
                 <button onclick="closeCreateAccountModal()" class="text-white/80 hover:text-white">
@@ -1619,24 +1619,42 @@
                                     <p class="text-xs text-slate-500 mt-1">اضغط على أي حالة لعرض المشتركين المرتبطين بها</p>
                                 </div>
                                 <div class="flex items-center gap-2 flex-wrap">
-                                    <button id="sync-customers-btn" onclick="syncCustomers()" class="flex items-center gap-2 px-4 py-2 rounded-xl border border-green-200 bg-green-50 text-sm font-bold text-green-700 hover:bg-green-100 transition-colors">
+                                    <button onclick="reloadSubscribersFromCache()" class="flex items-center gap-2 px-4 py-2 rounded-xl border border-blue-200 bg-blue-50 text-sm font-bold text-blue-700 hover:bg-blue-100 transition-colors">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                         </svg>
-                                        <span id="sync-btn-text">مزامنة المشتركين</span>
+                                        تحديث البيانات
                                     </button>
-                                    <button id="stop-sync-btn" onclick="stopSync()" class="hidden flex items-center gap-2 px-4 py-2 rounded-xl border border-red-200 bg-red-50 text-sm font-bold text-red-700 hover:bg-red-100 transition-colors">
+                                    <button id="sync-customers-btn" onclick="refreshSubscribers()" class="flex items-center gap-2 px-4 py-2 rounded-xl border border-green-200 bg-green-50 text-sm font-bold text-green-700 hover:bg-green-100 transition-colors">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                         </svg>
-                                        إيقاف المزامنة
+                                        <span id="sync-btn-text">تحديث البيانات</span>
                                     </button>
+                                    <!-- تم إزالة زر إيقاف المزامنة - الآن البيانات تُجلب مباشرة من API -->
                                 </div>
                             </div>
                             <div id="sync-status" class="text-sm text-slate-500 mt-2"></div>
                             
-                            <!-- تم حذف شريط التقدم والعداد - كان يستمر بالعمل بعد الإيقاف -->
+                            <!-- Progress Bar and Counter -->
+                            <div id="sync-progress-container" class="hidden mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span id="sync-progress-message" class="text-sm font-medium text-blue-700">جاري المزامنة...</span>
+                                    <div class="flex items-center gap-3">
+                                        <span id="sync-progress-counter" class="text-sm font-bold text-blue-600">0 / 0</span>
+                                        <button onclick="stopSync()" class="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors">
+                                            إيقاف
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="w-full bg-blue-200 rounded-full h-2.5 mb-2">
+                                    <div id="sync-progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                </div>
+                                <div class="flex items-center justify-between text-xs text-blue-600">
+                                    <span id="sync-progress-phone-found">0 رقم هاتف تم العثور عليه</span>
+                                    <span id="sync-progress-percentage">0%</span>
+                                </div>
+                            </div>
                             
                             <div id="subscriber-status-grid" class="status-grid mt-6">
                                 <div class="col-span-full text-center text-slate-400 text-sm py-4">يتم تحميل البيانات...</div>
@@ -1645,21 +1663,20 @@
                         
                         <!-- جدول بيانات المشتركين -->
                         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden slide-up mt-6">
-                            <!-- شريط التحميل -->
-                            <div id="subscribers-loading-bar" class="hidden h-1 bg-gray-200 relative">
-                                <div id="subscribers-loading-progress" class="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300 ease-out" style="width: 0%"></div>
-                                <div id="subscribers-loading-counter" class="absolute top-0 right-0 text-xs text-blue-600 font-bold px-2 py-0.5 bg-blue-50 rounded-bl" style="display: none;">0</div>
-                            </div>
                             <div class="p-5 border-b border-gray-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                                 <div>
                                     <h3 class="text-xl font-bold text-gray-800">بيانات المشتركين</h3>
-                                    <div id="subscribers-loading-message" class="text-xs text-blue-600 mt-1 hidden"></div>
+                                    <span id="subscriber-filter-summary" class="text-xs text-slate-500 mt-1 block">عرض 0 - جميع المشتركين</span>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-3">
                                     <div class="relative">
                                         <input type="text" id="search-subscribers" placeholder="بحث عن مشترك..." class="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#26466D] focus:border-transparent w-full md:w-64 bg-gray-50">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                                     </div>
+                                    <button onclick="refreshSubscribers()" class="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                        تحديث
+                                    </button>
                                     <button onclick="exportSubscribersToExcel()" class="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                                         تصدير Excel

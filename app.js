@@ -92,8 +92,6 @@ const ALWATANI_CUSTOMERS_PAGE_SIZE = 100;
 
 // Auto-refresh intervals
 let dataAutoRefreshInterval = null;
-let isRefreshingData = false; // Flag لمنع التحديثات المتداخلة
-let hasInitialSync = false; // Flag لتتبع ما إذا تمت المزامنة الأولى
 let currentScreen = 'dashboard'; // تتبع الشاشة الحالية
 
 // Subscribers dashboard state
@@ -268,7 +266,7 @@ async function handleLogin(e) {
                 hideSideMenu(); // إخفاء القائمة الجانبية في لوحة التحكم الرئيسية
                 await loadPages();
                 currentScreen = 'dashboard';
-                // لا نبدأ التحديث التلقائي عند أول دخول - يبدأ بعد المزامنة الأولى
+                startAutoRefresh(); // بدء التحديث التلقائي
             
             // Apply dark mode if saved
             const savedTheme = localStorage.getItem('theme');
@@ -1204,8 +1202,7 @@ async function handleAddPage(e) {
             // Switch to subscriber management page after short delay
             setTimeout(async () => {
                 switchScreen('dashboard-screen', 'page-detail-screen');
-                // تم إلغاء التحميل التلقائي - البيانات تُجلب فقط عند الضغط على زر "مزامنة المشتركين"
-                // await loadSubscribers();
+                await loadSubscribers();
                 await loadAlwataniDetails();
                 
                 // Clear form
@@ -1320,8 +1317,7 @@ function openPageDetail(username, password, userId) {
     if (sectionDashboard) sectionDashboard.classList.remove('hidden');
     if (sectionSubscribers) sectionSubscribers.classList.add('hidden');
     
-    // تم إلغاء التحميل التلقائي - البيانات تُجلب فقط عند الضغط على زر "مزامنة المشتركين"
-    // loadSubscribers();
+    loadSubscribers();
     loadAlwataniDetails();
     // تم إزالة updateSyncStatus() لأننا لم نعد نستخدم sync
 }
@@ -1348,8 +1344,7 @@ function openAdminDashboard() {
     hideSideMenu(); // إخفاء القائمة الجانبية عند العودة إلى لوحة التحكم الرئيسية
     loadPages();
     currentScreen = 'dashboard';
-    // تم إلغاء التحديث التلقائي
-    // startAutoRefresh();
+    startAutoRefresh();
 }
 
 function openExpiringScreen() {
@@ -1358,8 +1353,7 @@ function openExpiringScreen() {
     renderExpiringSoonList();
     setSideMenuActiveByScreen('expiring');
     currentScreen = 'expiring';
-    // تم إلغاء التحديث التلقائي
-    // startAutoRefresh();
+    startAutoRefresh();
 }
 
 function closeExpiringScreen() {
@@ -1371,8 +1365,7 @@ function openTicketDashboardScreen() {
     showScreen('tickets-dashboard-screen');
     setSideMenuActiveByScreen('tickets');
     currentScreen = 'tickets';
-    // تم إلغاء التحديث التلقائي
-    // startAutoRefresh();
+    startAutoRefresh();
 }
 
 function closeTicketDashboardScreen() {
@@ -1385,8 +1378,7 @@ function openGeneralSettingsScreen() {
     setSideMenuActiveByScreen('settings');
     loadEmployees();
     currentScreen = 'settings';
-    // تم إلغاء التحديث التلقائي
-    // startAutoRefresh();
+    startAutoRefresh();
 }
 
 function closeGeneralSettingsScreen() {
@@ -2032,228 +2024,6 @@ async function deleteEmployee(employeeId, employeeName) {
     }
 }
 
-// دالة لتحديث البيانات فقط بدون إعادة تحميل كامل
-async function refreshSubscribersDataOnly() {
-    if (!currentUserId) return;
-    
-    // منع التحديثات المتداخلة
-    if (isRefreshingData) {
-        console.log('[AUTO-REFRESH] Refresh already in progress, skipping...');
-        return;
-    }
-    
-    isRefreshingData = true;
-    
-    try {
-        const userId = currentUserId;
-        const pageNumber = currentCustomersPage || 1;
-        const pageSize = ALWATANI_CUSTOMERS_PAGE_SIZE;
-        
-        // إظهار شريط التحميل
-        showSubscribersLoading(true, 'جاري تحديث البيانات...');
-        
-        // في التحديث التلقائي: جلب صفحة واحدة فقط (أسرع وأكثر موثوقية)
-        // بدلاً من جلب جميع الصفحات التي قد تستغرق وقتاً طويلاً
-        const apiUrl = `${API_URL}/alwatani-login/${userId}/customers?username=${encodeURIComponent(currentDetailUser || '')}&pageNumber=${pageNumber}&pageSize=${pageSize}`;
-        
-        // إضافة timeout للطلب (30 ثانية - كافٍ لصفحة واحدة)
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 ثانية timeout
-        
-        const response = await fetch(apiUrl, {
-            ...addUsernameToFetchOptions(),
-            signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        const data = await response.json();
-        
-        console.log('[AUTO-REFRESH] Response:', {
-            success: data.success,
-            hasData: !!data.data,
-            hasCombined: !!data.data?.combined,
-            combinedLength: data.data?.combined?.length || 0,
-            dataKeys: data.data ? Object.keys(data.data) : []
-        });
-        
-        if (data.success && data.data && data.data.combined && Array.isArray(data.data.combined)) {
-            const combinedList = data.data.combined;
-            console.log('[AUTO-REFRESH] Processing', combinedList.length, 'subscribers from page', pageNumber);
-            
-            // دمج البيانات الجديدة مع البيانات الموجودة (بدلاً من استبدالها)
-            // تحديث المشتركين الموجودين وإضافة الجدد
-            const existingMap = new Map(subscribersCache.map(sub => [sub.accountId || sub.account_id, sub]));
-            
-            combinedList.forEach((sub) => {
-                const accountId = sub.accountId || sub.account_id;
-                if (accountId) {
-                    existingMap.set(accountId, sub);
-                }
-            });
-            
-            // تحديث subscribersCache مع البيانات المدمجة
-            subscribersCache = Array.from(existingMap.values()).map((sub) => {
-                const normalized = {
-                    id: sub.id || sub.accountId || sub.account_id || null,
-                    account_id: sub.account_id || sub.accountId || null,
-                    accountId: sub.accountId || sub.account_id || null,
-                    username: sub.username || null,
-                    deviceName: sub.deviceName || sub.device_name || null,
-                    name: sub.name || '--',
-                    phone: sub.phone || null,
-                    zone: sub.zone || null,
-                    page_url: sub.page_url || (sub.accountId || sub.account_id ? `https://admin.ftth.iq/customer-details/${sub.accountId || sub.account_id}/details/view` : '#'),
-                    start_date: sub.start_date || sub.startDate || null,
-                    startDate: sub.startDate || sub.start_date || null,
-                    end_date: sub.end_date || sub.endDate || null,
-                    endDate: sub.endDate || sub.end_date || null,
-                    status: sub.status || null,
-                    raw: sub.raw || {},
-                    rawCustomer: sub.rawCustomer || null,
-                    rawAddress: sub.rawAddress || null
-                };
-                return {
-                    ...normalized,
-                    _meta: buildSubscriberMeta(normalized)
-                };
-            });
-            
-            // تحديث العرض فقط (بدون إعادة تحميل كامل)
-            renderSubscriberStatusCards();
-            renderExpiringSoonList();
-            applySubscriberFilter(activeSubscriberFilter || 'all');
-            
-            if (combinedList.length > 0) {
-                updateStatsFromSummary(combinedList);
-            }
-            
-            loadWalletBalance();
-            
-            const total = data.pagination?.total || combinedList.length;
-            const totalPages = Math.ceil(total / pageSize);
-            subscriberPagination.currentPage = pageNumber;
-            subscriberPagination.totalPages = totalPages;
-            updatePaginationControls(total, totalPages);
-            
-            showSubscribersLoading(false);
-            console.log('[AUTO-REFRESH] Data updated successfully:', combinedList.length, 'subscribers');
-        } else {
-            showSubscribersLoading(false);
-            console.warn('[AUTO-REFRESH] No data received. Response:', {
-                success: data.success,
-                hasData: !!data.data,
-                hasCombined: !!data.data?.combined,
-                message: data.message || 'No message',
-                data: data.data ? Object.keys(data.data) : 'No data object'
-            });
-        }
-    } catch (error) {
-        showSubscribersLoading(false);
-        if (error.name === 'AbortError') {
-            console.warn('[AUTO-REFRESH] Request timeout (took longer than 60 seconds)');
-        } else {
-            console.error('[AUTO-REFRESH] Error refreshing data:', error);
-        }
-    } finally {
-        // إعادة تعيين flag بعد انتهاء الطلب
-        isRefreshingData = false;
-    }
-}
-
-// متغيرات لتتبع التقدم الحقيقي
-let loadingProgressInterval = null;
-let currentLoadingCount = 0;
-let targetLoadingCount = 0;
-
-// دالة لإظهار/إخفاء شريط التحميل مع عداد حقيقي
-function showSubscribersLoading(show, message = '', current = 0, total = 0) {
-    const loadingBar = document.getElementById('subscribers-loading-bar');
-    const loadingProgress = document.getElementById('subscribers-loading-progress');
-    const loadingCounter = document.getElementById('subscribers-loading-counter');
-    const loadingMessage = document.getElementById('subscribers-loading-message');
-    
-    if (loadingBar) {
-        if (show) {
-            loadingBar.classList.remove('hidden');
-            loadingProgress.style.width = '0%';
-            
-            if (total > 0) {
-                currentLoadingCount = current;
-                targetLoadingCount = total;
-                
-                // إظهار العداد
-                if (loadingCounter) {
-                    loadingCounter.style.display = 'block';
-                    loadingCounter.textContent = `${current}/${total}`;
-                }
-                
-                // تحديث التقدم الحقيقي
-                updateLoadingProgress(current, total);
-            } else {
-                // محاكاة التقدم إذا لم يكن هناك total
-                if (loadingCounter) {
-                    loadingCounter.style.display = 'none';
-                }
-                let progress = 0;
-                if (loadingProgressInterval) {
-                    clearInterval(loadingProgressInterval);
-                }
-                loadingProgressInterval = setInterval(() => {
-                    progress += 5;
-                    if (progress <= 90) {
-                        loadingProgress.style.width = progress + '%';
-                    } else {
-                        clearInterval(loadingProgressInterval);
-                        loadingProgressInterval = null;
-                    }
-                }, 100);
-            }
-        } else {
-            if (loadingProgressInterval) {
-                clearInterval(loadingProgressInterval);
-                loadingProgressInterval = null;
-            }
-            loadingProgress.style.width = '100%';
-            if (loadingCounter) {
-                loadingCounter.style.display = 'none';
-            }
-            setTimeout(() => {
-                loadingBar.classList.add('hidden');
-                loadingProgress.style.width = '0%';
-                currentLoadingCount = 0;
-                targetLoadingCount = 0;
-            }, 300);
-        }
-    }
-    
-    if (loadingMessage) {
-        if (show && message) {
-            loadingMessage.textContent = message;
-            loadingMessage.classList.remove('hidden');
-        } else {
-            loadingMessage.classList.add('hidden');
-        }
-    }
-}
-
-// دالة لتحديث التقدم الحقيقي
-function updateLoadingProgress(current, total) {
-    const loadingProgress = document.getElementById('subscribers-loading-progress');
-    const loadingCounter = document.getElementById('subscribers-loading-counter');
-    
-    if (!loadingProgress || !total) return;
-    
-    currentLoadingCount = current;
-    targetLoadingCount = total;
-    
-    const percentage = Math.min(100, Math.round((current / total) * 100));
-    loadingProgress.style.width = percentage + '%';
-    
-    if (loadingCounter) {
-        loadingCounter.textContent = `${current}/${total}`;
-    }
-}
-
 // دالة بدء التحديث التلقائي للبيانات
 function startAutoRefresh() {
     // إيقاف أي تحديث تلقائي سابق
@@ -2262,27 +2032,16 @@ function startAutoRefresh() {
         dataAutoRefreshInterval = null;
     }
     
-    // تحديث البيانات كل 60 ثانية (زيادة من 30 لتجنب التعارض)
+    // تحديث البيانات كل دقيقة (60 ثانية)
     dataAutoRefreshInterval = setInterval(async () => {
-        // التحقق من أن الطلب السابق انتهى
-        if (isRefreshingData) {
-            console.log('[AUTO-REFRESH] Previous refresh still in progress, skipping this cycle...');
-            return;
-        }
-        
         console.log('[AUTO-REFRESH] Refreshing data for screen:', currentScreen);
         
         try {
             switch (currentScreen) {
                 case 'dashboard':
-                    // تحديث لوحة التحكم فقط (الإحصائيات) - بدون تحديث الجدول
-                    // التحديث التلقائي يعمل فقط عند اكتشاف تغييرات (incremental sync)
-                    if (currentUserId && hasInitialSync) {
-                        // تحديث الإحصائيات من البيانات المحفوظة في cache
-                        renderSubscriberStatusCards();
-                        loadWalletBalance();
-                        // لا نحدث الجدول - فقط الإحصائيات
-                        console.log('[AUTO-REFRESH] Updated dashboard stats only (no table refresh)');
+                    // تحديث بيانات المشتركين مباشرة من API
+                    if (currentUserId) {
+                        await loadRemoteSubscribers(currentCustomersPage || 1, ALWATANI_CUSTOMERS_PAGE_SIZE);
                     }
                     break;
                     
@@ -2324,7 +2083,7 @@ function startAutoRefresh() {
         } catch (error) {
             console.error('[AUTO-REFRESH] Error refreshing data:', error);
         }
-    }, 60000); // 60 ثانية (زيادة من 30 لتجنب التعارض)
+    }, 60000); // 60 ثانية = دقيقة واحدة
     
     console.log('[AUTO-REFRESH] Auto-refresh started for screen:', currentScreen);
 }
@@ -2682,6 +2441,7 @@ async function loadLocalSubscribers() {
         currentFilteredSubscribers = [];
         subscriberPagination.currentPage = 0;
         renderSubscribersTablePage();
+        updateSubscriberFilterSummary(0);
     }
 }
 
@@ -2693,45 +2453,27 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
 
     const userId = currentUserId;
     
-    // محاولة جلب البيانات من قاعدة البيانات أولاً (cache)
+    // جلب البيانات مباشرة من API بدون cache
     try {
-        showSubscribersTableMessage('جاري تحميل البيانات من قاعدة البيانات...');
-        showSubscribersLoading(true, 'جاري تحميل البيانات...');
-        console.log('[LOAD CACHE] Fetching from database cache for userId:', userId, 'page:', pageNumber);
+        showSubscribersTableMessage('جاري تحميل البيانات من الموقع الرئيسي...');
+        console.log('[LOAD API] Fetching directly from Alwatani API for userId:', userId, 'page:', pageNumber);
         
-        const cacheUrl = `${API_URL}/alwatani-login/${userId}/customers/cache?username=${encodeURIComponent(currentDetailUser || '')}&pageNumber=${pageNumber}&pageSize=${pageSize}`;
-        const cacheResponse = await fetch(cacheUrl, addUsernameToFetchOptions());
-        const cacheData = await cacheResponse.json();
+        const apiUrl = `${API_URL}/alwatani-login/${userId}/customers?username=${encodeURIComponent(currentDetailUser || '')}&pageNumber=${pageNumber}&pageSize=${pageSize}`;
+        const response = await fetch(apiUrl, addUsernameToFetchOptions());
+        const data = await response.json();
         
-        // إذا كانت البيانات موجودة في cache، تحقق من عددها وتاريخها
-        if (cacheData.success && cacheData.customers && Array.isArray(cacheData.customers) && cacheData.customers.length > 0) {
-            const totalInCache = cacheData.total || 0;
-            const MIN_CACHE_THRESHOLD = 500; // الحد الأدنى للاعتماد على cache
-            const MAX_CACHE_AGE_HOURS = 24; // الحد الأقصى لعمر البيانات في cache (ساعة)
+        console.log('[LOAD API] Response:', {
+            success: data.success,
+            hasData: !!data.data,
+            combinedLength: data.data?.combined?.length || 0
+        });
+        
+        if (data.success && data.data && data.data.combined && Array.isArray(data.data.combined)) {
+            const combinedList = data.data.combined;
+            console.log('[LOAD API] Processing', combinedList.length, 'subscribers');
             
-            // التحقق من عمر البيانات
-            let cacheTooOld = false;
-            if (cacheData.lastSync) {
-                const lastSyncDate = new Date(cacheData.lastSync);
-                const now = new Date();
-                const hoursSinceSync = (now - lastSyncDate) / (1000 * 60 * 60);
-                if (hoursSinceSync > MAX_CACHE_AGE_HOURS) {
-                    cacheTooOld = true;
-                    console.log(`[LOAD CACHE] Cache data is ${hoursSinceSync.toFixed(1)} hours old (older than ${MAX_CACHE_AGE_HOURS} hours), fetching from API...`);
-                }
-            }
-            
-            // إذا كان العدد الإجمالي في cache قليل جداً أو البيانات قديمة، اجلب من API مباشرة
-            if (totalInCache < MIN_CACHE_THRESHOLD || cacheTooOld) {
-                console.log(`[LOAD CACHE] Cache insufficient (${totalInCache} records${cacheTooOld ? ', data too old' : ''}), fetching from API instead...`);
-                showSubscribersTableMessage(`⚠️ البيانات في قاعدة البيانات غير كافية (${totalInCache} سجل فقط)، جاري جلب البيانات من الموقع الرئيسي...`);
-                // تجاهل cache والانتقال لجلب من API
-                throw new Error('Cache has insufficient or outdated data, fetching from API');
-            }
-            
-            console.log('[LOAD CACHE] Found', cacheData.customers.length, 'subscribers in cache (page', pageNumber, 'of', cacheData.totalPages, ', total:', totalInCache, ')');
-            
-            subscribersCache = cacheData.customers.map((sub) => {
+            subscribersCache = combinedList.map((sub) => {
+                // Normalize data structure from API
                 const normalized = {
                     id: sub.id || sub.accountId || sub.account_id || null,
                     account_id: sub.account_id || sub.accountId || null,
@@ -2757,167 +2499,11 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
                 };
             });
             
-            // تحديث العرض بدون إخفاء الجدول
-            renderSubscriberStatusCards();
-            renderExpiringSoonList();
-            applySubscriberFilter(activeSubscriberFilter || 'all', false);
-            updateStats();
-            
-            const total = cacheData.total || subscribersCache.length;
-            const totalPages = cacheData.totalPages || Math.ceil(total / pageSize);
-            subscriberPagination.currentPage = pageNumber;
-            subscriberPagination.totalPages = totalPages;
-            updatePaginationControls(total, totalPages);
-            
-            const lastSync = cacheData.lastSync ? new Date(cacheData.lastSync).toLocaleString('ar-IQ') : 'غير معروف';
-            showSubscribersTableMessage(`✅ تم تحميل ${subscribersCache.length} مشترك من قاعدة البيانات (الصفحة ${pageNumber}/${totalPages}) - آخر تحديث: ${lastSync}`);
-            showSubscribersLoading(false);
-            return;
-        }
-    } catch (cacheError) {
-        console.warn('[LOAD CACHE] Cache load failed, falling back to API:', cacheError);
-    }
-    
-    // إذا لم تكن البيانات في cache، جلب من API
-    try {
-        showSubscribersTableMessage('جاري تحميل جميع البيانات من الموقع الرئيسي...');
-        showSubscribersLoading(true, 'جاري جلب جميع المشتركين من الموقع الرئيسي...');
-        console.log('[LOAD API] Fetching ALL pages from Alwatani API for userId:', userId);
-        
-        // محاولة جلب جميع الصفحات أولاً (fetchAll=true)
-        // إذا فشل، نستخدم fallback لجلب صفحة واحدة فقط
-        let apiUrl = `${API_URL}/alwatani-login/${userId}/customers?username=${encodeURIComponent(currentDetailUser || '')}&fetchAll=true&mode=all&pageSize=${pageSize}&maxPages=500`;
-        let response = await fetch(apiUrl, addUsernameToFetchOptions());
-        let data = await response.json();
-        
-        // إذا فشل fetchAll، جرب صفحة واحدة فقط
-        if (!data.success || !data.data?.combined || data.data.combined.length === 0) {
-            console.log('[LOAD API] fetchAll failed, trying single page...');
-            apiUrl = `${API_URL}/alwatani-login/${userId}/customers?username=${encodeURIComponent(currentDetailUser || '')}&pageNumber=${pageNumber}&pageSize=${pageSize}`;
-            response = await fetch(apiUrl, addUsernameToFetchOptions());
-            data = await response.json();
-        }
-        
-        console.log('[LOAD API] Response:', {
-            success: data.success,
-            hasData: !!data.data,
-            combinedLength: data.data?.combined?.length || 0
-        });
-        
-        if (data.success && data.data && data.data.combined && Array.isArray(data.data.combined)) {
-            const combinedList = data.data.combined;
-            const totalFetched = data.pagination?.total || combinedList.length;
-            const pagesFetched = data.pagination?.pagesFetched || 1;
-            console.log('[LOAD API] Processing', combinedList.length, 'subscribers (from', pagesFetched, 'pages, total:', totalFetched, ')');
-            
-            // تحديث التقدم الحقيقي
-            updateLoadingProgress(0, combinedList.length);
-            showSubscribersLoading(true, `جاري معالجة ${combinedList.length} مشترك...`, 0, combinedList.length);
-            
-            // معالجة وعرض المشتركين تدريجياً (واحد تلو الآخر)
-            subscribersCache = [];
-            const tbody = document.getElementById('subscribers-table-body');
-            if (tbody) {
-                tbody.innerHTML = ''; // مسح الجدول
-            }
-            
-            for (let index = 0; index < combinedList.length; index++) {
-                const sub = combinedList[index];
-                
-                // تحديث التقدم أثناء المعالجة
-                updateLoadingProgress(index + 1, combinedList.length);
-                
-                // Normalize data structure from API
-                const normalized = {
-                    id: sub.id || sub.accountId || sub.account_id || null,
-                    account_id: sub.account_id || sub.accountId || null,
-                    accountId: sub.accountId || sub.account_id || null,
-                    username: sub.username || null,
-                    deviceName: sub.deviceName || sub.device_name || null,
-                    name: sub.name || '--',
-                    phone: sub.phone || null,
-                    zone: sub.zone || null,
-                    page_url: sub.page_url || (sub.accountId || sub.account_id ? `https://admin.ftth.iq/customer-details/${sub.accountId || sub.account_id}/details/view` : '#'),
-                    start_date: sub.start_date || sub.startDate || null,
-                    startDate: sub.startDate || sub.start_date || null,
-                    end_date: sub.end_date || sub.endDate || null,
-                    endDate: sub.endDate || sub.end_date || null,
-                    status: sub.status || null,
-                    raw: sub.raw || {},
-                    rawCustomer: sub.rawCustomer || null,
-                    rawAddress: sub.rawAddress || null
-                };
-                const subscriberWithMeta = {
-                    ...normalized,
-                    _meta: buildSubscriberMeta(normalized)
-                };
-                
-                subscribersCache.push(subscriberWithMeta);
-                
-                // عرض المشترك في الجدول مباشرة (فوراً بدون انتظار)
-                if (tbody) {
-                    const meta = subscriberWithMeta._meta;
-                    const row = document.createElement('tr');
-                    row.className = 'hover:bg-gray-50 transition-all duration-200 opacity-0 transform translate-y-1';
-                    row.dataset.status = meta.statusKey || '';
-                    row.dataset.tags = Array.from(meta.tags || []).join(',');
-                    row.innerHTML = `
-                        <td class="p-4 font-mono text-gray-400">${index + 1}</td>
-                        <td class="p-4 font-medium text-gray-800">${normalized.name || '--'}</td>
-                        <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.account_id || normalized.accountId || '--'}</td>
-                        <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.deviceName || normalized.username || '--'}</td>
-                        <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.phone || '--'}</td>
-                        <td class="p-4 text-gray-600">${normalized.zone || '--'}</td>
-                        <td class="p-4"><a href="${normalized.page_url || '#'}" target="_blank" class="text-blue-600 hover:underline text-xs">عرض الصفحة</a></td>
-                        <td class="p-4 text-gray-600">${formatDate(normalized.start_date || normalized.startDate)}</td>
-                        <td class="p-4 text-gray-600">${formatDate(normalized.end_date || normalized.endDate)}</td>
-                        <td class="p-4">
-                            <span class="px-2 py-1 rounded-full text-xs font-bold ${getStatusBadgeClass(meta.statusKey)}">${getStatusLabel(meta.statusKey)}</span>
-                        </td>
-                        <td class="p-4 text-center">
-                            <button class="text-gray-400 hover:text-[#26466D]">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
-                            </button>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                    
-                    // Animation: fade in + slide up (فوراً بدون تأخير)
-                    requestAnimationFrame(() => {
-                        row.classList.remove('opacity-0', 'translate-y-1');
-                        row.classList.add('opacity-100', 'translate-y-0');
-                    });
-                }
-                
-                // تحديث التقدم (بعد العرض مباشرة)
-                updateLoadingProgress(index + 1, combinedList.length);
-                
-                // تحديث الإحصائيات كل 20 مشتركين (غير متزامن - لا يوقف العرض)
-                if ((index + 1) % 20 === 0 || index === combinedList.length - 1) {
-                    // استخدام setTimeout لجعل التحديث غير متزامن
-                    setTimeout(() => {
-                        renderSubscriberStatusCards();
-                        renderExpiringSoonList();
-                        updateStats();
-                    }, 0);
-                }
-                
-                // تأخير بسيط جداً (0ms) - لا تأخير فعلي، فقط للسماح للمتصفح بالرسم
-                if (index < combinedList.length - 1 && (index + 1) % 5 !== 0) {
-                    // لا تأخير لكل مشترك، فقط كل 5 مشتركين
-                    await new Promise(resolve => setTimeout(resolve, 0));
-                }
-            }
-            
             console.log('[LOAD API] Rendered', subscribersCache.length, 'subscribers');
             
-            // تحديث التقدم إلى 100%
-            updateLoadingProgress(combinedList.length, combinedList.length);
-            
             renderSubscriberStatusCards();
             renderExpiringSoonList();
-            // استخدام animation عند عرض الجدول
-            applySubscriberFilter(activeSubscriberFilter || 'all', true);
+            applySubscriberFilter(activeSubscriberFilter || 'all');
             
             // تحديث الإحصائيات من البيانات
             if (combinedList.length > 0) {
@@ -2927,51 +2513,36 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
             loadWalletBalance(); // تحميل رصيد المحفظة
             
             const total = data.pagination?.total || combinedList.length;
-            // استخدام pagesFetched المحدد سابقاً
-            showSubscribersTableMessage(`✅ تم تحميل ${combinedList.length} مشترك من الموقع الرئيسي (${pagesFetched} صفحة، إجمالي: ${total})`);
+            showSubscribersTableMessage(`✅ تم تحميل ${combinedList.length} مشترك من الموقع الرئيسي (الصفحة ${pageNumber})`);
             
-            // إخفاء شريط التحميل بعد انتهاء animation (حسب عدد المشتركين في الصفحة الحالية)
-            const pageSize = subscriberPagination.pageSize || 10;
-            const animateCount = Math.min(pageSize, currentFilteredSubscribers.length);
-            setTimeout(() => {
-                showSubscribersLoading(false);
-            }, (animateCount * 30) + 500); // بعد انتهاء animation
-            
-            // تحديث pagination - إذا كان fetchAll، نعرض جميع البيانات في صفحة واحدة
-            if (data.pagination?.mode === 'all') {
-                // جميع البيانات في صفحة واحدة
-                subscriberPagination.currentPage = 1;
-                subscriberPagination.totalPages = 1;
-                updatePaginationControls(total, 1);
-            } else {
+            // تحديث pagination
             const totalPages = Math.ceil(total / pageSize);
             subscriberPagination.currentPage = pageNumber;
             subscriberPagination.totalPages = totalPages;
             updatePaginationControls(total, totalPages);
-            }
             
             return;
         } else {
             console.error('[LOAD API] No data in response:', data);
             showSubscribersTableMessage('❌ لم يتم العثور على بيانات. ' + (data.message || ''));
-            showSubscribersLoading(false);
             subscribersCache = [];
             renderSubscriberStatusCards();
             renderExpiringSoonList();
             currentFilteredSubscribers = [];
             subscriberPagination.currentPage = 0;
             updatePaginationControls(0, 0);
+            updateSubscriberFilterSummary(0);
         }
     } catch (error) {
         console.error('[LOAD API] Error loading from API:', error);
         showSubscribersTableMessage('❌ حدث خطأ أثناء جلب البيانات: ' + (error.message || 'خطأ غير معروف'));
-        showSubscribersLoading(false);
         subscribersCache = [];
         renderSubscriberStatusCards();
         renderExpiringSoonList();
         currentFilteredSubscribers = [];
         subscriberPagination.currentPage = 0;
         updatePaginationControls(0, 0);
+        updateSubscriberFilterSummary(0);
     }
 }
 
@@ -2993,9 +2564,6 @@ async function stopSync() {
         return;
     }
     
-    // إيقاف مراقبة التقدم فوراً قبل أي شيء
-    stopSyncProgressMonitoring();
-    
     const userId = currentUserId;
     const stopSyncBtn = document.getElementById('stop-sync-btn');
     const syncButton = document.getElementById('sync-customers-btn');
@@ -3016,139 +2584,10 @@ async function stopSync() {
         const data = await response.json();
         
         if (data.success) {
-            showSubscribersTableMessage('⏹️ تم طلب إيقاف المزامنة. جاري تحميل البيانات المحفوظة...');
-            
-            // جلب البيانات المحفوظة فوراً من قاعدة البيانات وعرضها في الجدول
-            try {
-                const userId = currentUserId;
-                const cacheUrl = `${API_URL}/alwatani-login/${userId}/customers/cache?username=${encodeURIComponent(currentDetailUser || '')}&pageNumber=1&pageSize=10000`;
-                const cacheResponse = await fetch(cacheUrl, addUsernameToFetchOptions());
-                const cacheData = await cacheResponse.json();
-                
-                if (cacheData.success && cacheData.customers && Array.isArray(cacheData.customers) && cacheData.customers.length > 0) {
-                    const totalCustomers = cacheData.customers.length;
-                    console.log('[STOP SYNC] Loading', totalCustomers, 'saved subscribers from database...');
-                    
-                    // إظهار شريط التحميل
-                    showSubscribersLoading(true, `جاري تحميل ${totalCustomers} مشترك محفوظ...`, 0, totalCustomers);
-                    
-                    // معالجة وعرض المشتركين
-                    subscribersCache = [];
-                    const tbody = document.getElementById('subscribers-table-body');
-                    if (tbody) {
-                        tbody.innerHTML = ''; // مسح الجدول
-                    }
-                    
-                    // معالجة وعرض المشتركين تدريجياً
-                    for (let i = 0; i < cacheData.customers.length; i++) {
-                        const sub = cacheData.customers[i];
-                        const normalized = {
-                            id: sub.id || sub.accountId || sub.account_id || null,
-                            account_id: sub.account_id || sub.accountId || null,
-                            accountId: sub.accountId || sub.account_id || null,
-                            username: sub.username || null,
-                            deviceName: sub.deviceName || sub.device_name || null,
-                            name: sub.name || '--',
-                            phone: sub.phone || null,
-                            zone: sub.zone || null,
-                            page_url: sub.page_url || (sub.accountId || sub.account_id ? `https://admin.ftth.iq/customer-details/${sub.accountId || sub.account_id}/details/view` : '#'),
-                            start_date: sub.start_date || sub.startDate || null,
-                            startDate: sub.startDate || sub.start_date || null,
-                            end_date: sub.end_date || sub.endDate || null,
-                            endDate: sub.endDate || sub.end_date || null,
-                            status: sub.status || null,
-                            raw: sub.raw || {},
-                            rawCustomer: sub.rawCustomer || null,
-                            rawAddress: sub.rawAddress || null
-                        };
-                        
-                        const subscriberWithMeta = {
-                            ...normalized,
-                            _meta: buildSubscriberMeta(normalized)
-                        };
-                        
-                        subscribersCache.push(subscriberWithMeta);
-                        
-                        // عرض المشترك في الجدول مباشرة
-                        if (tbody) {
-                            const meta = subscriberWithMeta._meta;
-                            const row = document.createElement('tr');
-                            row.className = 'hover:bg-gray-50 transition-all duration-200 opacity-0 transform translate-y-1';
-                            row.dataset.status = meta.statusKey || '';
-                            row.dataset.tags = Array.from(meta.tags || []).join(',');
-                            row.innerHTML = `
-                                <td class="p-4 font-mono text-gray-400">${i + 1}</td>
-                                <td class="p-4 font-medium text-gray-800">${normalized.name || '--'}</td>
-                                <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.account_id || normalized.accountId || '--'}</td>
-                                <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.deviceName || normalized.username || '--'}</td>
-                                <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.phone || '--'}</td>
-                                <td class="p-4 text-gray-600">${normalized.zone || '--'}</td>
-                                <td class="p-4"><a href="${normalized.page_url || '#'}" target="_blank" class="text-blue-600 hover:underline text-xs">عرض الصفحة</a></td>
-                                <td class="p-4 text-gray-600">${formatDate(normalized.start_date || normalized.startDate)}</td>
-                                <td class="p-4 text-gray-600">${formatDate(normalized.end_date || normalized.endDate)}</td>
-                                <td class="p-4">
-                                    <span class="px-2 py-1 rounded-full text-xs font-bold ${getStatusBadgeClass(meta.statusKey)}">${getStatusLabel(meta.statusKey)}</span>
-                                </td>
-                                <td class="p-4 text-center">
-                                    <button class="text-gray-400 hover:text-[#26466D]">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
-                                    </button>
-                                </td>
-                            `;
-                            tbody.appendChild(row);
-                            
-                            // Animation
-                            requestAnimationFrame(() => {
-                                row.classList.remove('opacity-0', 'translate-y-1');
-                                row.classList.add('opacity-100', 'translate-y-0');
-                            });
-                        }
-                        
-                        // تحديث التقدم
-                        updateLoadingProgress(i + 1, totalCustomers);
-                        
-                        // تحديث الإحصائيات كل 20 مشتركين
-                        if ((i + 1) % 20 === 0 || i === cacheData.customers.length - 1) {
-                            setTimeout(() => {
-                                renderSubscriberStatusCards();
-                                renderExpiringSoonList();
-                                updateStats();
-                            }, 0);
-                        }
-                        
-                        // تأخير بسيط
-                        if (i < cacheData.customers.length - 1 && (i + 1) % 5 !== 0) {
-                            await new Promise(resolve => setTimeout(resolve, 0));
-                        }
-                    }
-                    
-                    // بعد الانتهاء: تحديث العرض الكامل
-                    applySubscriberFilter(activeSubscriberFilter || 'all', false);
-                    updateStats();
-                    
-                    const total = cacheData.total || subscribersCache.length;
-                    const totalPages = 1;
-                    subscriberPagination.currentPage = 1;
-                    subscriberPagination.totalPages = totalPages;
-                    updatePaginationControls(total, totalPages);
-                    
-                    showSubscribersTableMessage(`✅ تم تحميل ${subscribersCache.length} مشترك محفوظ من قاعدة البيانات`);
-                    console.log('[STOP SYNC] Successfully loaded', subscribersCache.length, 'saved subscribers');
-                    
-                    // إخفاء شريط التحميل
-                    setTimeout(() => {
-                        showSubscribersLoading(false);
-                    }, 500);
-                } else {
-                    showSubscribersTableMessage('⚠️ لا توجد بيانات محفوظة في قاعدة البيانات');
-                }
-            } catch (error) {
-                console.error('[STOP SYNC] Error loading saved data:', error);
-                showSubscribersTableMessage('⚠️ حدث خطأ أثناء تحميل البيانات المحفوظة');
-            }
+            showSubscribersTableMessage('⏹️ تم طلب إيقاف المزامنة. سيتم حفظ البيانات التي تم جلبها.');
             
             // إخفاء زر الإيقاف وإظهار زر المزامنة بعد ثانيتين
-            setTimeout(() => {
+            setTimeout(async () => {
                 if (stopSyncBtn) {
                     stopSyncBtn.classList.add('hidden');
                     stopSyncBtn.disabled = false;
@@ -3170,6 +2609,9 @@ async function stopSync() {
                         <span id="sync-btn-text">مزامنة المشتركين</span>
                     `;
                 }
+                
+                // تحديث البيانات بعد الإيقاف
+                await loadLocalSubscribers();
             }, 2000);
         } else {
             alert('فشل إيقاف المزامنة: ' + (data.message || 'خطأ غير معروف'));
@@ -3303,306 +2745,13 @@ async function syncCustomers() {
     
     showSubscribersTableMessage('جاري مزامنة المشتركين من الوطني... قد يستغرق ذلك عدة دقائق.');
     
-    // إظهار شريط التحميل
-    showSubscribersLoading(true, 'جاري بدء المزامنة...', 0, 0);
-    
-    // مسح الجدول قبل البدء
-    const tbody = document.getElementById('subscribers-table-body');
-    if (tbody) {
-        tbody.innerHTML = '';
-    }
-    subscribersCache = [];
-    
-    // بدء مراقبة التقدم من السيرفر
-    let progressMonitorInterval = null;
-    const startProgressMonitoring = () => {
-        if (progressMonitorInterval) {
-            clearInterval(progressMonitorInterval);
-        }
-        
-        progressMonitorInterval = setInterval(async () => {
-            try {
-                const progressResponse = await fetch(`${API_URL}/alwatani-login/${userId}/customers/sync-progress`);
-                const progressData = await progressResponse.json();
-                
-                if (progressData.success && progressData.progress) {
-                    const progress = progressData.progress;
-                    const stage = progress.stage || 'unknown';
-                    const current = progress.current || 0;
-                    const total = progress.total || 0;
-                    const message = progress.message || 'جاري المزامنة...';
-                    const phoneFound = progress.phoneFound || 0;
-                    
-                    // تحديث شريط التحميل والعداد
-                    if (total > 0) {
-                        updateLoadingProgress(current, total);
-                        const loadingMessage = document.getElementById('subscribers-loading-message');
-                        if (loadingMessage) {
-                            let displayMessage = message;
-                            
-                    // إضافة معلومات إضافية حسب المرحلة
-                    if (stage === 'fetching_pages' || stage === 'pages_complete') {
-                        displayMessage = `📄 ${message} (${current}/${total} صفحة)`;
-                    } else if (stage === 'enriching') {
-                        displayMessage = `🔍 ${message} (${current}/${total} مشترك) - ${phoneFound} رقم هاتف`;
-                        
-                        // أثناء جلب التفاصيل: جلب البيانات المحفوظة حتى الآن وعرضها في الجدول
-                        if (current > 0) { // كل مرة يتقدم فيها العداد
-                            // استخدام debounce لتجنب الطلبات الكثيرة
-                            if (!window.lastCacheFetch || Date.now() - window.lastCacheFetch > 2000) { // كل ثانيتين
-                                window.lastCacheFetch = Date.now();
-                                
-                                try {
-                                    const tbody = document.getElementById('subscribers-table-body');
-                                    if (!tbody) {
-                                        console.warn('[PROGRESS MONITOR] tbody not found');
-                                        return;
-                                    }
-                                    
-                                    const cacheUrl = `${API_URL}/alwatani-login/${userId}/customers/cache?username=${encodeURIComponent(currentDetailUser || '')}&pageNumber=1&pageSize=10000`;
-                                    const cacheResponse = await fetch(cacheUrl, addUsernameToFetchOptions());
-                                    const cacheData = await cacheResponse.json();
-                                    
-                                    if (cacheData.success && cacheData.customers && Array.isArray(cacheData.customers) && cacheData.customers.length > 0) {
-                                        // تحديث subscribersCache وعرض جميع المشتركين
-                                        const existingIds = new Set();
-                                        if (tbody.children.length > 0) {
-                                            tbody.querySelectorAll('tr').forEach(row => {
-                                                const accountIdCell = row.querySelector('td:nth-child(3)');
-                                                if (accountIdCell) {
-                                                    existingIds.add(accountIdCell.textContent.trim());
-                                                }
-                                            });
-                                        }
-                                        
-                                        const newSubscribers = [];
-                                        
-                                        for (const sub of cacheData.customers) {
-                                            const accountId = String(sub.account_id || sub.accountId || '');
-                                            if (!existingIds.has(accountId) && accountId !== '--' && accountId !== '') {
-                                                const normalized = {
-                                                    id: sub.id || sub.accountId || sub.account_id || null,
-                                                    account_id: sub.account_id || sub.accountId || null,
-                                                    accountId: sub.accountId || sub.account_id || null,
-                                                    username: sub.username || null,
-                                                    deviceName: sub.deviceName || sub.device_name || null,
-                                                    name: sub.name || '--',
-                                                    phone: sub.phone || null,
-                                                    zone: sub.zone || null,
-                                                    page_url: sub.page_url || (sub.accountId || sub.account_id ? `https://admin.ftth.iq/customer-details/${sub.accountId || sub.account_id}/details/view` : '#'),
-                                                    start_date: sub.start_date || sub.startDate || null,
-                                                    startDate: sub.startDate || sub.start_date || null,
-                                                    end_date: sub.end_date || sub.endDate || null,
-                                                    endDate: sub.endDate || sub.end_date || null,
-                                                    status: sub.status || null,
-                                                    raw: sub.raw || {},
-                                                    rawCustomer: sub.rawCustomer || null,
-                                                    rawAddress: sub.rawAddress || null
-                                                };
-                                                
-                                                const subscriberWithMeta = {
-                                                    ...normalized,
-                                                    _meta: buildSubscriberMeta(normalized)
-                                                };
-                                                
-                                                newSubscribers.push(subscriberWithMeta);
-                                                existingIds.add(accountId);
-                                            }
-                                        }
-                                        
-                                        // إضافة المشتركين الجدد إلى subscribersCache
-                                        subscribersCache.push(...newSubscribers);
-                                        
-                                        // عرض المشتركين الجدد في الجدول
-                                        if (newSubscribers.length > 0) {
-                                            const currentRowCount = tbody.children.length;
-                                            newSubscribers.forEach((subscriberWithMeta, idx) => {
-                                                const meta = subscriberWithMeta._meta;
-                                                const normalized = subscriberWithMeta;
-                                                const row = document.createElement('tr');
-                                                row.className = 'hover:bg-gray-50 transition-all duration-200 opacity-0 transform translate-y-1';
-                                                row.dataset.status = meta.statusKey || '';
-                                                row.dataset.tags = Array.from(meta.tags || []).join(',');
-                                                row.innerHTML = `
-                                                    <td class="p-4 font-mono text-gray-400">${currentRowCount + idx + 1}</td>
-                                                    <td class="p-4 font-medium text-gray-800">${normalized.name || '--'}</td>
-                                                    <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.account_id || normalized.accountId || '--'}</td>
-                                                    <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.deviceName || normalized.username || '--'}</td>
-                                                    <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.phone || '--'}</td>
-                                                    <td class="p-4 text-gray-600">${normalized.zone || '--'}</td>
-                                                    <td class="p-4"><a href="${normalized.page_url || '#'}" target="_blank" class="text-blue-600 hover:underline text-xs">عرض الصفحة</a></td>
-                                                    <td class="p-4 text-gray-600">${formatDate(normalized.start_date || normalized.startDate)}</td>
-                                                    <td class="p-4 text-gray-600">${formatDate(normalized.end_date || normalized.endDate)}</td>
-                                                    <td class="p-4">
-                                                        <span class="px-2 py-1 rounded-full text-xs font-bold ${getStatusBadgeClass(meta.statusKey)}">${getStatusLabel(meta.statusKey)}</span>
-                                                    </td>
-                                                    <td class="p-4 text-center">
-                                                        <button class="text-gray-400 hover:text-[#26466D]">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
-                                                        </button>
-                                                    </td>
-                                                `;
-                                                tbody.appendChild(row);
-                                                
-                                                // Animation
-                                                requestAnimationFrame(() => {
-                                                    row.classList.remove('opacity-0', 'translate-y-1');
-                                                    row.classList.add('opacity-100', 'translate-y-0');
-                                                });
-                                            });
-                                            
-                                            // تحديث الإحصائيات
-                                            setTimeout(() => {
-                                                renderSubscriberStatusCards();
-                                                renderExpiringSoonList();
-                                                updateStats();
-                                            }, 0);
-                                            
-                                            console.log(`[PROGRESS MONITOR] Added ${newSubscribers.length} new subscribers to table (total: ${tbody.children.length})`);
-                                        }
-                                    }
-                                } catch (err) {
-                                    console.error('[PROGRESS MONITOR] Error loading saved subscribers:', err);
-                                }
-                            }
-                        }
-                    } else if (stage === 'saving') {
-                        displayMessage = `💾 ${message} (${current}/${total} مشترك)`;
-                    }
-                            
-                            loadingMessage.textContent = displayMessage;
-                            loadingMessage.classList.remove('hidden');
-                        }
-                    }
-                    
-                    // إذا اكتملت المزامنة أو تم إيقافها
-                    if (stage === 'completed' || stage === 'cancelled' || stage === 'error') {
-                        clearInterval(progressMonitorInterval);
-                        progressMonitorInterval = null;
-                        
-                        if (stage === 'completed') {
-                            showSubscribersLoading(false);
-                            
-                            // بعد اكتمال المزامنة: جلب جميع البيانات وعرضها
-                            setTimeout(async () => {
-                                try {
-                                    const tbody = document.getElementById('subscribers-table-body');
-                                    if (!tbody) {
-                                        console.warn('[SYNC COMPLETE] tbody not found');
-                                        return;
-                                    }
-                                    
-                                    const cacheUrl = `${API_URL}/alwatani-login/${userId}/customers/cache?username=${encodeURIComponent(currentDetailUser || '')}&pageNumber=1&pageSize=10000`;
-                                    const cacheResponse = await fetch(cacheUrl, addUsernameToFetchOptions());
-                                    const cacheData = await cacheResponse.json();
-                                    
-                                    if (cacheData.success && cacheData.customers && Array.isArray(cacheData.customers) && cacheData.customers.length > 0) {
-                                        // تحديث subscribersCache
-                                        subscribersCache = [];
-                                        tbody.innerHTML = '';
-                                        
-                                        for (let i = 0; i < cacheData.customers.length; i++) {
-                                            const sub = cacheData.customers[i];
-                                            const normalized = {
-                                                id: sub.id || sub.accountId || sub.account_id || null,
-                                                account_id: sub.account_id || sub.accountId || null,
-                                                accountId: sub.accountId || sub.account_id || null,
-                                                username: sub.username || null,
-                                                deviceName: sub.deviceName || sub.device_name || null,
-                                                name: sub.name || '--',
-                                                phone: sub.phone || null,
-                                                zone: sub.zone || null,
-                                                page_url: sub.page_url || (sub.accountId || sub.account_id ? `https://admin.ftth.iq/customer-details/${sub.accountId || sub.account_id}/details/view` : '#'),
-                                                start_date: sub.start_date || sub.startDate || null,
-                                                startDate: sub.startDate || sub.start_date || null,
-                                                end_date: sub.end_date || sub.endDate || null,
-                                                endDate: sub.endDate || sub.end_date || null,
-                                                status: sub.status || null,
-                                                raw: sub.raw || {},
-                                                rawCustomer: sub.rawCustomer || null,
-                                                rawAddress: sub.rawAddress || null
-                                            };
-                                            
-                                            const subscriberWithMeta = {
-                                                ...normalized,
-                                                _meta: buildSubscriberMeta(normalized)
-                                            };
-                                            
-                                            subscribersCache.push(subscriberWithMeta);
-                                            
-                                            // عرض المشترك في الجدول
-                                            const meta = subscriberWithMeta._meta;
-                                            const row = document.createElement('tr');
-                                            row.className = 'hover:bg-gray-50 transition-all duration-200 opacity-0 transform translate-y-1';
-                                            row.dataset.status = meta.statusKey || '';
-                                            row.dataset.tags = Array.from(meta.tags || []).join(',');
-                                            row.innerHTML = `
-                                                <td class="p-4 font-mono text-gray-400">${i + 1}</td>
-                                                <td class="p-4 font-medium text-gray-800">${normalized.name || '--'}</td>
-                                                <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.account_id || normalized.accountId || '--'}</td>
-                                                <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.deviceName || normalized.username || '--'}</td>
-                                                <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.phone || '--'}</td>
-                                                <td class="p-4 text-gray-600">${normalized.zone || '--'}</td>
-                                                <td class="p-4"><a href="${normalized.page_url || '#'}" target="_blank" class="text-blue-600 hover:underline text-xs">عرض الصفحة</a></td>
-                                                <td class="p-4 text-gray-600">${formatDate(normalized.start_date || normalized.startDate)}</td>
-                                                <td class="p-4 text-gray-600">${formatDate(normalized.end_date || normalized.endDate)}</td>
-                                                <td class="p-4">
-                                                    <span class="px-2 py-1 rounded-full text-xs font-bold ${getStatusBadgeClass(meta.statusKey)}">${getStatusLabel(meta.statusKey)}</span>
-                                                </td>
-                                                <td class="p-4 text-center">
-                                                    <button class="text-gray-400 hover:text-[#26466D]">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
-                                                    </button>
-                                                </td>
-                                            `;
-                                            tbody.appendChild(row);
-                                            
-                                            // Animation
-                                            requestAnimationFrame(() => {
-                                                row.classList.remove('opacity-0', 'translate-y-1');
-                                                row.classList.add('opacity-100', 'translate-y-0');
-                                            });
-                                            
-                                            // تأخير بسيط
-                                            if (i < cacheData.customers.length - 1 && (i + 1) % 5 !== 0) {
-                                                await new Promise(resolve => setTimeout(resolve, 0));
-                                            }
-                                        }
-                                        
-                                        // تحديث العرض الكامل
-                                        applySubscriberFilter(activeSubscriberFilter || 'all', false);
-                                        updateStats();
-                                        
-                                        const total = cacheData.total || subscribersCache.length;
-                                        const totalPages = 1;
-                                        subscriberPagination.currentPage = 1;
-                                        subscriberPagination.totalPages = totalPages;
-                                        updatePaginationControls(total, totalPages);
-                                        
-                                        console.log(`[SYNC COMPLETE] Loaded ${subscribersCache.length} subscribers from database`);
-                                    }
-                                } catch (err) {
-                                    console.error('[SYNC COMPLETE] Error loading subscribers:', err);
-                                }
-                            }, 1000);
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error('[PROGRESS MONITOR] Error:', error);
-            }
-        }, 1000); // تحديث كل ثانية
-    };
-    
-    startProgressMonitoring();
+    // بدء مراقبة التقدم
+    monitorSyncProgress(userId);
 
     try {
-        // المزامنة الكاملة: جلب جميع المشتركين من جميع الصفحات
-        const forceFullSync = true; // فرض المزامنة الكاملة
-        console.log('[SYNC] بدء المزامنة الكاملة - سيتم جلب جميع المشتركين من جميع الصفحات');
-        
-        // إظهار رسالة للمستخدم
-        showSubscribersTableMessage('جاري مزامنة جميع المشتركين من موقع الوطني... قد يستغرق ذلك عدة دقائق.');
+        // المزامنة الذكية: سيتم جلب المشتركين الناقصين فقط
+        const forceFullSync = false; // السماح للمزامنة الذكية بالعمل
+        console.log('[SYNC] بدء المزامنة الذكية - سيتم جلب المشتركين الناقصين فقط');
         
         console.log('[SYNC] Starting sync request...');
         const fetchOptions = addUsernameToFetchOptions({
@@ -3638,10 +2787,9 @@ async function syncCustomers() {
         
         if (data.success) {
             // إيقاف مراقبة التقدم بعد انتهاء المزامنة
-            if (progressMonitorInterval) {
-                clearInterval(progressMonitorInterval);
-                progressMonitorInterval = null;
-            }
+            setTimeout(() => {
+                stopSyncProgressMonitoring();
+            }, 2000);
             
             const stats = data.stats || {};
             showSubscribersTableMessage(
@@ -3668,152 +2816,20 @@ async function syncCustomers() {
                 `;
             }
             
-            // بعد المزامنة: تحديث الإحصائيات فقط
-            renderSubscriberStatusCards();
-            loadWalletBalance();
+            // Reload subscribers from cache with retry mechanism
+            console.log('[SYNC] Reloading subscribers from cache...');
+            await loadRemoteSubscribers();
             
-            // بعد المزامنة: جلب جميع البيانات من قاعدة البيانات وعرضها
-            console.log('[SYNC] Reloading all subscribers from database...');
-            
-            // جلب جميع البيانات من قاعدة البيانات (fetchAll من cache)
-            try {
-                const userId = currentUserId;
-                const cacheUrl = `${API_URL}/alwatani-login/${userId}/customers/cache?username=${encodeURIComponent(currentDetailUser || '')}&pageNumber=1&pageSize=10000`;
-                const cacheResponse = await fetch(cacheUrl, addUsernameToFetchOptions());
-                const cacheData = await cacheResponse.json();
-                
-                if (cacheData.success && cacheData.customers && Array.isArray(cacheData.customers) && cacheData.customers.length > 0) {
-                    const totalCustomers = cacheData.customers.length;
-                    console.log('[SYNC] Processing', totalCustomers, 'subscribers from database...');
-                    
-                    // إظهار شريط التحميل مع العداد
-                    showSubscribersLoading(true, `جاري معالجة ${totalCustomers} مشترك...`, 0, totalCustomers);
-                    
-                    // معالجة المشتركين واحد تلو الآخر مع عرض تدريجي
-                    subscribersCache = [];
-                    const tbody = document.getElementById('subscribers-table-body');
-                    if (tbody) {
-                        tbody.innerHTML = ''; // مسح الجدول
-                    }
-                    
-                    // معالجة وعرض المشتركين تدريجياً
-                    for (let i = 0; i < cacheData.customers.length; i++) {
-                        const sub = cacheData.customers[i];
-                        const normalized = {
-                            id: sub.id || sub.accountId || sub.account_id || null,
-                            account_id: sub.account_id || sub.accountId || null,
-                            accountId: sub.accountId || sub.account_id || null,
-                            username: sub.username || null,
-                            deviceName: sub.deviceName || sub.device_name || null,
-                            name: sub.name || '--',
-                            phone: sub.phone || null,
-                            zone: sub.zone || null,
-                            page_url: sub.page_url || (sub.accountId || sub.account_id ? `https://admin.ftth.iq/customer-details/${sub.accountId || sub.account_id}/details/view` : '#'),
-                            start_date: sub.start_date || sub.startDate || null,
-                            startDate: sub.startDate || sub.start_date || null,
-                            end_date: sub.end_date || sub.endDate || null,
-                            endDate: sub.endDate || sub.end_date || null,
-                            status: sub.status || null,
-                            raw: sub.raw || {},
-                            rawCustomer: sub.rawCustomer || null,
-                            rawAddress: sub.rawAddress || null
-                        };
-                        
-                        const subscriberWithMeta = {
-                            ...normalized,
-                            _meta: buildSubscriberMeta(normalized)
-                        };
-                        
-                        subscribersCache.push(subscriberWithMeta);
-                        
-                        // عرض المشترك في الجدول مباشرة (فوراً بدون انتظار)
-                        if (tbody) {
-                            const meta = subscriberWithMeta._meta;
-                            const row = document.createElement('tr');
-                            row.className = 'hover:bg-gray-50 transition-all duration-200 opacity-0 transform translate-y-1';
-                            row.dataset.status = meta.statusKey || '';
-                            row.dataset.tags = Array.from(meta.tags || []).join(',');
-                            row.innerHTML = `
-                                <td class="p-4 font-mono text-gray-400">${i + 1}</td>
-                                <td class="p-4 font-medium text-gray-800">${normalized.name || '--'}</td>
-                                <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.account_id || normalized.accountId || '--'}</td>
-                                <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.deviceName || normalized.username || '--'}</td>
-                                <td class="p-4 text-gray-600 font-mono" dir="ltr">${normalized.phone || '--'}</td>
-                                <td class="p-4 text-gray-600">${normalized.zone || '--'}</td>
-                                <td class="p-4"><a href="${normalized.page_url || '#'}" target="_blank" class="text-blue-600 hover:underline text-xs">عرض الصفحة</a></td>
-                                <td class="p-4 text-gray-600">${formatDate(normalized.start_date || normalized.startDate)}</td>
-                                <td class="p-4 text-gray-600">${formatDate(normalized.end_date || normalized.endDate)}</td>
-                                <td class="p-4">
-                                    <span class="px-2 py-1 rounded-full text-xs font-bold ${getStatusBadgeClass(meta.statusKey)}">${getStatusLabel(meta.statusKey)}</span>
-                                </td>
-                                <td class="p-4 text-center">
-                                    <button class="text-gray-400 hover:text-[#26466D]">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
-                                    </button>
-                                </td>
-                            `;
-                            tbody.appendChild(row);
-                            
-                            // Animation: fade in + slide up (فوراً بدون تأخير)
-                            requestAnimationFrame(() => {
-                                row.classList.remove('opacity-0', 'translate-y-1');
-                                row.classList.add('opacity-100', 'translate-y-0');
-                            });
-                        }
-                        
-                        // تحديث التقدم (بعد العرض مباشرة)
-                        updateLoadingProgress(i + 1, totalCustomers);
-                        
-                        // تحديث الإحصائيات كل 20 مشتركين (غير متزامن - لا يوقف العرض)
-                        if ((i + 1) % 20 === 0 || i === cacheData.customers.length - 1) {
-                            // استخدام setTimeout لجعل التحديث غير متزامن
-                            setTimeout(() => {
-                                renderSubscriberStatusCards();
-                                renderExpiringSoonList();
-                                updateStats();
-                            }, 0);
-                        }
-                        
-                        // تأخير بسيط جداً (5ms فقط) لعرض المشتركين بسلاسة
-                        if (i < cacheData.customers.length - 1 && (i + 1) % 5 !== 0) {
-                            // لا تأخير لكل مشترك، فقط كل 5 مشتركين
-                            await new Promise(resolve => setTimeout(resolve, 0));
-                        }
-                    }
-                    
-                    // بعد الانتهاء: تحديث العرض الكامل
-                    applySubscriberFilter(activeSubscriberFilter || 'all', false);
-                    updateStats();
-                    
-                    const total = cacheData.total || subscribersCache.length;
-                    const totalPages = 1; // جميع البيانات في صفحة واحدة
-                    subscriberPagination.currentPage = 1;
-                    subscriberPagination.totalPages = totalPages;
-                    updatePaginationControls(total, totalPages);
-                    
-                    showSubscribersTableMessage(`✅ تم تحميل ${subscribersCache.length} مشترك من قاعدة البيانات`);
-                    console.log('[SYNC] Successfully loaded', subscribersCache.length, 'subscribers from database');
-                    
-                    // إخفاء شريط التحميل بعد الانتهاء
-                    setTimeout(() => {
-                        showSubscribersLoading(false);
-                    }, 500);
+            // If no data loaded, retry after a short delay (database might need a moment)
+            if (subscribersCache.length === 0) {
+                console.log('[SYNC] No data loaded, retrying after 1 second...');
+                setTimeout(async () => {
+                    await loadRemoteSubscribers();
+                    await updateSyncStatus();
+                }, 1000);
             } else {
-                    // إذا لم تكن البيانات في cache، جلب من API مباشرة
-                    console.log('[SYNC] No data in cache, fetching from API...');
-                    await loadRemoteSubscribers(1, 10000); // جلب جميع البيانات
-                }
-            } catch (error) {
-                console.error('[SYNC] Error loading from cache, fetching from API:', error);
-                await loadRemoteSubscribers(1, 10000); // جلب جميع البيانات
-            }
-            
-            // بعد المزامنة الأولى: تم إلغاء التحديث التلقائي
-            if (!hasInitialSync) {
-                hasInitialSync = true;
-                console.log('[SYNC] First sync completed');
-                // تم إلغاء التحديث التلقائي - لا يبدأ تلقائياً
-                // startAutoRefresh();
+                console.log('[SYNC] Successfully loaded', subscribersCache.length, 'subscribers');
+                await updateSyncStatus();
             }
         } else {
             const stageSuffix = data.stage ? ` [${data.stage}]` : '';
@@ -4817,11 +3833,11 @@ function applySubscriberFilter(filterKey = 'all') {
     });
     subscriberPagination.currentPage = 1;
     renderSubscribersTablePage();
-    // تم حذف updateSubscriberFilterSummary - العداد تم حذفه
+    updateSubscriberFilterSummary(currentFilteredSubscribers.length);
     setActiveStatusCardUI();
 }
 
-function renderSubscribersTable(list, offset = 0, animate = true) {
+function renderSubscribersTable(list, offset = 0) {
     const tbody = document.getElementById('subscribers-table-body');
     if (!tbody) {
         console.error('[RENDER TABLE] Table body not found!');
@@ -4846,60 +3862,6 @@ function renderSubscribersTable(list, offset = 0, animate = true) {
         return;
     }
     
-    if (animate && list.length > 0) {
-        // عرض المشتركين واحد تلو الآخر مع animation
-        let currentIndex = 0;
-        const animateNext = () => {
-            if (currentIndex >= list.length) {
-                console.log('[RENDER TABLE] Successfully rendered', list.length, 'rows in table with animation');
-                return;
-            }
-            
-            const sub = list[currentIndex];
-            const meta = sub._meta || buildSubscriberMeta(sub);
-            sub._meta = meta;
-            
-            const row = document.createElement('tr');
-            row.className = 'hover:bg-gray-50 transition-all duration-300 opacity-0 transform translate-y-2';
-            row.dataset.status = meta.statusKey || '';
-            row.dataset.tags = Array.from(meta.tags || []).join(',');
-            row.innerHTML = `
-                <td class="p-4 font-mono text-gray-400">${offset + currentIndex + 1}</td>
-                <td class="p-4 font-medium text-gray-800">${sub.name || '--'}</td>
-                <td class="p-4 text-gray-600 font-mono" dir="ltr">${sub.account_id || sub.accountId || '--'}</td>
-                <td class="p-4 text-gray-600 font-mono" dir="ltr">${sub.deviceName || sub.username || '--'}</td>
-                <td class="p-4 text-gray-600 font-mono" dir="ltr">${sub.phone || '--'}</td>
-                <td class="p-4 text-gray-600">${sub.zone || '--'}</td>
-                <td class="p-4"><a href="${sub.page_url || '#'}" target="_blank" class="text-blue-600 hover:underline text-xs">عرض الصفحة</a></td>
-                <td class="p-4 text-gray-600">${formatDate(sub.start_date || sub.startDate)}</td>
-                <td class="p-4 text-gray-600">${formatDate(sub.end_date || sub.endDate)}</td>
-                <td class="p-4">
-                    <span class="px-2 py-1 rounded-full text-xs font-bold ${getStatusBadgeClass(meta.statusKey)}">${getStatusLabel(meta.statusKey)}</span>
-                </td>
-                <td class="p-4 text-center">
-                    <button class="text-gray-400 hover:text-[#26466D]">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(row);
-            
-            // Animation: fade in + slide up
-            setTimeout(() => {
-                row.classList.remove('opacity-0', 'translate-y-2');
-                row.classList.add('opacity-100', 'translate-y-0');
-            }, 10);
-            
-            // تحديث العداد
-            updateLoadingProgress(currentIndex + 1, list.length);
-            
-            currentIndex++;
-            setTimeout(animateNext, 30); // 30ms بين كل مشترك (سريع وجميل)
-        };
-        
-        animateNext();
-    } else {
-        // عرض بدون animation (للحالات العادية)
     list.forEach((sub, index) => {
         const meta = sub._meta || buildSubscriberMeta(sub);
         sub._meta = meta;
@@ -4928,8 +3890,8 @@ function renderSubscribersTable(list, offset = 0, animate = true) {
                 `;
                 tbody.appendChild(row);
             });
+    
     console.log('[RENDER TABLE] Successfully rendered', list.length, 'rows in table');
-    }
 }
 
 function getStatusLabel(key) {
@@ -4955,16 +3917,21 @@ function getStatusBadgeClass(key) {
     return subscriberStatusBadgeClasses[key] || subscriberStatusBadgeClasses.other;
 }
 
-// تم حذف دالة updateSubscriberFilterSummary - العداد تم حذفه من الواجهة
+function updateSubscriberFilterSummary(count) {
+    const summary = document.getElementById('subscriber-filter-summary');
+    if (!summary) return;
+    const label = subscriberFilterLabels[activeSubscriberFilter] || subscriberFilterLabels.all;
+    summary.textContent = `عرض ${count} - ${label}`;
+}
 
-function renderSubscribersTablePage(animate = false) {
+function renderSubscribersTablePage() {
     const total = currentFilteredSubscribers.length;
     const pageSize = subscriberPagination.pageSize || 10;
     const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
     
     if (totalPages === 0) {
         subscriberPagination.currentPage = 0;
-        renderSubscribersTable([], 0, animate);
+        renderSubscribersTable([]);
         updatePaginationControls(total, totalPages);
         return;
     }
@@ -4979,7 +3946,7 @@ function renderSubscribersTablePage(animate = false) {
     const start = (subscriberPagination.currentPage - 1) * pageSize;
     const pagedList = currentFilteredSubscribers.slice(start, start + pageSize);
     
-    renderSubscribersTable(pagedList, start, animate);
+    renderSubscribersTable(pagedList, start);
     updatePaginationControls(total, totalPages);
 }
 
@@ -5550,8 +4517,7 @@ async function openTicketManagement() {
     await loadTickets();
     updateTicketCounts();
     currentScreen = 'ticket-management';
-    // تم إلغاء التحديث التلقائي
-    // startAutoRefresh();
+    startAutoRefresh();
 }
 
 // Load tickets from API
@@ -6551,31 +5517,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const createAccountModal = document.getElementById('create-account-modal');
     if (createAccountModal) {
-        // منع context menu (الكليك اليمين) على الـ modal
-        createAccountModal.addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-        });
-        
-        // إغلاق الـ modal عند الضغط على الـ backdrop فقط (left click)
         createAccountModal.addEventListener('click', function(e) {
-            // التأكد من أن الـ click هو left click فقط (button === 0)
-            // والتأكد من أن الـ click كان على الـ backdrop وليس على المحتوى
-            if (e.button === 0 && e.target === this) {
-                e.preventDefault();
-                e.stopPropagation();
-                closeCreateAccountModal();
-            }
+            if (e.target === this) { closeCreateAccountModal(); }
         });
-        
-        // منع إغلاق الـ modal عند الضغط داخل المحتوى
-        const modalContent = createAccountModal.querySelector('.bg-white');
-        if (modalContent) {
-            modalContent.addEventListener('click', function(e) {
-                e.stopPropagation();
-            });
-        }
     }
 });
 

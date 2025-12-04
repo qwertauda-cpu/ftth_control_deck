@@ -7474,6 +7474,29 @@ app.use((req, res) => {
             return res.sendFile(filePath, (err) => {
                 if (err) {
                     console.error(`[404] ❌ Error serving file:`, err);
+                    // If response hasn't been sent yet, send error response
+                    if (!res.headersSent) {
+                        res.status(500).send(`
+                            <!DOCTYPE html>
+                            <html lang="ar" dir="rtl">
+                            <head>
+                                <meta charset="UTF-8">
+                                <title>خطأ في تحميل الملف</title>
+                                <style>
+                                    body { font-family: Arial; text-align: center; padding: 50px; }
+                                    h1 { color: #e74c3c; }
+                                </style>
+                            </head>
+                            <body>
+                                <h1>خطأ في تحميل الملف</h1>
+                                <p>حدث خطأ أثناء محاولة تحميل الملف.</p>
+                                <p style="color: #666; font-size: 12px;">${escapeHtml(err.message)}</p>
+                                <a href="/admin-login.html">العودة إلى تسجيل الدخول</a>
+                            </body>
+                            </html>
+                        `);
+                    }
+                    return; // Prevent further execution
                 }
             });
         } else {

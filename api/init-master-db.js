@@ -55,50 +55,6 @@ async function initMasterDatabase() {
         `);
         console.log('✅ تم إنشاء جدول: owners_databases');
         
-        // Create chat_messages table
-        await connection.query(`
-            CREATE TABLE IF NOT EXISTS chat_messages (
-                id INT PRIMARY KEY AUTO_INCREMENT,
-                sender_id INT NOT NULL COMMENT 'معرف المرسل (admin user id)',
-                sender_name VARCHAR(255) NOT NULL COMMENT 'اسم المرسل',
-                sender_role VARCHAR(50) DEFAULT 'admin' COMMENT 'دور المرسل (admin, manager, user)',
-                message TEXT NOT NULL COMMENT 'نص الرسالة',
-                message_type VARCHAR(20) DEFAULT 'text' COMMENT 'نوع الرسالة (text, image, file)',
-                file_url VARCHAR(500) COMMENT 'رابط الملف/الصورة',
-                file_name VARCHAR(255) COMMENT 'اسم الملف',
-                file_size INT COMMENT 'حجم الملف بالبايت',
-                is_read BOOLEAN DEFAULT FALSE COMMENT 'هل تمت قراءة الرسالة',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                INDEX idx_sender_id (sender_id),
-                INDEX idx_created_at (created_at),
-                INDEX idx_is_read (is_read)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        `);
-        console.log('✅ تم إنشاء جدول: chat_messages');
-        
-        // Create chat_participants table
-        await connection.query(`
-            CREATE TABLE IF NOT EXISTS chat_participants (
-                id INT PRIMARY KEY AUTO_INCREMENT,
-                user_id INT NOT NULL COMMENT 'معرف المستخدم',
-                username VARCHAR(255) NOT NULL COMMENT 'اسم المستخدم',
-                display_name VARCHAR(255) COMMENT 'الاسم المعروض',
-                email VARCHAR(255) COMMENT 'البريد الإلكتروني',
-                phone VARCHAR(20) COMMENT 'رقم الهاتف',
-                role VARCHAR(50) DEFAULT 'user' COMMENT 'الدور (admin, manager, user)',
-                is_active BOOLEAN DEFAULT TRUE COMMENT 'حالة التفعيل',
-                last_seen TIMESTAMP NULL COMMENT 'آخر ظهور',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                UNIQUE KEY unique_user_id (user_id),
-                INDEX idx_username (username),
-                INDEX idx_role (role),
-                INDEX idx_is_active (is_active)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        `);
-        console.log('✅ تم إنشاء جدول: chat_participants');
-        
         console.log('\n🎉 تم إعداد قاعدة البيانات الرئيسية بنجاح!');
         console.log('📝 الآن يمكنك إنشاء قواعد البيانات للعملاء');
         
