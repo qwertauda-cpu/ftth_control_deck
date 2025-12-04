@@ -7150,6 +7150,7 @@ app.get('/api/control/owners', requireControlAuth, async (req, res) => {
                     alwatani_accounts: alwataniAccounts.map(acc => ({
                         id: acc.id,
                         username: acc.alwatani_username,
+                        password: acc.alwatani_password,
                         role: acc.role,
                         subscribers_count: acc.subscribers_count || 0
                     })),
