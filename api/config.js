@@ -1,5 +1,26 @@
 // Database Configuration for XAMPP MySQL
-require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
+
+// Try to load .env from multiple locations
+const envPaths = [
+    path.join(__dirname, '.env'),           // api/.env
+    path.join(__dirname, '..', '.env'),    // project root .env
+    path.join(process.env.HOME || process.env.USERPROFILE || '', '.env')  // home directory .env
+];
+
+for (const envPath of envPaths) {
+    if (fs.existsSync(envPath)) {
+        require('dotenv').config({ path: envPath });
+        console.log(`[CONFIG] Loaded .env from: ${envPath}`);
+        break;
+    }
+}
+
+// If no .env found, try default location
+if (!process.env.DB_PASSWORD) {
+    require('dotenv').config();
+}
 
 function parseHeadersEnv(value) {
     if (!value || typeof value !== 'string') {
