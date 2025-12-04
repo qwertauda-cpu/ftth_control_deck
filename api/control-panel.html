@@ -2161,7 +2161,12 @@
                                 <span class="chat-message-sender">${msg.sender_username || 'مجهول'}</span>
                                 <span class="chat-message-time">${dateStr} ${timeStr}</span>
                             </div>
-                            <div class="chat-message-text">${escapeHtml(msg.message || '')}</div>
+                            ${msg.message_type === 'image' && msg.file_url ? `
+                                <div style="margin-bottom: 8px;">
+                                    <img src="${API_BASE}${msg.file_url}" alt="صورة" style="max-width: 100%; max-height: 400px; border-radius: 8px; cursor: pointer;" onclick="window.open('${API_BASE}${msg.file_url}', '_blank')">
+                                </div>
+                            ` : ''}
+                            ${msg.message ? `<div class="chat-message-text">${escapeHtml(msg.message)}</div>` : ''}
                         </div>
                     `;
                     }).join('');
