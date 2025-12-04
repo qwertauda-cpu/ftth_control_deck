@@ -802,10 +802,10 @@
         }
 
         .btn-primary {
-            background: var(--mdc-primary);
+            background: linear-gradient(135deg, var(--mdc-primary) 0%, var(--mdc-primary-dark) 100%);
             color: var(--mdc-background);
             border: none;
-            box-shadow: var(--mdc-elevation-2);
+            box-shadow: 0 4px 12px rgba(100, 181, 246, 0.4);
             text-transform: uppercase;
             letter-spacing: 1.25px;
             font-weight: 500;
@@ -832,12 +832,14 @@
         }
 
         .btn-primary:hover {
-            background: var(--mdc-primary-dark);
-            box-shadow: var(--mdc-elevation-4);
+            background: linear-gradient(135deg, var(--mdc-primary-dark) 0%, var(--mdc-primary) 100%);
+            box-shadow: 0 6px 20px rgba(100, 181, 246, 0.5);
+            transform: translateY(-2px);
         }
 
         .btn-primary:active {
-            box-shadow: var(--mdc-elevation-1);
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(100, 181, 246, 0.3);
         }
 
         .btn-sm {
@@ -858,9 +860,10 @@
 
         /* Chat Styles */
         .chat-rooms-sidebar {
-            background: var(--mdc-surface);
-            border: 1px solid var(--mdc-divider);
-            border-radius: 8px;
+            background: linear-gradient(135deg, rgba(30, 30, 30, 0.9) 0%, rgba(25, 25, 25, 0.9) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
             padding: 20px;
             overflow-y: auto;
             box-shadow: var(--mdc-elevation-2);
