@@ -7415,6 +7415,9 @@ app.use((err, req, res, next) => {
 
 // 404 handler (only for API routes, not for static files)
 app.use((req, res) => {
+    // Log the 404 request for debugging
+    console.log(`[404] ${req.method} ${req.path} - Not found`);
+    
     // إذا كان الطلب لملف HTML أو static file، أرسل 404 HTML
     if (req.path.endsWith('.html') || req.path.includes('.')) {
         res.status(404).send(`
@@ -7431,15 +7434,30 @@ app.use((req, res) => {
             <body>
                 <h1>404 - الصفحة غير موجودة</h1>
                 <p>الصفحة التي تبحث عنها غير موجودة.</p>
+                <p style="color: #666; font-size: 12px;">المسار: ${req.path}</p>
                 <a href="/admin-login.html">العودة إلى تسجيل الدخول</a>
             </body>
             </html>
         `);
     } else {
-        // للـ API routes، أرسل JSON
+        // للـ API routes، أرسل JSON مع معلومات أكثر
         res.status(404).json({ 
             success: false, 
-            message: 'الصفحة غير موجودة' 
+            message: 'الصفحة غير موجودة',
+            path: req.path,
+            method: req.method,
+            availableEndpoints: {
+                admin: {
+                    login: '/api/admin/login',
+                    dashboard: '/admin-dashboard.html',
+                    info: '/api/admin/info',
+                    link: '/api/admin/link'
+                },
+                static: {
+                    login: '/admin-login.html',
+                    dashboard: '/admin-dashboard.html'
+                }
+            }
         });
     }
 });
