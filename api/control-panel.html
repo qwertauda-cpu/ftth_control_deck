@@ -347,15 +347,24 @@
         }
 
         .content-section {
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
             padding: 32px;
             border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.3);
             margin-bottom: 30px;
+        }
+
+        .table-container {
+            background: rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .section-title {
@@ -382,22 +391,45 @@
         }
 
         th {
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(10px);
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
             font-weight: 700;
             color: white;
             font-size: 14px;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+            padding: 16px 14px;
         }
 
         td {
-            color: rgba(255, 255, 255, 0.9);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 14px;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            font-weight: 500;
+        }
+
+        td strong {
+            color: white;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            font-weight: 700;
+        }
+
+        td small {
+            color: rgba(255, 255, 255, 0.85) !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            font-weight: 500;
         }
 
         tr:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(5px);
+        }
+
+        tr:hover td {
+            color: white;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         .badge {
@@ -1119,24 +1151,24 @@
                     tbody.innerHTML = data.owners.map(agent => `
                         <tr>
                             <td>
-                                <strong>${agent.owner_username || 'N/A'}</strong>
-                                ${agent.owner_domain ? `<br><small style="color: #718096;">${agent.owner_domain}</small>` : ''}
+                                <strong style="color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">${agent.owner_username || 'N/A'}</strong>
+                                ${agent.owner_domain ? `<br><small style="color: rgba(255,255,255,0.85); text-shadow: 0 1px 2px rgba(0,0,0,0.2);">${agent.owner_domain}</small>` : ''}
                             </td>
-                            <td>${agent.user?.name || agent.owner_username || 'غير محدد'}</td>
-                            <td>${agent.user?.email || 'غير محدد'}</td>
-                            <td>${agent.user?.phone || 'غير محدد'}</td>
+                            <td style="color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">${agent.user?.name || agent.owner_username || 'غير محدد'}</td>
+                            <td style="color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">${agent.user?.email || 'غير محدد'}</td>
+                            <td style="color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">${agent.user?.phone || 'غير محدد'}</td>
                             <td>
                                 <span class="badge badge-info">${agent.alwatani_accounts_count || 0} حساب</span>
                                 ${agent.alwatani_accounts && agent.alwatani_accounts.length > 0 ? 
-                                    `<br><small style="color: #718096;">${agent.alwatani_accounts.map(acc => acc.username).join(', ')}</small>` : 
-                                    '<br><small style="color: #718096;">لا توجد حسابات</small>'
+                                    `<br><small style="color: rgba(255,255,255,0.9); text-shadow: 0 1px 2px rgba(0,0,0,0.2); font-weight: 500;">${agent.alwatani_accounts.map(acc => acc.username).join(', ')}</small>` : 
+                                    '<br><small style="color: rgba(255,255,255,0.8); text-shadow: 0 1px 2px rgba(0,0,0,0.2);">لا توجد حسابات</small>'
                                 }
                             </td>
                             <td>
                                 <span class="badge badge-success">${agent.subscribers_count || 0}</span>
-                                <br><small style="color: #718096;">مشترك</small>
+                                <br><small style="color: rgba(255,255,255,0.85); text-shadow: 0 1px 2px rgba(0,0,0,0.2);">مشترك</small>
                             </td>
-                            <td>${agent.user?.position || 'غير محدد'}</td>
+                            <td style="color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">${agent.user?.position || 'غير محدد'}</td>
                             <td>
                                 <button class="btn btn-primary btn-sm" onclick="viewAgentDetails('${agent.owner_username}')">عرض</button>
                             </td>
