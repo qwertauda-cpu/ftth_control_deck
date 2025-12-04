@@ -502,14 +502,17 @@
                         <thead>
                             <tr>
                                 <th>اسم المستخدم</th>
-                                <th>النطاق</th>
-                                <th>قاعدة البيانات</th>
-                                <th>الحالة</th>
+                                <th>الاسم الكامل</th>
+                                <th>البريد الإلكتروني</th>
+                                <th>الهاتف</th>
+                                <th>حساب الوطني</th>
+                                <th>عدد المشتركين</th>
+                                <th>المنصب</th>
                                 <th>الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody id="ownersTableBody">
-                            <tr><td colspan="5" class="loading">جاري التحميل...</td></tr>
+                            <tr><td colspan="8" class="loading">جاري التحميل...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -875,7 +878,7 @@
             }
         }
 
-        // Load owners
+        // Load owners (agents)
         async function loadOwners() {
             try {
                 const response = await fetchWithAuth(`${API_BASE}/api/control/owners`);
@@ -883,25 +886,38 @@
                 const data = await response.json();
                 
                 const tbody = document.getElementById('ownersTableBody');
-                if (data.success && data.owners) {
-                    tbody.innerHTML = data.owners.map(owner => `
+                if (data.success && data.owners && data.owners.length > 0) {
+                    tbody.innerHTML = data.owners.map(agent => `
                         <tr>
-                            <td>${owner.username}</td>
-                            <td>${owner.domain}</td>
-                            <td>${owner.database_name}</td>
-                            <td><span class="badge ${owner.is_active ? 'badge-success' : 'badge-danger'}">${owner.is_active ? 'نشط' : 'غير نشط'}</span></td>
+                            <td>${agent.user?.username || agent.alwatani_username || 'N/A'}</td>
+                            <td>${agent.user?.name || 'غير محدد'}</td>
+                            <td>${agent.user?.email || 'غير محدد'}</td>
+                            <td>${agent.user?.phone || 'غير محدد'}</td>
                             <td>
-                                <button class="btn btn-primary btn-sm">عرض</button>
+                                <span class="badge badge-info">${agent.alwatani_username || 'N/A'}</span>
+                                ${agent.role ? `<br><small style="color: #718096;">${agent.role}</small>` : ''}
+                            </td>
+                            <td>
+                                <span class="badge badge-success">${agent.subscribers_count || 0}</span>
+                            </td>
+                            <td>${agent.user?.position || 'غير محدد'}</td>
+                            <td>
+                                <button class="btn btn-primary btn-sm" onclick="viewAgentDetails(${agent.id})">عرض</button>
                             </td>
                         </tr>
                     `).join('');
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="5" class="loading">لا توجد بيانات</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" class="loading">لا توجد بيانات</td></tr>';
                 }
             } catch (error) {
                 console.error('Error loading owners:', error);
-                document.getElementById('ownersTableBody').innerHTML = '<tr><td colspan="5" class="loading">حدث خطأ في التحميل</td></tr>';
+                document.getElementById('ownersTableBody').innerHTML = '<tr><td colspan="8" class="loading">حدث خطأ في التحميل</td></tr>';
             }
+        }
+
+        // View agent details
+        function viewAgentDetails(agentId) {
+            alert(`عرض تفاصيل الوكيل #${agentId}\n(سيتم إضافة هذه الميزة قريباً)`);
         }
 
         // Load users

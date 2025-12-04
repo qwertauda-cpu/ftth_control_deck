@@ -7004,15 +7004,69 @@ app.get('/api/control/database/tables', requireControlAuth, async (req, res) => 
     }
 });
 
-// Control Panel Owners List
+// Control Panel Owners List (Agents) - Shows alwatani_login accounts with user info
 app.get('/api/control/owners', requireControlAuth, async (req, res) => {
     try {
         const masterPool = await dbManager.initMasterPool();
         const [owners] = await masterPool.query(
-            'SELECT username, domain, database_name, is_active FROM owners_databases ORDER BY username'
+            'SELECT username, domain, database_name, is_active FROM owners_databases WHERE is_active = TRUE ORDER BY username'
         );
         
-        res.json({ success: true, owners });
+        const agents = [];
+        
+        // Get all alwatani_login accounts from all owner databases
+        for (const owner of owners) {
+            try {
+                const ownerPool = await dbManager.getOwnerPool(owner.domain);
+                
+                // Get all alwatani_login accounts with user information
+                const [accounts] = await ownerPool.query(`
+                    SELECT 
+                        al.id,
+                        al.username as alwatani_username,
+                        al.role,
+                        al.created_at as account_created_at,
+                        u.id as user_id,
+                        u.username as user_username,
+                        u.email,
+                        u.phone,
+                        u.name as user_name,
+                        u.position,
+                        COUNT(DISTINCT s.id) as subscribers_count
+                    FROM alwatani_login al
+                    LEFT JOIN users u ON al.user_id = u.id
+                    LEFT JOIN subscribers s ON s.alwatani_login_id = al.id
+                    GROUP BY al.id, al.username, al.role, al.created_at, u.id, u.username, u.email, u.phone, u.name, u.position
+                    ORDER BY al.created_at DESC
+                `);
+                
+                for (const account of accounts) {
+                    agents.push({
+                        id: account.id,
+                        alwatani_username: account.alwatani_username,
+                        role: account.role,
+                        account_created_at: account.account_created_at,
+                        owner_username: owner.username,
+                        owner_domain: owner.domain,
+                        user: {
+                            id: account.user_id,
+                            username: account.user_username,
+                            name: account.user_name,
+                            email: account.email,
+                            phone: account.phone,
+                            position: account.position
+                        },
+                        subscribers_count: account.subscribers_count || 0
+                    });
+                }
+            } catch (error) {
+                console.error(`[CONTROL OWNERS] Error getting accounts for owner ${owner.username}:`, error.message);
+                // Continue with next owner
+                continue;
+            }
+        }
+        
+        res.json({ success: true, owners: agents, total: agents.length });
     } catch (error) {
         console.error('[CONTROL OWNERS] Error:', error);
         res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
