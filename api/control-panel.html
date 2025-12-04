@@ -1312,6 +1312,7 @@
             .modal-overlay {
                 padding: 0;
                 align-items: stretch;
+                z-index: 3000 !important;
             }
 
             .modal-container {
@@ -1885,7 +1886,7 @@
     </div>
 
     <!-- Agent Details Modal -->
-    <div id="agentDetailsModal" class="modal-overlay" style="display: none;">
+    <div id="agentDetailsModal" class="modal-overlay" style="display: none; z-index: 3000;">
         <div class="modal-container">
             <div class="modal-header">
                 <h2 class="modal-title">تفاصيل الوكيل</h2>
@@ -2590,17 +2591,35 @@
 
         // View agent details
         function viewAgentDetails(index) {
+            console.log('viewAgentDetails called with index:', index);
+            console.log('window.agentsData:', window.agentsData);
+            
             const agent = window.agentsData && window.agentsData[index];
             if (!agent) {
-                console.error('Agent not found at index:', index);
+                console.error('Agent not found at index:', index, 'Available agents:', window.agentsData?.length);
+                alert('لم يتم العثور على بيانات الوكيل. يرجى تحديث الصفحة.');
                 return;
             }
             
             const modal = document.getElementById('agentDetailsModal');
             const content = document.getElementById('agentDetailsContent');
             
+            if (!modal) {
+                console.error('Modal element not found!');
+                alert('حدث خطأ في عرض التفاصيل. يرجى تحديث الصفحة.');
+                return;
+            }
+            
+            if (!content) {
+                console.error('Modal content element not found!');
+                alert('حدث خطأ في عرض التفاصيل. يرجى تحديث الصفحة.');
+                return;
+            }
+            
+            console.log('Showing modal...');
             // Show modal
             modal.style.display = 'flex';
+            modal.style.zIndex = '3000';
             preventBodyScroll();
             
             // Build content
