@@ -8043,6 +8043,47 @@ async function startServer() {
         `);
         
         console.log('✅ Chat tables initialized');
+        
+        // ==================== جدول control_accounts (حسابات لوحة التحكم) ====================
+        await masterPool.query(`
+            CREATE TABLE IF NOT EXISTS control_accounts (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                username VARCHAR(255) UNIQUE NOT NULL COMMENT 'اسم المستخدم',
+                password_hash VARCHAR(255) NOT NULL COMMENT 'كلمة المرور المشفرة',
+                full_name VARCHAR(255) COMMENT 'الاسم الكامل',
+                email VARCHAR(255) COMMENT 'البريد الإلكتروني',
+                role VARCHAR(50) DEFAULT 'admin' COMMENT 'الدور (admin, manager, viewer)',
+                is_active BOOLEAN DEFAULT TRUE COMMENT 'حالة تفعيل الحساب',
+                last_login TIMESTAMP NULL COMMENT 'آخر تسجيل دخول',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                created_by INT COMMENT 'من أنشأ الحساب',
+                INDEX idx_username (username),
+                INDEX idx_email (email),
+                INDEX idx_role (role),
+                INDEX idx_is_active (is_active)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        console.log('✅ تم إنشاء جدول: control_accounts (حسابات لوحة التحكم)');
+        
+        // إضافة حساب افتراضي إذا لم يكن موجوداً
+        const [existingAdmin] = await masterPool.query('SELECT id FROM control_accounts WHERE username = ?', ['admin']);
+        if (existingAdmin.length === 0) {
+            // إذا كان bcrypt متاحاً، استخدمه، وإلا استخدم كلمة المرور مباشرة
+            let passwordHash = 'admin123'; // كلمة المرور الافتراضية
+            if (bcrypt) {
+                try {
+                    passwordHash = await bcrypt.hash('admin123', 10);
+                } catch (e) {
+                    console.warn('[INIT] Could not hash password with bcrypt, using plain text');
+                }
+            }
+            await masterPool.query(
+                'INSERT INTO control_accounts (username, password_hash, full_name, email, role, is_active) VALUES (?, ?, ?, ?, ?, ?)',
+                ['admin', passwordHash, 'مدير النظام', 'admin@example.com', 'admin', TRUE]
+            );
+            console.log('✅ تم إضافة حساب المدير الافتراضي (admin/admin123)');
+        }
     } catch (chatTableError) {
         console.warn('[SERVER] Chat tables initialization warning:', chatTableError.message);
     }
