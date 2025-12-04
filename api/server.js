@@ -122,15 +122,51 @@ app.use(express.urlencoded({ extended: true }));
 // Admin Login Page
 app.get('/admin-login.html', (req, res) => {
     const filePath = path.resolve(__dirname, 'admin-login.html');
-    console.log('[ADMIN LOGIN] Serving from:', filePath);
-    res.sendFile(filePath);
+    console.log('[ADMIN LOGIN] Request received');
+    console.log('[ADMIN LOGIN] __dirname:', __dirname);
+    console.log('[ADMIN LOGIN] File path:', filePath);
+    console.log('[ADMIN LOGIN] File exists:', fs.existsSync(filePath));
+    
+    if (!fs.existsSync(filePath)) {
+        console.error('[ADMIN LOGIN] ❌ File not found!');
+        return res.status(404).send('File not found: ' + filePath);
+    }
+    
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error('[ADMIN LOGIN] ❌ Error:', err);
+            if (!res.headersSent) {
+                res.status(500).send('Error loading file: ' + err.message);
+            }
+        } else {
+            console.log('[ADMIN LOGIN] ✅ File sent successfully');
+        }
+    });
 });
 
 // Admin Dashboard Page
 app.get('/admin-dashboard.html', (req, res) => {
     const filePath = path.resolve(__dirname, 'admin-dashboard.html');
-    console.log('[ADMIN DASHBOARD] Serving from:', filePath);
-    res.sendFile(filePath);
+    console.log('[ADMIN DASHBOARD] Request received');
+    console.log('[ADMIN DASHBOARD] __dirname:', __dirname);
+    console.log('[ADMIN DASHBOARD] File path:', filePath);
+    console.log('[ADMIN DASHBOARD] File exists:', fs.existsSync(filePath));
+    
+    if (!fs.existsSync(filePath)) {
+        console.error('[ADMIN DASHBOARD] ❌ File not found!');
+        return res.status(404).send('File not found: ' + filePath);
+    }
+    
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error('[ADMIN DASHBOARD] ❌ Error:', err);
+            if (!res.headersSent) {
+                res.status(500).send('Error loading file: ' + err.message);
+            }
+        } else {
+            console.log('[ADMIN DASHBOARD] ✅ File sent successfully');
+        }
+    });
 });
 
 // Also serve at root paths
