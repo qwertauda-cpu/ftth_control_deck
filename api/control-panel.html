@@ -1401,13 +1401,24 @@
                 position: relative;
                 padding: 0;
                 margin: 0;
+                height: calc(100vh - 60px);
+                overflow: hidden;
+            }
+
+            #chat-section .section-title {
+                display: none;
+            }
+
+            #chat-section > div:first-child {
+                display: none;
             }
 
             #chatMainContainer {
                 display: block !important;
                 grid-template-columns: 1fr !important;
-                height: calc(100vh - 80px) !important;
+                height: 100% !important;
                 gap: 0 !important;
+                position: relative;
             }
 
             .chat-rooms-sidebar {
@@ -1420,6 +1431,8 @@
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
                 background: var(--mdc-background);
+                display: flex;
+                flex-direction: column;
             }
 
             .chat-rooms-sidebar > div:first-child {
@@ -1429,10 +1442,14 @@
                 position: sticky;
                 top: 0;
                 z-index: 5;
+                flex-shrink: 0;
             }
 
             #chatRoomsList {
                 padding: 8px;
+                flex: 1;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
             }
 
             .chat-room-item {
@@ -1445,6 +1462,18 @@
                 cursor: pointer;
                 -webkit-tap-highlight-color: rgba(33, 150, 243, 0.2);
                 user-select: none;
+                transition: all 0.2s ease;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            }
+
+            .chat-room-item:active {
+                transform: scale(0.98);
+                background: rgba(33, 150, 243, 0.1);
+            }
+
+            .chat-room-item.active {
+                background: rgba(33, 150, 243, 0.15);
+                border-color: var(--mdc-primary);
             }
 
             .chat-room-name {
@@ -1455,27 +1484,32 @@
                 overflow-wrap: break-word;
                 white-space: normal;
                 line-height: 1.4;
+                color: var(--mdc-on-surface);
             }
 
             .chat-room-description {
                 font-size: 13px;
                 margin-bottom: 8px;
                 line-height: 1.4;
+                color: var(--mdc-on-surface-secondary);
             }
 
             .chat-room-meta {
                 font-size: 12px;
                 gap: 12px;
+                display: flex;
+                align-items: center;
+                color: var(--mdc-on-surface-secondary);
             }
 
             .chat-rooms-sidebar.mobile-hidden {
-                display: none;
+                display: none !important;
             }
 
             .chat-messages-container {
                 width: 100% !important;
                 height: 100% !important;
-                display: none;
+                display: none !important;
                 position: absolute;
                 top: 0;
                 left: 0;
@@ -1485,10 +1519,11 @@
                 border-radius: 0;
                 padding: 0;
                 background: var(--mdc-background);
+                z-index: 10;
             }
 
             .chat-messages-container.mobile-visible {
-                display: flex;
+                display: flex !important;
             }
 
             .chat-messages-header {
@@ -2022,6 +2057,7 @@
                         <div class="chat-messages-header" id="chatMessagesHeader" style="display: none;">
                             <button class="chat-back-btn" onclick="backToChatList()" title="رجوع">←</button>
                             <div class="chat-messages-title" id="chatMessagesTitle">المحادثة</div>
+                            <div class="chat-messages-title" id="currentChatRoomName" style="display: none;">المحادثة</div>
                         </div>
                         <div id="chatMessagesArea" class="chat-messages-area">
                             <div style="text-align: center; color: var(--mdc-on-surface-secondary); padding: 40px;">اختر محادثة لعرض الرسائل</div>
@@ -3236,18 +3272,24 @@
                 const sidebar = document.getElementById('chatRoomsSidebar');
                 const messagesContainer = document.getElementById('chatMessagesContainer');
                 const messagesHeader = document.getElementById('chatMessagesHeader');
-                const currentChatRoomNameEl = document.getElementById('currentChatRoomName');
+                const chatMessagesTitle = document.getElementById('chatMessagesTitle');
                 
                 if (sidebar && messagesContainer) {
+                    // Hide sidebar
                     sidebar.style.display = 'none';
+                    sidebar.classList.add('mobile-hidden');
+                    
+                    // Show messages container
                     messagesContainer.style.display = 'flex';
+                    messagesContainer.classList.add('mobile-visible');
                     
                     // Set chat room name in header
-                    if (selectedRoom && currentChatRoomNameEl) {
+                    if (selectedRoom && chatMessagesTitle) {
                         const roomName = selectedRoom.querySelector('.chat-room-name')?.textContent || 'المحادثة';
-                        currentChatRoomNameEl.textContent = roomName;
+                        chatMessagesTitle.textContent = roomName;
                     }
                     
+                    // Show header
                     if (messagesHeader) {
                         messagesHeader.style.display = 'flex';
                     }
@@ -3265,7 +3307,10 @@
             await loadChatRequests(roomId);
             
             // Show input area
-            document.getElementById('chatInputArea').style.display = 'block';
+            const chatInputArea = document.getElementById('chatInputArea');
+            if (chatInputArea) {
+                chatInputArea.style.display = 'block';
+            }
             
             // Start polling for new messages
             if (chatPollInterval) clearInterval(chatPollInterval);
