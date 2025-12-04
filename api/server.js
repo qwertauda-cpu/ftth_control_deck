@@ -7145,6 +7145,20 @@ app.get('/api/admin/owners/list', requireAdminAuth, async (req, res) => {
                     isActive = hoursSinceLastActivity <= ACTIVE_THRESHOLD_HOURS;
                 }
                 
+                // جلب كلمة مرور حساب الوكيل الرئيسي (admin@domain)
+                let ownerPassword = null;
+                try {
+                    const [ownerUser] = await ownerPool.query(
+                        'SELECT password FROM users WHERE username = ? LIMIT 1',
+                        [owner.username]
+                    );
+                    if (ownerUser.length > 0) {
+                        ownerPassword = ownerUser[0].password;
+                    }
+                } catch (err) {
+                    // تجاهل الخطأ
+                }
+                
                 // حساب عدد الأيام من تاريخ الإنشاء
                 const createdAt = new Date(owner.created_at);
                 const daysDiff = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
@@ -7157,6 +7171,7 @@ app.get('/api/admin/owners/list', requireAdminAuth, async (req, res) => {
                     agent_name: owner.agent_name || 'غير محدد',
                     phone: owner.phone || 'غير محدد',
                     email: owner.email || 'غير محدد',
+                    password: ownerPassword, // كلمة مرور حساب الوكيل
                     is_active: isActive, // بناءً على آخر نشاط (فتح الموقع)
                     status: isActive ? 'نشط' : 'غير نشط',
                     last_activity: lastActivityTime ? lastActivityTime.toISOString() : null,

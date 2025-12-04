@@ -302,6 +302,7 @@
                                 <th class="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
                                 <th class="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">اسم الوكيل</th>
                                 <th class="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">رقم الهاتف</th>
+                                <th class="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">كلمة المرور</th>
                                 <th class="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">صفحات</th>
                                 <th class="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الحالة</th>
                                 <th class="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">الأيام</th>
@@ -744,6 +745,51 @@
                     </div>
                 `;
             }
+        }
+
+        // Toggle owner password visibility
+        function toggleOwnerPassword(ownerId, password) {
+            const passwordElement = document.getElementById(`owner-password-${ownerId}`);
+            const toggleButton = document.getElementById(`owner-toggle-${ownerId}`);
+            
+            if (passwordElement && toggleButton) {
+                if (passwordElement.textContent.includes('*')) {
+                    // Show password
+                    passwordElement.textContent = password;
+                    toggleButton.textContent = 'إخفاء';
+                    passwordElement.classList.remove('bg-gray-100');
+                    passwordElement.classList.add('bg-yellow-100', 'text-yellow-900');
+                } else {
+                    // Hide password
+                    passwordElement.textContent = '*'.repeat(password.length || 8);
+                    toggleButton.textContent = 'إظهار';
+                    passwordElement.classList.remove('bg-yellow-100', 'text-yellow-900');
+                    passwordElement.classList.add('bg-gray-100');
+                }
+            }
+        }
+
+        // Copy owner password to clipboard
+        function copyOwnerPassword(password) {
+            if (!password) {
+                alert('لا توجد كلمة مرور للنسخ');
+                return;
+            }
+            
+            navigator.clipboard.writeText(password).then(() => {
+                // Show success message
+                const toast = document.createElement('div');
+                toast.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+                toast.textContent = 'تم نسخ كلمة المرور بنجاح!';
+                document.body.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.remove();
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy password:', err);
+                alert('فشل نسخ كلمة المرور');
+            });
         }
 
         // Toggle password visibility
