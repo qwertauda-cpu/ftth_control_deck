@@ -3187,15 +3187,27 @@
                 const container = document.getElementById('chatRoomsList');
                 if (data.success && data.rooms && data.rooms.length > 0) {
                     container.innerHTML = data.rooms.map(room => `
-                        <div onclick="selectChatRoom(${room.id})" class="chat-room-item" id="chatRoom-${room.id}">
-                            <div class="chat-room-name">${room.name || 'بدون اسم'}</div>
-                            ${room.description ? `<div class="chat-room-description">${room.description}</div>` : ''}
+                        <div class="chat-room-item" id="chatRoom-${room.id}" data-room-id="${room.id}">
+                            <div class="chat-room-name">${escapeHtml(room.name || 'بدون اسم')}</div>
+                            ${room.description ? `<div class="chat-room-description">${escapeHtml(room.description)}</div>` : ''}
                             <div class="chat-room-meta">
                                 <span>👥 ${room.members_count || 0} عضو</span>
                                 ${room.pending_requests_count > 0 ? `<span style="color: var(--mdc-warning);">⏳ ${room.pending_requests_count} طلب</span>` : ''}
                             </div>
                         </div>
                     `).join('');
+                    
+                    // Add click event listeners
+                    data.rooms.forEach(room => {
+                        const roomElement = document.getElementById(`chatRoom-${room.id}`);
+                        if (roomElement) {
+                            roomElement.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                selectChatRoom(room.id);
+                            });
+                        }
+                    });
                 } else {
                     container.innerHTML = '<div style="text-align: center; color: var(--mdc-on-surface-secondary); padding: 40px;">لا توجد محادثات</div>';
                 }
