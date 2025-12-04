@@ -1384,11 +1384,17 @@
                 return null;
             }
             
+            // Don't set Content-Type for FormData (it will be set automatically with boundary)
+            const isFormData = options.body instanceof FormData;
             const headers = {
-                'Content-Type': 'application/json',
                 'x-control-token': token,
                 ...options.headers
             };
+            
+            // Only add Content-Type if not FormData
+            if (!isFormData && !options.headers?.['Content-Type']) {
+                headers['Content-Type'] = 'application/json';
+            }
             
             const response = await fetch(url, {
                 ...options,

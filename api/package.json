@@ -22,7 +22,8 @@
     "cors": "^2.8.5",
     "mysql2": "^3.6.5",
     "dotenv": "^16.3.1",
-    "cheerio": "^1.0.0-rc.12"
+    "cheerio": "^1.0.0-rc.12",
+    "multer": "^2.0.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
