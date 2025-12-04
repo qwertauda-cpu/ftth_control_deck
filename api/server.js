@@ -7462,10 +7462,27 @@ function escapeHtml(text) {
 app.use((req, res) => {
     // Log the 404 request for debugging (server-side only)
     console.log(`[404] ${req.method} ${req.path} - Not found`);
-    console.log(`[404] Request headers:`, JSON.stringify(req.headers, null, 2));
-    console.log(`[404] __dirname:`, __dirname);
     
-    // Check if file exists
+    // Special handling for admin-dashboard.html - try to serve it directly as fallback
+    if (req.path === '/admin-dashboard.html') {
+        const filePath = path.join(__dirname, 'admin-dashboard.html');
+        console.log(`[404] Admin dashboard requested, trying to serve from: ${filePath}`);
+        if (fs.existsSync(filePath)) {
+            console.log(`[404] ✅ File exists! Serving admin-dashboard.html...`);
+            return res.sendFile(filePath, (err) => {
+                if (err) {
+                    console.error(`[404] ❌ Error serving admin-dashboard.html:`, err);
+                    if (!res.headersSent) {
+                        res.status(500).send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>خطأ</title></head><body><h1>خطأ في تحميل الملف</h1><p>${escapeHtml(err.message)}</p></body></html>`);
+                    }
+                }
+            });
+        } else {
+            console.log(`[404] ❌ admin-dashboard.html does not exist at: ${filePath}`);
+        }
+    }
+    
+    // Check if file exists for other HTML files
     if (req.path.endsWith('.html')) {
         const filePath = path.join(__dirname, req.path);
         console.log(`[404] Checking if file exists: ${filePath}`);
@@ -7474,29 +7491,10 @@ app.use((req, res) => {
             return res.sendFile(filePath, (err) => {
                 if (err) {
                     console.error(`[404] ❌ Error serving file:`, err);
-                    // If response hasn't been sent yet, send error response
                     if (!res.headersSent) {
-                        res.status(500).send(`
-                            <!DOCTYPE html>
-                            <html lang="ar" dir="rtl">
-                            <head>
-                                <meta charset="UTF-8">
-                                <title>خطأ في تحميل الملف</title>
-                                <style>
-                                    body { font-family: Arial; text-align: center; padding: 50px; }
-                                    h1 { color: #e74c3c; }
-                                </style>
-                            </head>
-                            <body>
-                                <h1>خطأ في تحميل الملف</h1>
-                                <p>حدث خطأ أثناء محاولة تحميل الملف.</p>
-                                <p style="color: #666; font-size: 12px;">${escapeHtml(err.message)}</p>
-                                <a href="/admin-login.html">العودة إلى تسجيل الدخول</a>
-                            </body>
-                            </html>
-                        `);
+                        res.status(500).send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>خطأ</title></head><body><h1>خطأ في تحميل الملف</h1><p>${escapeHtml(err.message)}</p></body></html>`);
                     }
-                    return; // Prevent further execution
+                    return;
                 }
             });
         } else {
