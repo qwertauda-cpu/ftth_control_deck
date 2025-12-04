@@ -199,12 +199,14 @@ app.use((req, res, next) => {
     if (req.path === '/admin-login.html' || req.path === '/admin-dashboard.html') {
         return next(); // Skip static, let it fall through to 404 if route didn't match
     }
-    // For other files, use static middleware
-    express.static(path.join(__dirname), {
-        index: false,
-        extensions: ['html', 'htm']
-    })(req, res, next);
+    next();
 });
+
+// Serve static files for non-admin files
+app.use(express.static(path.join(__dirname), {
+    index: false,
+    extensions: ['html', 'htm']
+}));
 
 // Store sync progress for each user (in-memory)
 const syncProgressStore = new Map(); // userId -> { stage, current, total, message, startedAt, updatedAt, phoneFound }
