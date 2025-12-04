@@ -116,6 +116,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve admin HTML files directly with explicit routes - MUST be before static middleware
+// Add logging middleware to track all requests
+app.use((req, res, next) => {
+    if (req.path === '/admin-dashboard.html') {
+        console.log(`[ROUTE DEBUG] Request to /admin-dashboard.html detected`);
+        console.log(`[ROUTE DEBUG] Method: ${req.method}, Path: ${req.path}`);
+    }
+    next();
+});
+
 app.get('/admin-login.html', (req, res) => {
     const filePath = path.join(__dirname, 'admin-login.html');
     console.log('[ADMIN] ✅ Serving admin-login.html from:', filePath);
@@ -140,6 +149,7 @@ app.get('/admin-login.html', (req, res) => {
 });
 
 app.get('/admin-dashboard.html', (req, res) => {
+    console.log('[ADMIN] 🎯 ROUTE HANDLER CALLED: /admin-dashboard.html');
     const filePath = path.join(__dirname, 'admin-dashboard.html');
     console.log('[ADMIN] ✅ Route matched: /admin-dashboard.html');
     console.log('[ADMIN] ✅ Serving admin-dashboard.html from:', filePath);
