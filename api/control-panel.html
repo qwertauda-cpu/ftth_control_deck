@@ -365,7 +365,7 @@
                 </a>
                 <a class="menu-item" data-section="owners">
                     <span class="menu-item-icon">👥</span>
-                    <span>المالكين</span>
+                    <span>الوكلاء</span>
                 </a>
                 <a class="menu-item" data-section="users">
                     <span class="menu-item-icon">👤</span>
@@ -410,11 +410,11 @@
 
                     <div class="stat-card">
                         <div class="stat-card-header">
-                            <span class="stat-card-title">المالكين</span>
+                            <span class="stat-card-title">الوكلاء</span>
                             <div class="stat-card-icon success">👥</div>
                         </div>
                         <div class="stat-card-value" id="ownersCount">-</div>
-                        <div class="stat-card-change">مالك نشط</div>
+                        <div class="stat-card-change">وكيل نشط</div>
                     </div>
 
                     <div class="stat-card">
@@ -496,7 +496,7 @@
 
             <!-- Owners Section -->
             <div id="owners-section" class="content-section hidden">
-                <div class="section-title">إدارة المالكين</div>
+                <div class="section-title">إدارة الوكلاء</div>
                 <div class="table-container">
                     <table id="ownersTable">
                         <thead>
@@ -746,7 +746,7 @@
             statsChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: ['قواعد البيانات', 'المالكين', 'المستخدمين', 'المشتركين'],
+                    labels: ['قواعد البيانات', 'الوكلاء', 'المستخدمين', 'المشتركين'],
                     datasets: [{
                         label: 'الإحصائيات',
                         data: [
