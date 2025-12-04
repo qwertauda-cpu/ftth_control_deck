@@ -7045,8 +7045,12 @@ app.get('/api/control/owners', requireControlAuth, async (req, res) => {
                         u.username as user_username,
                         u.email,
                         u.phone,
-                        u.name as user_name,
-                        u.position
+                        u.display_name,
+                        u.agent_name,
+                        u.position,
+                        u.governorate,
+                        u.region,
+                        u.company_name
                     FROM alwatani_login al
                     LEFT JOIN users u ON al.user_id = u.id
                     ORDER BY al.created_at DESC
@@ -7077,10 +7081,13 @@ app.get('/api/control/owners', requireControlAuth, async (req, res) => {
                         user: {
                             id: account.user_id,
                             username: account.user_username,
-                            name: account.user_name,
+                            name: account.display_name || account.agent_name || account.user_username,
                             email: account.email,
                             phone: account.phone,
-                            position: account.position
+                            position: account.position,
+                            governorate: account.governorate,
+                            region: account.region,
+                            company_name: account.company_name
                         },
                         subscribers_count: subscribersCount
                     });
