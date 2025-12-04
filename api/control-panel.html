@@ -889,20 +889,27 @@
                 if (data.success && data.owners && data.owners.length > 0) {
                     tbody.innerHTML = data.owners.map(agent => `
                         <tr>
-                            <td>${agent.user?.username || agent.alwatani_username || 'N/A'}</td>
-                            <td>${agent.user?.name || 'غير محدد'}</td>
+                            <td>
+                                <strong>${agent.owner_username || 'N/A'}</strong>
+                                ${agent.owner_domain ? `<br><small style="color: #718096;">${agent.owner_domain}</small>` : ''}
+                            </td>
+                            <td>${agent.user?.name || agent.owner_username || 'غير محدد'}</td>
                             <td>${agent.user?.email || 'غير محدد'}</td>
                             <td>${agent.user?.phone || 'غير محدد'}</td>
                             <td>
-                                <span class="badge badge-info">${agent.alwatani_username || 'N/A'}</span>
-                                ${agent.role ? `<br><small style="color: #718096;">${agent.role}</small>` : ''}
+                                <span class="badge badge-info">${agent.alwatani_accounts_count || 0} حساب</span>
+                                ${agent.alwatani_accounts && agent.alwatani_accounts.length > 0 ? 
+                                    `<br><small style="color: #718096;">${agent.alwatani_accounts.map(acc => acc.username).join(', ')}</small>` : 
+                                    '<br><small style="color: #718096;">لا توجد حسابات</small>'
+                                }
                             </td>
                             <td>
                                 <span class="badge badge-success">${agent.subscribers_count || 0}</span>
+                                <br><small style="color: #718096;">مشترك</small>
                             </td>
                             <td>${agent.user?.position || 'غير محدد'}</td>
                             <td>
-                                <button class="btn btn-primary btn-sm" onclick="viewAgentDetails(${agent.id})">عرض</button>
+                                <button class="btn btn-primary btn-sm" onclick="viewAgentDetails('${agent.owner_username}')">عرض</button>
                             </td>
                         </tr>
                     `).join('');
@@ -916,8 +923,8 @@
         }
 
         // View agent details
-        function viewAgentDetails(agentId) {
-            alert(`عرض تفاصيل الوكيل #${agentId}\n(سيتم إضافة هذه الميزة قريباً)`);
+        function viewAgentDetails(ownerUsername) {
+            alert(`عرض تفاصيل الوكيل: ${ownerUsername}\n(سيتم إضافة هذه الميزة قريباً)`);
         }
 
         // Load users

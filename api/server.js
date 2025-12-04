@@ -7004,7 +7004,7 @@ app.get('/api/control/database/tables', requireControlAuth, async (req, res) => 
     }
 });
 
-// Control Panel Owners List (Agents) - Shows alwatani_login accounts with user info
+// Control Panel Owners List (Agents) - Shows owners (like admin@tec) with their info and alwatani pages
 app.get('/api/control/owners', requireControlAuth, async (req, res) => {
     try {
         const masterPool = await dbManager.initMasterPool();
@@ -7016,87 +7016,104 @@ app.get('/api/control/owners', requireControlAuth, async (req, res) => {
         
         const agents = [];
         
-        // Get all alwatani_login accounts from all owner databases
+        // Get owner information from their databases
         for (const owner of owners) {
             try {
                 console.log(`[CONTROL OWNERS] Processing owner: ${owner.username} (${owner.domain})`);
                 const ownerPool = await dbManager.getOwnerPool(owner.domain);
                 
-                // First, check if alwatani_login table exists and has data
-                const [tableCheck] = await ownerPool.query(`
-                    SELECT COUNT(*) as count FROM information_schema.tables 
-                    WHERE table_schema = DATABASE() AND table_name = 'alwatani_login'
-                `);
+                // Get owner user information (the owner themselves, usually admin@domain)
+                // Try to find user with username matching owner username
+                const [ownerUsers] = await ownerPool.query(
+                    'SELECT id, username, email, phone, display_name, agent_name, position, governorate, region, company_name, created_at FROM users WHERE username = ? OR username LIKE ? LIMIT 1',
+                    [owner.username, `%${owner.domain}%`]
+                );
                 
-                if (tableCheck[0].count === 0) {
-                    console.log(`[CONTROL OWNERS] alwatani_login table does not exist for ${owner.username}`);
-                    continue;
-                }
-                
-                // Get all alwatani_login accounts with user information
-                const [accounts] = await ownerPool.query(`
-                    SELECT 
-                        al.id,
-                        al.username as alwatani_username,
-                        al.role,
-                        al.user_id,
-                        al.created_at as account_created_at,
-                        u.id as user_id,
-                        u.username as user_username,
-                        u.email,
-                        u.phone,
-                        u.display_name,
-                        u.agent_name,
-                        u.position,
-                        u.governorate,
-                        u.region,
-                        u.company_name
-                    FROM alwatani_login al
-                    LEFT JOIN users u ON al.user_id = u.id
-                    ORDER BY al.created_at DESC
-                `);
-                
-                console.log(`[CONTROL OWNERS] Found ${accounts.length} alwatani_login accounts for ${owner.username}`);
-                
-                // Get subscribers count for each account
-                for (const account of accounts) {
-                    let subscribersCount = 0;
-                    try {
-                        const [subsResult] = await ownerPool.query(
-                            'SELECT COUNT(*) as count FROM subscribers WHERE alwatani_login_id = ?',
-                            [account.id]
-                        );
-                        subscribersCount = subsResult[0]?.count || 0;
-                    } catch (subsError) {
-                        console.log(`[CONTROL OWNERS] Could not get subscribers count for account ${account.id}:`, subsError.message);
+                let ownerUser = null;
+                if (ownerUsers.length > 0) {
+                    ownerUser = ownerUsers[0];
+                } else {
+                    // If not found, get the first user with position 'Owner' or 'المالك'
+                    const [ownerUsers2] = await ownerPool.query(
+                        'SELECT id, username, email, phone, display_name, agent_name, position, governorate, region, company_name, created_at FROM users WHERE position = ? OR position = ? LIMIT 1',
+                        ['Owner', 'المالك']
+                    );
+                    if (ownerUsers2.length > 0) {
+                        ownerUser = ownerUsers2[0];
                     }
-                    
-                    agents.push({
-                        id: account.id,
-                        alwatani_username: account.alwatani_username,
-                        role: account.role,
-                        account_created_at: account.account_created_at,
-                        owner_username: owner.username,
-                        owner_domain: owner.domain,
-                        user: {
-                            id: account.user_id,
-                            username: account.user_username,
-                            name: account.display_name || account.agent_name || account.user_username,
-                            email: account.email,
-                            phone: account.phone,
-                            position: account.position,
-                            governorate: account.governorate,
-                            region: account.region,
-                            company_name: account.company_name
-                        },
-                        subscribers_count: subscribersCount
-                    });
                 }
+                
+                // Get all alwatani_login accounts for this owner (pages)
+                let alwataniAccounts = [];
+                let totalSubscribers = 0;
+                try {
+                    const [accounts] = await ownerPool.query(`
+                        SELECT 
+                            al.id,
+                            al.username as alwatani_username,
+                            al.role,
+                            al.created_at as account_created_at,
+                            COUNT(DISTINCT s.id) as subscribers_count
+                        FROM alwatani_login al
+                        LEFT JOIN subscribers s ON s.alwatani_login_id = al.id
+                        GROUP BY al.id, al.username, al.role, al.created_at
+                        ORDER BY al.created_at DESC
+                    `);
+                    
+                    alwataniAccounts = accounts;
+                    totalSubscribers = accounts.reduce((sum, acc) => sum + (acc.subscribers_count || 0), 0);
+                } catch (alwataniError) {
+                    console.log(`[CONTROL OWNERS] Could not get alwatani accounts for ${owner.username}:`, alwataniError.message);
+                }
+                
+                // Build agent object
+                agents.push({
+                    id: owner.username, // Use username as ID
+                    owner_username: owner.username,
+                    owner_domain: owner.domain,
+                    database_name: owner.database_name,
+                    is_active: owner.is_active,
+                    user: ownerUser ? {
+                        id: ownerUser.id,
+                        username: ownerUser.username,
+                        name: ownerUser.display_name || ownerUser.agent_name || ownerUser.username,
+                        email: ownerUser.email,
+                        phone: ownerUser.phone,
+                        position: ownerUser.position,
+                        governorate: ownerUser.governorate,
+                        region: ownerUser.region,
+                        company_name: ownerUser.company_name
+                    } : {
+                        username: owner.username,
+                        name: owner.username
+                    },
+                    alwatani_accounts_count: alwataniAccounts.length,
+                    alwatani_accounts: alwataniAccounts.map(acc => ({
+                        id: acc.id,
+                        username: acc.alwatani_username,
+                        role: acc.role,
+                        subscribers_count: acc.subscribers_count || 0
+                    })),
+                    subscribers_count: totalSubscribers
+                });
             } catch (error) {
-                console.error(`[CONTROL OWNERS] Error getting accounts for owner ${owner.username}:`, error.message);
+                console.error(`[CONTROL OWNERS] Error getting info for owner ${owner.username}:`, error.message);
                 console.error(`[CONTROL OWNERS] Error stack:`, error.stack);
-                // Continue with next owner
-                continue;
+                // Still add owner even if we can't get all info
+                agents.push({
+                    id: owner.username,
+                    owner_username: owner.username,
+                    owner_domain: owner.domain,
+                    database_name: owner.database_name,
+                    is_active: owner.is_active,
+                    user: {
+                        username: owner.username,
+                        name: owner.username
+                    },
+                    alwatani_accounts_count: 0,
+                    alwatani_accounts: [],
+                    subscribers_count: 0
+                });
             }
         }
         
