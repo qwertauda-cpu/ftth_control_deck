@@ -7247,6 +7247,7 @@ app.get('/api/admin/owners/:ownerId/alwatani-pages', requireAdminAuth, async (re
                 pagesWithDetails.push({
                     id: page.id,
                     username: page.username,
+                    password: page.password, // إضافة كلمة المرور
                     user_id: page.user_id,
                     created_at: page.created_at,
                     updated_at: page.updated_at,

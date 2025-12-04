@@ -564,13 +564,27 @@
                                         <span class="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-bold">#${index + 1}</span>
                                         <h4 class="font-bold text-gray-800">${page.username || 'غير محدد'}</h4>
                                     </div>
-                                    ${page.user_info ? `
-                                        <div class="mt-2 space-y-1 text-sm text-gray-600">
-                                            <p><span class="font-semibold">المستخدم:</span> ${page.user_info.agent_name || page.user_info.username || 'غير محدد'}</p>
-                                            ${page.user_info.phone ? `<p><span class="font-semibold">الهاتف:</span> ${page.user_info.phone}</p>` : ''}
-                                            ${page.user_info.email ? `<p><span class="font-semibold">البريد:</span> ${page.user_info.email}</p>` : ''}
+                                    <div class="mt-2 space-y-1 text-sm">
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-semibold text-gray-700">كلمة المرور:</span>
+                                            <span id="password-${page.id}" class="font-mono text-gray-800 bg-gray-100 px-2 py-1 rounded">${'*'.repeat(page.password ? page.password.length : 8)}</span>
+                                            <button onclick="togglePassword(${page.id}, '${page.password || ''}')" 
+                                                    class="text-blue-600 hover:text-blue-800 text-xs px-2 py-1 border border-blue-300 rounded hover:bg-blue-50 transition-colors">
+                                                <span id="toggle-text-${page.id}">إظهار</span>
+                                            </button>
+                                            <button onclick="copyPassword('${page.password || ''}')" 
+                                                    class="text-green-600 hover:text-green-800 text-xs px-2 py-1 border border-green-300 rounded hover:bg-green-50 transition-colors">
+                                                نسخ
+                                            </button>
                                         </div>
-                                    ` : '<p class="text-sm text-gray-500 mt-2">لا يوجد مستخدم مرتبط</p>'}
+                                        ${page.user_info ? `
+                                            <div class="mt-2 space-y-1 text-sm text-gray-600">
+                                                <p><span class="font-semibold">المستخدم:</span> ${page.user_info.agent_name || page.user_info.username || 'غير محدد'}</p>
+                                                ${page.user_info.phone ? `<p><span class="font-semibold">الهاتف:</span> ${page.user_info.phone}</p>` : ''}
+                                                ${page.user_info.email ? `<p><span class="font-semibold">البريد:</span> ${page.user_info.email}</p>` : ''}
+                                            </div>
+                                        ` : '<p class="text-sm text-gray-500 mt-2">لا يوجد مستخدم مرتبط</p>'}
+                                    </div>
                                     <div class="mt-3 flex gap-4 text-xs text-gray-500">
                                         <span>تاريخ الإنشاء: ${new Date(page.created_at).toLocaleDateString('ar-EG')}</span>
                                         ${page.updated_at ? `<span>آخر تحديث: ${new Date(page.updated_at).toLocaleDateString('ar-EG')}</span>` : ''}
