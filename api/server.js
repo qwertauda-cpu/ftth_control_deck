@@ -6690,12 +6690,35 @@ app.use((err, req, res, next) => {
     });
 });
 
-// 404 handler
+// 404 handler (only for API routes, not for static files)
 app.use((req, res) => {
-    res.status(404).json({ 
-        success: false, 
-        message: 'الصفحة غير موجودة' 
-    });
+    // إذا كان الطلب لملف HTML أو static file، أرسل 404 HTML
+    if (req.path.endsWith('.html') || req.path.includes('.')) {
+        res.status(404).send(`
+            <!DOCTYPE html>
+            <html lang="ar" dir="rtl">
+            <head>
+                <meta charset="UTF-8">
+                <title>404 - الصفحة غير موجودة</title>
+                <style>
+                    body { font-family: Arial; text-align: center; padding: 50px; }
+                    h1 { color: #e74c3c; }
+                </style>
+            </head>
+            <body>
+                <h1>404 - الصفحة غير موجودة</h1>
+                <p>الصفحة التي تبحث عنها غير موجودة.</p>
+                <a href="/admin-login.html">العودة إلى تسجيل الدخول</a>
+            </body>
+            </html>
+        `);
+    } else {
+        // للـ API routes، أرسل JSON
+        res.status(404).json({ 
+            success: false, 
+            message: 'الصفحة غير موجودة' 
+        });
+    }
 });
 
 // Start server
