@@ -8309,18 +8309,23 @@ async function performAutoSync(accountId, ownerUsername, ownerDomain, isFullSync
 
 // Get all flowcharts
 app.get('/api/control/flowchart', requireControlAuth, async (req, res) => {
+    console.log('[CONTROL FLOWCHART LIST] Request received');
     try {
         const masterPool = await dbManager.initMasterPool();
+        console.log('[CONTROL FLOWCHART LIST] Master pool initialized');
+        
         const [flowcharts] = await masterPool.query(`
             SELECT id, name, created_by, created_at, updated_at
             FROM flowchart_data
             ORDER BY updated_at DESC
         `);
         
+        console.log('[CONTROL FLOWCHART LIST] Found flowcharts:', flowcharts?.length || 0);
         res.json({ success: true, flowcharts: flowcharts || [] });
     } catch (error) {
         console.error('[CONTROL FLOWCHART LIST] Error:', error);
-        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+        console.error('[CONTROL FLOWCHART LIST] Error stack:', error.stack);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم', error: error.message });
     }
 });
 
