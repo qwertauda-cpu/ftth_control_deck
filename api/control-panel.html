@@ -1591,9 +1591,190 @@
         }
 
         // View agent details
-        function viewAgentDetails(ownerUsername) {
-            alert(`عرض تفاصيل الوكيل: ${ownerUsername}\n(سيتم إضافة هذه الميزة قريباً)`);
+        function viewAgentDetails(index) {
+            const agent = window.agentsData && window.agentsData[index];
+            if (!agent) {
+                console.error('Agent not found at index:', index);
+                return;
+            }
+            
+            const modal = document.getElementById('agentDetailsModal');
+            const content = document.getElementById('agentDetailsContent');
+            
+            // Show modal
+            modal.style.display = 'flex';
+            
+            // Build content
+            let html = `
+                <div class="agent-details-section">
+                    <div class="agent-details-section-title">معلومات الوكيل</div>
+                    <div class="agent-info-grid">
+                        <div class="agent-info-item">
+                            <div class="agent-info-label">اسم المستخدم</div>
+                            <div class="agent-info-value">${agent.owner_username || 'N/A'}</div>
+                        </div>
+                        <div class="agent-info-item">
+                            <div class="agent-info-label">الاسم الكامل</div>
+                            <div class="agent-info-value">${agent.user?.name || 'غير محدد'}</div>
+                        </div>
+                        <div class="agent-info-item">
+                            <div class="agent-info-label">البريد الإلكتروني</div>
+                            <div class="agent-info-value">${agent.user?.email || 'غير محدد'}</div>
+                        </div>
+                        <div class="agent-info-item">
+                            <div class="agent-info-label">الهاتف</div>
+                            <div class="agent-info-value">${agent.user?.phone || 'غير محدد'}</div>
+                        </div>
+                        <div class="agent-info-item">
+                            <div class="agent-info-label">المنصب</div>
+                            <div class="agent-info-value">${agent.user?.position || 'غير محدد'}</div>
+                        </div>
+                        <div class="agent-info-item">
+                            <div class="agent-info-label">المحافظة</div>
+                            <div class="agent-info-value">${agent.user?.governorate || 'غير محدد'}</div>
+                        </div>
+                        <div class="agent-info-item">
+                            <div class="agent-info-label">المنطقة</div>
+                            <div class="agent-info-value">${agent.user?.region || 'غير محدد'}</div>
+                        </div>
+                        <div class="agent-info-item">
+                            <div class="agent-info-label">اسم الشركة</div>
+                            <div class="agent-info-value">${agent.user?.company_name || 'غير محدد'}</div>
+                        </div>
+                        <div class="agent-info-item">
+                            <div class="agent-info-label">قاعدة البيانات</div>
+                            <div class="agent-info-value">${agent.database_name || agent.owner_domain || 'N/A'}</div>
+                        </div>
+                        <div class="agent-info-item">
+                            <div class="agent-info-label">الحالة</div>
+                            <div class="agent-info-value">
+                                <span class="badge ${agent.is_active ? 'badge-success' : 'badge-danger'}">
+                                    ${agent.is_active ? 'نشط' : 'غير نشط'}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="agent-info-item">
+                            <div class="agent-info-label">إجمالي المشتركين</div>
+                            <div class="agent-info-value">
+                                <span class="badge badge-success">${agent.subscribers_count || 0}</span>
+                            </div>
+                        </div>
+                        <div class="agent-info-item">
+                            <div class="agent-info-label">عدد حسابات الوطني</div>
+                            <div class="agent-info-value">
+                                <span class="badge badge-info">${agent.alwatani_accounts_count || 0}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add Alwatani accounts section
+            if (agent.alwatani_accounts && agent.alwatani_accounts.length > 0) {
+                html += `
+                    <div class="agent-details-section">
+                        <div class="agent-details-section-title">حسابات الوطني (${agent.alwatani_accounts.length})</div>
+                        <div class="alwatani-accounts-grid">
+                `;
+                
+                agent.alwatani_accounts.forEach(account => {
+                    html += `
+                        <div class="alwatani-account-card">
+                            <div class="alwatani-account-header">
+                                <div class="alwatani-account-username">${account.username || 'N/A'}</div>
+                                <div class="alwatani-account-role">${account.role || 'N/A'}</div>
+                            </div>
+                            <div class="alwatani-account-info">
+                                <div class="alwatani-account-info-item">
+                                    <span class="alwatani-account-info-label">معرف الحساب</span>
+                                    <span class="alwatani-account-info-value">#${account.id || 'N/A'}</span>
+                                </div>
+                                <div class="alwatani-account-info-item">
+                                    <span class="alwatani-account-info-label">عدد المشتركين</span>
+                                    <span class="alwatani-account-info-value">
+                                        <span class="badge badge-success">${account.subscribers_count || 0}</span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="qr-code-container" id="qr-${account.id}">
+                                <canvas id="qr-canvas-${account.id}"></canvas>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="agent-details-section">
+                        <div class="agent-details-section-title">حسابات الوطني</div>
+                        <div class="loading">لا توجد حسابات وطني مسجلة</div>
+                    </div>
+                `;
+            }
+            
+            content.innerHTML = html;
+            
+            // Generate QR codes for each account
+            if (agent.alwatani_accounts && agent.alwatani_accounts.length > 0) {
+                setTimeout(() => {
+                    agent.alwatani_accounts.forEach(account => {
+                        generateQRCode(account.id, account.username);
+                    });
+                }, 100);
+            }
         }
+
+        // Close agent details modal
+        function closeAgentDetailsModal() {
+            document.getElementById('agentDetailsModal').style.display = 'none';
+        }
+
+        // Generate QR code
+        function generateQRCode(accountId, username) {
+            // Use a simple QR code library or API
+            const canvas = document.getElementById(`qr-canvas-${accountId}`);
+            if (!canvas) return;
+            
+            // Create QR code data
+            const qrData = `Alwatani Account: ${username}\nID: ${accountId}\nOwner: ${document.querySelector('.modal-title')?.textContent || 'Agent'}`;
+            
+            // Use QRCode.js library (we'll add it to the head)
+            if (typeof QRCode !== 'undefined') {
+                QRCode.toCanvas(canvas, qrData, {
+                    width: 200,
+                    margin: 2,
+                    color: {
+                        dark: '#000000',
+                        light: '#FFFFFF'
+                    }
+                }, function (error) {
+                    if (error) {
+                        console.error('QR Code generation error:', error);
+                        canvas.parentElement.innerHTML = '<div style="text-align: center; color: var(--mdc-on-surface-secondary);">فشل إنشاء الرمز</div>';
+                    }
+                });
+            } else {
+                // Fallback: show text if QRCode library is not loaded
+                canvas.parentElement.innerHTML = `
+                    <div style="text-align: center; padding: 20px;">
+                        <div style="color: var(--mdc-on-surface); font-weight: 500; margin-bottom: 8px;">${username}</div>
+                        <div style="color: var(--mdc-on-surface-secondary); font-size: 12px;">ID: ${accountId}</div>
+                    </div>
+                `;
+            }
+        }
+
+        // Close modal when clicking outside
+        document.addEventListener('click', function(e) {
+            const modal = document.getElementById('agentDetailsModal');
+            if (e.target === modal) {
+                closeAgentDetailsModal();
+            }
+        });
 
         // Load subscribers
         async function loadSubscribers() {
