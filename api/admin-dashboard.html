@@ -558,28 +558,34 @@
             modal.classList.add('hidden');
         }
 
-        // Close modal on outside click
-        document.getElementById('pages-modal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closePagesModal();
-            }
-        });
-
         // Logout
         function logout() {
             localStorage.removeItem('admin_token');
             window.location.href = '/admin-login.html';
         }
 
-        // Initial load
-        loadOwnersList();
-        loadInsights();
-        
-        // Auto-refresh every 60 seconds
-        setInterval(() => {
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            // Close modal on outside click
+            const pagesModal = document.getElementById('pages-modal');
+            if (pagesModal) {
+                pagesModal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        closePagesModal();
+                    }
+                });
+            }
+            
+            // Initial load
             loadOwnersList();
             loadInsights();
-        }, 60000);
+            
+            // Auto-refresh every 60 seconds
+            setInterval(() => {
+                loadOwnersList();
+                loadInsights();
+            }, 60000);
+        });
     </script>
 </body>
 </html>
