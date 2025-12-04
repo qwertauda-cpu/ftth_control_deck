@@ -1261,8 +1261,19 @@
                             <div style="text-align: center; color: var(--mdc-on-surface-secondary); padding: 40px;">اختر محادثة لعرض الرسائل</div>
                         </div>
                         <div id="chatInputArea" style="display: none;">
+                            <div id="chatImagePreview" style="display: none; margin-bottom: 10px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <img id="chatImagePreviewImg" src="" alt="Preview" style="max-width: 100px; max-height: 100px; border-radius: 4px;">
+                                    <span id="chatImagePreviewName" style="color: var(--mdc-on-surface); flex: 1;"></span>
+                                    <button class="btn btn-sm" onclick="removeChatImage()" style="background: var(--mdc-error); color: white; padding: 4px 8px;">✕</button>
+                                </div>
+                            </div>
                             <div style="display: flex; gap: 10px;">
-                                <input type="text" id="chatMessageInput" class="chat-input" placeholder="اكتب رسالتك..." onkeypress="if(event.key === 'Enter') sendChatMessage()">
+                                <label for="chatImageInput" class="btn btn-sm" style="background: var(--mdc-surface-variant); color: var(--mdc-on-surface-variant); cursor: pointer; padding: 10px 16px; display: flex; align-items: center; gap: 8px;">
+                                    📷
+                                </label>
+                                <input type="file" id="chatImageInput" accept="image/*" style="display: none;" onchange="handleChatImageSelect(event)">
+                                <input type="text" id="chatMessageInput" class="chat-input" placeholder="اكتب رسالتك...">
                                 <button class="btn btn-primary" onclick="sendChatMessage()">إرسال</button>
                             </div>
                         </div>
@@ -2194,17 +2205,46 @@
             const messageInput = document.getElementById('chatMessageInput');
             const message = messageInput.value.trim();
             
-            if (!message) return;
+            // Check if there's a message or image
+            if (!message && !selectedChatImage) {
+                return;
+            }
             
             try {
+                let fileUrl = null;
+                
+                // Upload image if selected
+                if (selectedChatImage) {
+                    const formData = new FormData();
+                    formData.append('image', selectedChatImage);
+                    
+                    const uploadResponse = await fetchWithAuth(`${API_BASE}/api/control/chat/upload`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (!uploadResponse) return;
+                    const uploadData = await uploadResponse.json();
+                    
+                    if (uploadData.success) {
+                        fileUrl = uploadData.url;
+                    } else {
+                        alert(uploadData.message || 'فشل رفع الصورة');
+                        return;
+                    }
+                }
+                
+                // Send message
                 const response = await fetchWithAuth(`${API_BASE}/api/control/chat/rooms/${currentChatRoomId}/messages`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        message: message,
-                        sender_username: 'admin' // Control panel admin
+                        message: message || '',
+                        sender_username: 'admin', // Control panel admin
+                        message_type: selectedChatImage ? 'image' : 'text',
+                        file_url: fileUrl
                     })
                 });
                 
@@ -2213,6 +2253,7 @@
                 
                 if (data.success) {
                     messageInput.value = '';
+                    removeChatImage();
                     await loadChatMessages(currentChatRoomId);
                 } else {
                     alert(data.message || 'فشل إرسال الرسالة');
@@ -2267,17 +2308,54 @@
             }
         }
 
-        // Allow Enter key to send message
+        // Allow Enter key to send message (only one listener)
         document.addEventListener('DOMContentLoaded', () => {
             const messageInput = document.getElementById('chatMessageInput');
             if (messageInput) {
                 messageInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
                         sendChatMessage();
                     }
                 });
             }
         });
+
+        // Handle image selection
+        let selectedChatImage = null;
+        function handleChatImageSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (!file.type.startsWith('image/')) {
+                alert('يرجى اختيار صورة فقط');
+                event.target.value = '';
+                return;
+            }
+            
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                alert('حجم الصورة كبير جداً. الحد الأقصى 5MB');
+                event.target.value = '';
+                return;
+            }
+            
+            selectedChatImage = file;
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('chatImagePreviewImg').src = e.target.result;
+                document.getElementById('chatImagePreviewName').textContent = file.name;
+                document.getElementById('chatImagePreview').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeChatImage() {
+            selectedChatImage = null;
+            document.getElementById('chatImageInput').value = '';
+            document.getElementById('chatImagePreview').style.display = 'none';
+        }
 
         // Logout
         function logout() {

@@ -7577,6 +7577,51 @@ app.post('/api/control/chat/rooms/:roomId/messages', requireControlAuth, async (
     }
 });
 
+// Upload chat image
+const multer = require('multer');
+const upload = multer({
+    dest: 'uploads/chat/',
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB
+    },
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('يجب أن يكون الملف صورة'), false);
+        }
+    }
+});
+
+app.post('/api/control/chat/upload', requireControlAuth, upload.single('image'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'لم يتم رفع أي ملف' });
+        }
+        
+        // Generate unique filename
+        const ext = path.extname(req.file.originalname);
+        const filename = `chat_${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
+        const filePath = path.join(__dirname, '..', 'public', 'chat', filename);
+        
+        // Create chat directory if it doesn't exist
+        const chatDir = path.join(__dirname, '..', 'public', 'chat');
+        if (!fs.existsSync(chatDir)) {
+            fs.mkdirSync(chatDir, { recursive: true });
+        }
+        
+        // Move file to public directory
+        fs.renameSync(req.file.path, filePath);
+        
+        // Return URL
+        const fileUrl = `/chat/${filename}`;
+        res.json({ success: true, url: fileUrl, message: 'تم رفع الصورة بنجاح' });
+    } catch (error) {
+        console.error('[CONTROL CHAT UPLOAD] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في رفع الصورة' });
+    }
+});
+
 // ================= Health Check =================
 
 app.get('/api/health', async (req, res) => {
