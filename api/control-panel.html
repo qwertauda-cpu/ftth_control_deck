@@ -2550,18 +2550,23 @@
                 if (data.success && data.databases) {
                     tbody.innerHTML = data.databases.map(db => `
                         <tr>
-                            <td>${db.name}</td>
+                            <td><strong>${db.name}</strong></td>
                             <td><span class="badge badge-success">نشط</span></td>
-                            <td>${db.tables || 0}</td>
-                            <td>${db.size || 'N/A'}</td>
+                            <td>${db.tables || 0} جدول</td>
+                            <td>
+                                <span class="badge badge-info" title="البيانات: ${(db.data_size_mb || 0).toFixed(2)} MB | الفهارس: ${(db.index_size_mb || 0).toFixed(2)} MB">
+                                    ${db.size || 'N/A'}
+                                </span>
+                            </td>
+                            <td>${(db.total_rows || 0).toLocaleString('en-US')} صف</td>
                         </tr>
                     `).join('');
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="4" class="loading">لا توجد بيانات</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" class="loading">لا توجد بيانات</td></tr>';
                 }
             } catch (error) {
                 console.error('Error loading databases:', error);
-                document.getElementById('databasesTableBody').innerHTML = '<tr><td colspan="4" class="loading">حدث خطأ في التحميل</td></tr>';
+                document.getElementById('databasesTableBody').innerHTML = '<tr><td colspan="5" class="loading">حدث خطأ في التحميل</td></tr>';
             }
         }
 

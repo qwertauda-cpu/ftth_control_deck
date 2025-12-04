@@ -7027,31 +7027,93 @@ app.get('/api/control/database/databases', requireControlAuth, async (req, res) 
                 db.Database === 'ftth_master' ||
                 db.Database === 'ftth_control_deck'
             )
-            .map(async (db) => {
-                try {
-                    const tempPool = mysql.createPool({
-                        ...config.db,
-                        database: db.Database
-                    });
-                    const [tables] = await tempPool.query('SHOW TABLES');
-                    await tempPool.end();
-                    return {
-                        name: db.Database,
-                        tables: tables.length,
-                        size: 'N/A'
-                    };
-                } catch (e) {
-                    return {
-                        name: db.Database,
-                        tables: 0,
-                        size: 'N/A'
-                    };
+            );
+        
+        const databasesWithInfo = await Promise.all(databases.map(async (db) => {
+            try {
+                const dbName = db.Database;
+                const tempPool = mysql.createPool({
+                    ...config.db,
+                    database: dbName
+                });
+                
+                // Get tables count
+                const [tables] = await tempPool.query('SHOW TABLES');
+                const tablesCount = tables.length;
+                
+                // Get database size from information_schema
+                const [sizeResult] = await masterPool.query(`
+                    SELECT 
+                        ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS size_mb,
+                        ROUND(SUM(data_length) / 1024 / 1024, 2) AS data_size_mb,
+                        ROUND(SUM(index_length) / 1024 / 1024, 2) AS index_size_mb,
+                        COUNT(*) AS table_count
+                    FROM information_schema.tables
+                    WHERE table_schema = ?
+                `, [dbName]);
+                
+                let sizeMB = 0;
+                let dataSizeMB = 0;
+                let indexSizeMB = 0;
+                
+                if (sizeResult && sizeResult[0]) {
+                    sizeMB = sizeResult[0].size_mb || 0;
+                    dataSizeMB = sizeResult[0].data_size_mb || 0;
+                    indexSizeMB = sizeResult[0].index_size_mb || 0;
                 }
-            });
+                
+                // Count total rows in all tables
+                let totalRows = 0;
+                for (const table of tables) {
+                    const tableName = Object.values(table)[0];
+                    try {
+                        const [rows] = await tempPool.query(
+                            `SELECT COUNT(*) as count FROM \`${tableName}\``
+                        ).catch(() => [[{ count: 0 }]]);
+                        if (rows && rows[0]) {
+                            totalRows += rows[0].count || 0;
+                        }
+                    } catch (e) {
+                        // Skip table if error
+                    }
+                }
+                
+                await tempPool.end();
+                
+                // Format size
+                let sizeFormatted = '0 MB';
+                if (sizeMB >= 1024) {
+                    sizeFormatted = `${(sizeMB / 1024).toFixed(2)} GB`;
+                } else if (sizeMB > 0) {
+                    sizeFormatted = `${sizeMB.toFixed(2)} MB`;
+                } else {
+                    sizeFormatted = '< 0.01 MB';
+                }
+                
+                return {
+                    name: dbName,
+                    tables: tablesCount,
+                    size: sizeFormatted,
+                    size_mb: sizeMB,
+                    data_size_mb: dataSizeMB,
+                    index_size_mb: indexSizeMB,
+                    total_rows: totalRows
+                };
+            } catch (e) {
+                console.error(`[CONTROL DB LIST] Error for ${db.Database}:`, e.message);
+                return {
+                    name: db.Database,
+                    tables: 0,
+                    size: 'N/A',
+                    size_mb: 0,
+                    data_size_mb: 0,
+                    index_size_mb: 0,
+                    total_rows: 0
+                };
+            }
+        }));
         
-        const dbList = await Promise.all(databases);
-        
-        res.json({ success: true, databases: dbList });
+        res.json({ success: true, databases: databasesWithInfo });
     } catch (error) {
         console.error('[CONTROL DB LIST] Error:', error);
         res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });

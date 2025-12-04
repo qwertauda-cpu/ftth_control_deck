@@ -23,7 +23,8 @@
     "mysql2": "^3.6.5",
     "dotenv": "^16.3.1",
     "cheerio": "^1.0.0-rc.12",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "bcrypt": "^5.1.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
