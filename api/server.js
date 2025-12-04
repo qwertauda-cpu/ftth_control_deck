@@ -7012,12 +7012,26 @@ app.get('/api/control/owners', requireControlAuth, async (req, res) => {
             'SELECT username, domain, database_name, is_active FROM owners_databases WHERE is_active = TRUE ORDER BY username'
         );
         
+        console.log(`[CONTROL OWNERS] Found ${owners.length} active owners`);
+        
         const agents = [];
         
         // Get all alwatani_login accounts from all owner databases
         for (const owner of owners) {
             try {
+                console.log(`[CONTROL OWNERS] Processing owner: ${owner.username} (${owner.domain})`);
                 const ownerPool = await dbManager.getOwnerPool(owner.domain);
+                
+                // First, check if alwatani_login table exists and has data
+                const [tableCheck] = await ownerPool.query(`
+                    SELECT COUNT(*) as count FROM information_schema.tables 
+                    WHERE table_schema = DATABASE() AND table_name = 'alwatani_login'
+                `);
+                
+                if (tableCheck[0].count === 0) {
+                    console.log(`[CONTROL OWNERS] alwatani_login table does not exist for ${owner.username}`);
+                    continue;
+                }
                 
                 // Get all alwatani_login accounts with user information
                 const [accounts] = await ownerPool.query(`
@@ -7025,22 +7039,34 @@ app.get('/api/control/owners', requireControlAuth, async (req, res) => {
                         al.id,
                         al.username as alwatani_username,
                         al.role,
+                        al.user_id,
                         al.created_at as account_created_at,
                         u.id as user_id,
                         u.username as user_username,
                         u.email,
                         u.phone,
                         u.name as user_name,
-                        u.position,
-                        COUNT(DISTINCT s.id) as subscribers_count
+                        u.position
                     FROM alwatani_login al
                     LEFT JOIN users u ON al.user_id = u.id
-                    LEFT JOIN subscribers s ON s.alwatani_login_id = al.id
-                    GROUP BY al.id, al.username, al.role, al.created_at, u.id, u.username, u.email, u.phone, u.name, u.position
                     ORDER BY al.created_at DESC
                 `);
                 
+                console.log(`[CONTROL OWNERS] Found ${accounts.length} alwatani_login accounts for ${owner.username}`);
+                
+                // Get subscribers count for each account
                 for (const account of accounts) {
+                    let subscribersCount = 0;
+                    try {
+                        const [subsResult] = await ownerPool.query(
+                            'SELECT COUNT(*) as count FROM subscribers WHERE alwatani_login_id = ?',
+                            [account.id]
+                        );
+                        subscribersCount = subsResult[0]?.count || 0;
+                    } catch (subsError) {
+                        console.log(`[CONTROL OWNERS] Could not get subscribers count for account ${account.id}:`, subsError.message);
+                    }
+                    
                     agents.push({
                         id: account.id,
                         alwatani_username: account.alwatani_username,
@@ -7056,20 +7082,23 @@ app.get('/api/control/owners', requireControlAuth, async (req, res) => {
                             phone: account.phone,
                             position: account.position
                         },
-                        subscribers_count: account.subscribers_count || 0
+                        subscribers_count: subscribersCount
                     });
                 }
             } catch (error) {
                 console.error(`[CONTROL OWNERS] Error getting accounts for owner ${owner.username}:`, error.message);
+                console.error(`[CONTROL OWNERS] Error stack:`, error.stack);
                 // Continue with next owner
                 continue;
             }
         }
         
+        console.log(`[CONTROL OWNERS] Total agents found: ${agents.length}`);
         res.json({ success: true, owners: agents, total: agents.length });
     } catch (error) {
         console.error('[CONTROL OWNERS] Error:', error);
-        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+        console.error('[CONTROL OWNERS] Error stack:', error.stack);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم', error: error.message });
     }
 });
 
