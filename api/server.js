@@ -7083,6 +7083,14 @@ async function performAutoSync(accountId, ownerUsername, ownerDomain, isFullSync
 // Admin Password (from environment or default)
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
+// Log password info on startup (for debugging - only first 3 chars)
+console.log('[ADMIN] Admin password configured:', 
+    ADMIN_PASSWORD ? 
+        (ADMIN_PASSWORD.substring(0, 3) + '*'.repeat(Math.max(0, ADMIN_PASSWORD.length - 3))) : 
+        'NOT SET'
+);
+console.log('[ADMIN] Admin password length:', ADMIN_PASSWORD ? ADMIN_PASSWORD.length : 0);
+
 // Admin Authentication Middleware
 const requireAdminAuth = (req, res, next) => {
     const authHeader = req.headers.authorization;
