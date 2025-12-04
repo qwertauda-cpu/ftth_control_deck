@@ -291,8 +291,8 @@ function getAlwataniLoginIdFromRequest(req) {
     // من params.id فقط في حالات محددة (مثل /api/alwatani-login/:id/...)
     // تجنب استخدامه في endpoints أخرى مثل /api/teams/:id/members لأن id هنا هو معرف الفريق
     // نتحقق من المسار أولاً
-    const path = req.path || (req.url ? req.url.split('?')[0] : '') || '';
-    if (path && path.startsWith('/api/alwatani-login/')) {
+    const requestPath = req.path || (req.url ? req.url.split('?')[0] : '') || '';
+    if (requestPath && requestPath.startsWith('/api/alwatani-login/')) {
         if (req.params?.id) {
             const id = parseInt(req.params.id, 10);
             if (!isNaN(id) && id > 0) {
