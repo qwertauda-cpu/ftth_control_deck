@@ -167,6 +167,65 @@ async function initMasterDatabase() {
         `);
         console.log('✅ تم إنشاء جدول: flowchart_data (مخططات Flowchart)');
         
+        // ==================== جدول employees (الموظفين) ====================
+        await connection.query(`
+            CREATE TABLE IF NOT EXISTS employees (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                username VARCHAR(255) UNIQUE NOT NULL COMMENT 'اسم المستخدم',
+                password_hash VARCHAR(255) NOT NULL COMMENT 'كلمة المرور المشفرة',
+                full_name VARCHAR(255) NOT NULL COMMENT 'الاسم الكامل',
+                email VARCHAR(255) COMMENT 'البريد الإلكتروني',
+                phone VARCHAR(20) COMMENT 'رقم الهاتف',
+                position VARCHAR(100) COMMENT 'المنصب',
+                department VARCHAR(100) COMMENT 'القسم',
+                permissions JSON COMMENT 'الصلاحيات (JSON object)',
+                salary DECIMAL(10, 2) COMMENT 'الراتب',
+                hire_date DATE COMMENT 'تاريخ التوظيف',
+                is_active BOOLEAN DEFAULT TRUE COMMENT 'حالة تفعيل الحساب',
+                last_login TIMESTAMP NULL COMMENT 'آخر تسجيل دخول',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                created_by INT COMMENT 'من أنشأ الحساب',
+                INDEX idx_username (username),
+                INDEX idx_email (email),
+                INDEX idx_is_active (is_active),
+                INDEX idx_department (department)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        console.log('✅ تم إنشاء جدول: employees (الموظفين)');
+        
+        // ==================== جدول invoices (الفواتير) ====================
+        await connection.query(`
+            CREATE TABLE IF NOT EXISTS invoices (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                invoice_number VARCHAR(50) UNIQUE NOT NULL COMMENT 'رقم الفاتورة',
+                owner_username VARCHAR(255) NOT NULL COMMENT 'اسم المالك (مثل: admin@tec)',
+                invoice_type VARCHAR(50) DEFAULT 'rental' COMMENT 'نوع الفاتورة (rental, service, other)',
+                amount DECIMAL(10, 2) NOT NULL COMMENT 'المبلغ',
+                currency VARCHAR(10) DEFAULT 'IQD' COMMENT 'العملة',
+                issue_date DATE NOT NULL COMMENT 'تاريخ الإصدار',
+                due_date DATE COMMENT 'تاريخ الاستحقاق',
+                status VARCHAR(50) DEFAULT 'pending' COMMENT 'حالة الفاتورة (pending, paid, overdue, cancelled)',
+                payment_method VARCHAR(50) COMMENT 'طريقة الدفع',
+                payment_date DATE COMMENT 'تاريخ الدفع',
+                description TEXT COMMENT 'وصف الفاتورة',
+                notes TEXT COMMENT 'ملاحظات',
+                items JSON COMMENT 'عناصر الفاتورة (JSON array)',
+                tax_rate DECIMAL(5, 2) DEFAULT 0 COMMENT 'نسبة الضريبة',
+                tax_amount DECIMAL(10, 2) DEFAULT 0 COMMENT 'مبلغ الضريبة',
+                total_amount DECIMAL(10, 2) NOT NULL COMMENT 'المبلغ الإجمالي',
+                created_by VARCHAR(255) COMMENT 'من أنشأ الفاتورة',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_invoice_number (invoice_number),
+                INDEX idx_owner_username (owner_username),
+                INDEX idx_status (status),
+                INDEX idx_issue_date (issue_date),
+                INDEX idx_due_date (due_date)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        console.log('✅ تم إنشاء جدول: invoices (الفواتير)');
+        
         console.log('\n🎉 تم إعداد قاعدة البيانات الرئيسية بنجاح!');
         console.log('📝 الآن يمكنك إنشاء قواعد البيانات للعملاء');
         

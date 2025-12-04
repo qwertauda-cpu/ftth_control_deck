@@ -1911,6 +1911,14 @@
                     <span class="menu-item-icon">🕸️</span>
                     <span>المخطط الانسيابي</span>
                 </a>
+                <a class="menu-item" data-section="employees">
+                    <span class="menu-item-icon">👤</span>
+                    <span>الموظفين</span>
+                </a>
+                <a class="menu-item" data-section="invoices">
+                    <span class="menu-item-icon">🧾</span>
+                    <span>الفواتير</span>
+                </a>
             </div>
             <div class="sidebar-footer">
                 <button class="logout-btn" onclick="logout()">🚪 تسجيل الخروج</button>
@@ -2309,6 +2317,217 @@
                 <div class="modal-actions">
                     <button class="btn btn-secondary" onclick="closeCreateChatModal()">إلغاء</button>
                     <button class="btn btn-primary" onclick="createChatRoom()">إنشاء</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Employees Section -->
+    <div id="employees-section" class="content-section hidden">
+        <div class="section-title">إدارة الموظفين</div>
+        <div style="margin-bottom: 20px;">
+            <button class="btn btn-primary" onclick="showCreateEmployeeModal()">➕ إضافة موظف جديد</button>
+        </div>
+        <div class="table-container">
+            <table id="employeesTable" class="data-table">
+                <thead>
+                    <tr>
+                        <th>اسم المستخدم</th>
+                        <th>الاسم الكامل</th>
+                        <th>البريد الإلكتروني</th>
+                        <th>الهاتف</th>
+                        <th>المنصب</th>
+                        <th>القسم</th>
+                        <th>الراتب</th>
+                        <th>الحالة</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="9" style="text-align: center; padding: 20px;">جاري التحميل...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Invoices Section -->
+    <div id="invoices-section" class="content-section hidden">
+        <div class="section-title">إدارة الفواتير</div>
+        <div style="margin-bottom: 20px; display: flex; gap: 12px; flex-wrap: wrap;">
+            <button class="btn btn-primary" onclick="showCreateInvoiceModal()">➕ فاتورة جديدة</button>
+            <select id="invoiceStatusFilter" class="form-input" style="width: auto; min-width: 150px;" onchange="loadInvoices()">
+                <option value="">جميع الحالات</option>
+                <option value="pending">معلقة</option>
+                <option value="paid">مدفوعة</option>
+                <option value="overdue">متأخرة</option>
+                <option value="cancelled">ملغاة</option>
+            </select>
+        </div>
+        <div class="table-container">
+            <table id="invoicesTable" class="data-table">
+                <thead>
+                    <tr>
+                        <th>رقم الفاتورة</th>
+                        <th>الوكيل</th>
+                        <th>النوع</th>
+                        <th>المبلغ</th>
+                        <th>تاريخ الإصدار</th>
+                        <th>تاريخ الاستحقاق</th>
+                        <th>الحالة</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="8" style="text-align: center; padding: 20px;">جاري التحميل...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Create Employee Modal -->
+    <div id="createEmployeeModal" class="modal-overlay hidden" onclick="if(event.target === this) closeCreateEmployeeModal()">
+        <div class="modal-container" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>إضافة موظف جديد</h3>
+                <button class="modal-close" onclick="closeCreateEmployeeModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">اسم المستخدم *</label>
+                    <input type="text" id="employeeUsername" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">كلمة المرور *</label>
+                    <input type="password" id="employeePassword" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">الاسم الكامل *</label>
+                    <input type="text" id="employeeFullName" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">البريد الإلكتروني</label>
+                    <input type="email" id="employeeEmail" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">رقم الهاتف</label>
+                    <input type="tel" id="employeePhone" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">المنصب</label>
+                    <input type="text" id="employeePosition" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">القسم</label>
+                    <input type="text" id="employeeDepartment" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">الراتب</label>
+                    <input type="number" id="employeeSalary" class="form-input" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">تاريخ التوظيف</label>
+                    <input type="date" id="employeeHireDate" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">الصلاحيات</label>
+                    <div id="permissionsContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 10px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" class="permission-checkbox" data-permission="view_dashboard" checked>
+                            <span>عرض لوحة التحكم</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" class="permission-checkbox" data-permission="manage_owners">
+                            <span>إدارة الوكلاء</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" class="permission-checkbox" data-permission="manage_invoices">
+                            <span>إدارة الفواتير</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" class="permission-checkbox" data-permission="manage_employees">
+                            <span>إدارة الموظفين</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" class="permission-checkbox" data-permission="view_reports">
+                            <span>عرض التقارير</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="closeCreateEmployeeModal()">إلغاء</button>
+                    <button class="btn btn-primary" onclick="createEmployee()">إنشاء</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Invoice Modal -->
+    <div id="createInvoiceModal" class="modal-overlay hidden" onclick="if(event.target === this) closeCreateInvoiceModal()">
+        <div class="modal-container" style="max-width: 800px;" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>فاتورة جديدة</h3>
+                <button class="modal-close" onclick="closeCreateInvoiceModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label class="form-label">رقم الفاتورة *</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="invoiceNumber" class="form-input" required>
+                            <button type="button" class="btn btn-secondary" onclick="generateInvoiceNumber()" style="white-space: nowrap;">توليد</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">الوكيل *</label>
+                        <select id="invoiceOwner" class="form-input" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">نوع الفاتورة</label>
+                        <select id="invoiceType" class="form-input">
+                            <option value="rental">إيجار</option>
+                            <option value="service">خدمة</option>
+                            <option value="other">أخرى</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">العملة</label>
+                        <select id="invoiceCurrency" class="form-input">
+                            <option value="IQD">دينار عراقي</option>
+                            <option value="USD">دولار</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">تاريخ الإصدار *</label>
+                        <input type="date" id="invoiceIssueDate" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">تاريخ الاستحقاق</label>
+                        <input type="date" id="invoiceDueDate" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">المبلغ *</label>
+                        <input type="number" id="invoiceAmount" class="form-input" step="0.01" required onchange="calculateInvoiceTotal()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">نسبة الضريبة (%)</label>
+                        <input type="number" id="invoiceTaxRate" class="form-input" step="0.01" value="0" onchange="calculateInvoiceTotal()">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">الوصف</label>
+                    <textarea id="invoiceDescription" class="form-input form-textarea" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">ملاحظات</label>
+                    <textarea id="invoiceNotes" class="form-input form-textarea" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">المبلغ الإجمالي</label>
+                    <input type="text" id="invoiceTotalAmount" class="form-input" readonly style="font-weight: bold; font-size: 18px;">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="closeCreateInvoiceModal()">إلغاء</button>
+                    <button class="btn btn-primary" onclick="createInvoice()">إنشاء</button>
                 </div>
             </div>
         </div>
@@ -4795,6 +5014,322 @@
             const lastUpdate = new Date().toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
             document.getElementById('lastUpdate').textContent = `آخر تحديث: ${lastUpdate}`;
         }, 1000);
+        // ==================== Employees Functions ====================
+        async function loadEmployees() {
+            try {
+                const response = await fetchWithAuth('/api/control/employees');
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.message || 'فشل تحميل الموظفين');
+                }
+                
+                const tbody = document.querySelector('#employeesTable tbody');
+                if (!tbody) return;
+                
+                if (data.employees.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px;">لا يوجد موظفين</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = data.employees.map(emp => `
+                    <tr>
+                        <td>${escapeHtml(emp.username || '')}</td>
+                        <td>${escapeHtml(emp.full_name || '')}</td>
+                        <td>${escapeHtml(emp.email || '')}</td>
+                        <td>${escapeHtml(emp.phone || '')}</td>
+                        <td>${escapeHtml(emp.position || '')}</td>
+                        <td>${escapeHtml(emp.department || '')}</td>
+                        <td>${emp.salary ? emp.salary.toLocaleString('en-US') : ''}</td>
+                        <td><span class="badge ${emp.is_active ? 'badge-success' : 'badge-danger'}">${emp.is_active ? 'نشط' : 'معطل'}</span></td>
+                        <td>
+                            <button class="btn btn-sm" onclick="editEmployee(${emp.id})">تعديل</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteEmployee(${emp.id})">حذف</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading employees:', error);
+                const tbody = document.querySelector('#employeesTable tbody');
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px; color: var(--mdc-error);">حدث خطأ في تحميل الموظفين</td></tr>';
+                }
+            }
+        }
+        
+        function showCreateEmployeeModal() {
+            document.getElementById('createEmployeeModal').classList.remove('hidden');
+            document.getElementById('employeeUsername').value = '';
+            document.getElementById('employeePassword').value = '';
+            document.getElementById('employeeFullName').value = '';
+            document.getElementById('employeeEmail').value = '';
+            document.getElementById('employeePhone').value = '';
+            document.getElementById('employeePosition').value = '';
+            document.getElementById('employeeDepartment').value = '';
+            document.getElementById('employeeSalary').value = '';
+            document.getElementById('employeeHireDate').value = '';
+            document.querySelectorAll('.permission-checkbox').forEach(cb => {
+                cb.checked = cb.dataset.permission === 'view_dashboard';
+            });
+        }
+        
+        function closeCreateEmployeeModal() {
+            document.getElementById('createEmployeeModal').classList.add('hidden');
+        }
+        
+        async function createEmployee() {
+            try {
+                const permissions = {};
+                document.querySelectorAll('.permission-checkbox').forEach(cb => {
+                    permissions[cb.dataset.permission] = cb.checked;
+                });
+                
+                const response = await fetchWithAuth('/api/control/employees', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: document.getElementById('employeeUsername').value,
+                        password: document.getElementById('employeePassword').value,
+                        full_name: document.getElementById('employeeFullName').value,
+                        email: document.getElementById('employeeEmail').value,
+                        phone: document.getElementById('employeePhone').value,
+                        position: document.getElementById('employeePosition').value,
+                        department: document.getElementById('employeeDepartment').value,
+                        salary: document.getElementById('employeeSalary').value || null,
+                        hire_date: document.getElementById('employeeHireDate').value || null,
+                        permissions: permissions
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert('تم إنشاء حساب الموظف بنجاح');
+                    closeCreateEmployeeModal();
+                    loadEmployees();
+                } else {
+                    alert('خطأ: ' + (data.message || 'حدث خطأ'));
+                }
+            } catch (error) {
+                console.error('Error creating employee:', error);
+                alert('حدث خطأ في إنشاء حساب الموظف');
+            }
+        }
+        
+        function editEmployee(id) {
+            // TODO: Implement edit employee
+            alert('ميزة التعديل قيد التطوير');
+        }
+        
+        async function deleteEmployee(id) {
+            if (!confirm('هل أنت متأكد من حذف هذا الموظف؟')) return;
+            
+            try {
+                const response = await fetchWithAuth(`/api/control/employees/${id}`, { method: 'DELETE' });
+                const data = await response.json();
+                if (data.success) {
+                    alert('تم حذف الموظف بنجاح');
+                    loadEmployees();
+                } else {
+                    alert('خطأ: ' + (data.message || 'حدث خطأ'));
+                }
+            } catch (error) {
+                console.error('Error deleting employee:', error);
+                alert('حدث خطأ في حذف الموظف');
+            }
+        }
+        
+        // ==================== Invoices Functions ====================
+        async function loadInvoices() {
+            try {
+                const status = document.getElementById('invoiceStatusFilter')?.value || '';
+                const url = `/api/control/invoices${status ? '?status=' + status : ''}`;
+                const response = await fetchWithAuth(url);
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.message || 'فشل تحميل الفواتير');
+                }
+                
+                const tbody = document.querySelector('#invoicesTable tbody');
+                if (!tbody) return;
+                
+                if (data.invoices.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">لا توجد فواتير</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = data.invoices.map(inv => {
+                    const statusColors = {
+                        'pending': 'badge-warning',
+                        'paid': 'badge-success',
+                        'overdue': 'badge-danger',
+                        'cancelled': 'badge-secondary'
+                    };
+                    const statusText = {
+                        'pending': 'معلقة',
+                        'paid': 'مدفوعة',
+                        'overdue': 'متأخرة',
+                        'cancelled': 'ملغاة'
+                    };
+                    
+                    return `
+                        <tr>
+                            <td>${escapeHtml(inv.invoice_number || '')}</td>
+                            <td>${escapeHtml(inv.agent_name || inv.owner_username || '')}</td>
+                            <td>${escapeHtml(inv.invoice_type || '')}</td>
+                            <td>${inv.total_amount ? inv.total_amount.toLocaleString('en-US') : ''} ${inv.currency || 'IQD'}</td>
+                            <td>${inv.issue_date ? new Date(inv.issue_date).toLocaleDateString('en-US') : ''}</td>
+                            <td>${inv.due_date ? new Date(inv.due_date).toLocaleDateString('en-US') : ''}</td>
+                            <td><span class="badge ${statusColors[inv.status] || 'badge-secondary'}">${statusText[inv.status] || inv.status}</span></td>
+                            <td>
+                                <button class="btn btn-sm" onclick="viewInvoice(${inv.id})">عرض</button>
+                                <button class="btn btn-sm" onclick="editInvoice(${inv.id})">تعديل</button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteInvoice(${inv.id})">حذف</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error loading invoices:', error);
+                const tbody = document.querySelector('#invoicesTable tbody');
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: var(--mdc-error);">حدث خطأ في تحميل الفواتير</td></tr>';
+                }
+            }
+        }
+        
+        async function loadOwnersForInvoice() {
+            try {
+                const response = await fetchWithAuth('/api/control/owners');
+                const data = await response.json();
+                
+                if (data.success && data.owners) {
+                    const select = document.getElementById('invoiceOwner');
+                    if (select) {
+                        select.innerHTML = '<option value="">اختر الوكيل</option>' + 
+                            data.owners.map(owner => 
+                                `<option value="${escapeHtml(owner.username)}">${escapeHtml(owner.agent_name || owner.username)}</option>`
+                            ).join('');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading owners for invoice:', error);
+            }
+        }
+        
+        function showCreateInvoiceModal() {
+            document.getElementById('createInvoiceModal').classList.remove('hidden');
+            document.getElementById('invoiceNumber').value = '';
+            document.getElementById('invoiceOwner').value = '';
+            document.getElementById('invoiceType').value = 'rental';
+            document.getElementById('invoiceCurrency').value = 'IQD';
+            document.getElementById('invoiceIssueDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('invoiceDueDate').value = '';
+            document.getElementById('invoiceAmount').value = '';
+            document.getElementById('invoiceTaxRate').value = '0';
+            document.getElementById('invoiceDescription').value = '';
+            document.getElementById('invoiceNotes').value = '';
+            document.getElementById('invoiceTotalAmount').value = '0.00';
+            loadOwnersForInvoice();
+        }
+        
+        function closeCreateInvoiceModal() {
+            document.getElementById('createInvoiceModal').classList.add('hidden');
+        }
+        
+        async function generateInvoiceNumber() {
+            try {
+                const response = await fetchWithAuth('/api/control/invoices/generate-number');
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('invoiceNumber').value = data.invoice_number;
+                }
+            } catch (error) {
+                console.error('Error generating invoice number:', error);
+            }
+        }
+        
+        function calculateInvoiceTotal() {
+            const amount = parseFloat(document.getElementById('invoiceAmount').value) || 0;
+            const taxRate = parseFloat(document.getElementById('invoiceTaxRate').value) || 0;
+            const taxAmount = (amount * taxRate) / 100;
+            const total = amount + taxAmount;
+            document.getElementById('invoiceTotalAmount').value = total.toFixed(2);
+        }
+        
+        async function createInvoice() {
+            try {
+                const response = await fetchWithAuth('/api/control/invoices', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        invoice_number: document.getElementById('invoiceNumber').value,
+                        owner_username: document.getElementById('invoiceOwner').value,
+                        invoice_type: document.getElementById('invoiceType').value,
+                        currency: document.getElementById('invoiceCurrency').value,
+                        issue_date: document.getElementById('invoiceIssueDate').value,
+                        due_date: document.getElementById('invoiceDueDate').value || null,
+                        amount: document.getElementById('invoiceAmount').value,
+                        tax_rate: document.getElementById('invoiceTaxRate').value,
+                        description: document.getElementById('invoiceDescription').value || null,
+                        notes: document.getElementById('invoiceNotes').value || null,
+                        items: []
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert('تم إنشاء الفاتورة بنجاح');
+                    closeCreateInvoiceModal();
+                    loadInvoices();
+                } else {
+                    alert('خطأ: ' + (data.message || 'حدث خطأ'));
+                }
+            } catch (error) {
+                console.error('Error creating invoice:', error);
+                alert('حدث خطأ في إنشاء الفاتورة');
+            }
+        }
+        
+        function viewInvoice(id) {
+            // TODO: Implement view invoice
+            alert('ميزة عرض الفاتورة قيد التطوير');
+        }
+        
+        function editInvoice(id) {
+            // TODO: Implement edit invoice
+            alert('ميزة تعديل الفاتورة قيد التطوير');
+        }
+        
+        async function deleteInvoice(id) {
+            if (!confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) return;
+            
+            try {
+                const response = await fetchWithAuth(`/api/control/invoices/${id}`, { method: 'DELETE' });
+                const data = await response.json();
+                if (data.success) {
+                    alert('تم حذف الفاتورة بنجاح');
+                    loadInvoices();
+                } else {
+                    alert('خطأ: ' + (data.message || 'حدث خطأ'));
+                }
+            } catch (error) {
+                console.error('Error deleting invoice:', error);
+                alert('حدث خطأ في حذف الفاتورة');
+            }
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
     </script>
 </body>
 </html>

@@ -7903,6 +7903,395 @@ function escapeHtml(text) {
     return text.replace(/[&<>"']/g, (m) => map[m]);
 }
 
+// ==================== Employees API Endpoints ====================
+
+// Get all employees
+app.get('/api/control/employees', requireControlAuth, async (req, res) => {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        const [employees] = await masterPool.query(`
+            SELECT id, username, full_name, email, phone, position, department, 
+                   permissions, salary, hire_date, is_active, last_login, 
+                   created_at, updated_at
+            FROM employees
+            ORDER BY created_at DESC
+        `);
+        
+        // Parse JSON permissions
+        const employeesWithParsedPermissions = employees.map(emp => ({
+            ...emp,
+            permissions: typeof emp.permissions === 'string' ? JSON.parse(emp.permissions || '{}') : (emp.permissions || {})
+        }));
+        
+        res.json({ success: true, employees: employeesWithParsedPermissions });
+    } catch (error) {
+        console.error('[CONTROL EMPLOYEES LIST] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Create new employee
+app.post('/api/control/employees', requireControlAuth, async (req, res) => {
+    try {
+        const { username, password, full_name, email, phone, position, department, permissions, salary, hire_date } = req.body;
+        const createdBy = req.controlUser?.id || null;
+        
+        if (!username || !password || !full_name) {
+            return res.status(400).json({ success: false, message: 'اسم المستخدم وكلمة المرور والاسم الكامل مطلوبة' });
+        }
+        
+        // Hash password
+        let passwordHash;
+        if (bcrypt) {
+            passwordHash = await bcrypt.hash(password, 10);
+        } else {
+            passwordHash = password; // Fallback if bcrypt not available
+        }
+        
+        const masterPool = await dbManager.initMasterPool();
+        const [result] = await masterPool.query(
+            `INSERT INTO employees (username, password_hash, full_name, email, phone, position, department, permissions, salary, hire_date, created_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                username,
+                passwordHash,
+                full_name,
+                email || null,
+                phone || null,
+                position || null,
+                department || null,
+                JSON.stringify(permissions || {}),
+                salary || null,
+                hire_date || null,
+                createdBy
+            ]
+        );
+        
+        res.json({ success: true, message: 'تم إنشاء حساب الموظف بنجاح', id: result.insertId });
+    } catch (error) {
+        console.error('[CONTROL EMPLOYEE CREATE] Error:', error);
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ success: false, message: 'اسم المستخدم موجود بالفعل' });
+        }
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Update employee
+app.put('/api/control/employees/:id', requireControlAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { username, password, full_name, email, phone, position, department, permissions, salary, hire_date, is_active } = req.body;
+        
+        const masterPool = await dbManager.initMasterPool();
+        
+        // Check if employee exists
+        const [existing] = await masterPool.query('SELECT id FROM employees WHERE id = ?', [id]);
+        if (existing.length === 0) {
+            return res.status(404).json({ success: false, message: 'الموظف غير موجود' });
+        }
+        
+        const updates = [];
+        const values = [];
+        
+        if (username !== undefined) { updates.push('username = ?'); values.push(username); }
+        if (password !== undefined) {
+            let passwordHash;
+            if (bcrypt) {
+                passwordHash = await bcrypt.hash(password, 10);
+            } else {
+                passwordHash = password;
+            }
+            updates.push('password_hash = ?');
+            values.push(passwordHash);
+        }
+        if (full_name !== undefined) { updates.push('full_name = ?'); values.push(full_name); }
+        if (email !== undefined) { updates.push('email = ?'); values.push(email || null); }
+        if (phone !== undefined) { updates.push('phone = ?'); values.push(phone || null); }
+        if (position !== undefined) { updates.push('position = ?'); values.push(position || null); }
+        if (department !== undefined) { updates.push('department = ?'); values.push(department || null); }
+        if (permissions !== undefined) { updates.push('permissions = ?'); values.push(JSON.stringify(permissions || {})); }
+        if (salary !== undefined) { updates.push('salary = ?'); values.push(salary || null); }
+        if (hire_date !== undefined) { updates.push('hire_date = ?'); values.push(hire_date || null); }
+        if (is_active !== undefined) { updates.push('is_active = ?'); values.push(is_active ? 1 : 0); }
+        
+        values.push(id);
+        
+        await masterPool.query(
+            `UPDATE employees SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+            values
+        );
+        
+        res.json({ success: true, message: 'تم تحديث بيانات الموظف بنجاح' });
+    } catch (error) {
+        console.error('[CONTROL EMPLOYEE UPDATE] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Delete employee
+app.delete('/api/control/employees/:id', requireControlAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const masterPool = await dbManager.initMasterPool();
+        
+        await masterPool.query('UPDATE employees SET is_active = FALSE WHERE id = ?', [id]);
+        
+        res.json({ success: true, message: 'تم حذف الموظف بنجاح' });
+    } catch (error) {
+        console.error('[CONTROL EMPLOYEE DELETE] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// ==================== Invoices API Endpoints ====================
+
+// Get all invoices
+app.get('/api/control/invoices', requireControlAuth, async (req, res) => {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        const { status, owner_username, start_date, end_date } = req.query;
+        
+        let query = `
+            SELECT i.*, od.agent_name, od.company_name
+            FROM invoices i
+            LEFT JOIN owners_databases od ON i.owner_username = od.username
+            WHERE 1=1
+        `;
+        const params = [];
+        
+        if (status) {
+            query += ' AND i.status = ?';
+            params.push(status);
+        }
+        if (owner_username) {
+            query += ' AND i.owner_username = ?';
+            params.push(owner_username);
+        }
+        if (start_date) {
+            query += ' AND i.issue_date >= ?';
+            params.push(start_date);
+        }
+        if (end_date) {
+            query += ' AND i.issue_date <= ?';
+            params.push(end_date);
+        }
+        
+        query += ' ORDER BY i.issue_date DESC, i.created_at DESC';
+        
+        const [invoices] = await masterPool.query(query, params);
+        
+        // Parse JSON items
+        const invoicesWithParsedItems = invoices.map(inv => ({
+            ...inv,
+            items: typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || [])
+        }));
+        
+        res.json({ success: true, invoices: invoicesWithParsedItems });
+    } catch (error) {
+        console.error('[CONTROL INVOICES LIST] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Get single invoice
+app.get('/api/control/invoices/:id', requireControlAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const masterPool = await dbManager.initMasterPool();
+        
+        const [invoices] = await masterPool.query(`
+            SELECT i.*, od.agent_name, od.company_name, od.governorate, od.region, od.phone, od.email
+            FROM invoices i
+            LEFT JOIN owners_databases od ON i.owner_username = od.username
+            WHERE i.id = ?
+        `, [id]);
+        
+        if (invoices.length === 0) {
+            return res.status(404).json({ success: false, message: 'الفاتورة غير موجودة' });
+        }
+        
+        const invoice = invoices[0];
+        invoice.items = typeof invoice.items === 'string' ? JSON.parse(invoice.items || '[]') : (invoice.items || []);
+        
+        res.json({ success: true, invoice });
+    } catch (error) {
+        console.error('[CONTROL INVOICE GET] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Create new invoice
+app.post('/api/control/invoices', requireControlAuth, async (req, res) => {
+    try {
+        const { invoice_number, owner_username, invoice_type, amount, currency, issue_date, due_date, 
+                description, notes, items, tax_rate, payment_method } = req.body;
+        const createdBy = req.controlUser?.username || 'admin';
+        
+        if (!invoice_number || !owner_username || !amount || !issue_date) {
+            return res.status(400).json({ success: false, message: 'رقم الفاتورة واسم المالك والمبلغ وتاريخ الإصدار مطلوبة' });
+        }
+        
+        // Calculate tax and total
+        const taxRate = parseFloat(tax_rate || 0);
+        const baseAmount = parseFloat(amount);
+        const taxAmount = (baseAmount * taxRate) / 100;
+        const totalAmount = baseAmount + taxAmount;
+        
+        const masterPool = await dbManager.initMasterPool();
+        const [result] = await masterPool.query(
+            `INSERT INTO invoices (invoice_number, owner_username, invoice_type, amount, currency, issue_date, due_date,
+                                   description, notes, items, tax_rate, tax_amount, total_amount, payment_method, created_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                invoice_number,
+                owner_username,
+                invoice_type || 'rental',
+                baseAmount,
+                currency || 'IQD',
+                issue_date,
+                due_date || null,
+                description || null,
+                notes || null,
+                JSON.stringify(Array.isArray(items) ? items : []),
+                taxRate,
+                taxAmount,
+                totalAmount,
+                payment_method || null,
+                createdBy
+            ]
+        );
+        
+        res.json({ success: true, message: 'تم إنشاء الفاتورة بنجاح', id: result.insertId });
+    } catch (error) {
+        console.error('[CONTROL INVOICE CREATE] Error:', error);
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ success: false, message: 'رقم الفاتورة موجود بالفعل' });
+        }
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Update invoice
+app.put('/api/control/invoices/:id', requireControlAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { invoice_number, owner_username, invoice_type, amount, currency, issue_date, due_date,
+                status, description, notes, items, tax_rate, payment_method, payment_date } = req.body;
+        
+        const masterPool = await dbManager.initMasterPool();
+        
+        const [existing] = await masterPool.query('SELECT id FROM invoices WHERE id = ?', [id]);
+        if (existing.length === 0) {
+            return res.status(404).json({ success: false, message: 'الفاتورة غير موجودة' });
+        }
+        
+        const updates = [];
+        const values = [];
+        
+        if (invoice_number !== undefined) { updates.push('invoice_number = ?'); values.push(invoice_number); }
+        if (owner_username !== undefined) { updates.push('owner_username = ?'); values.push(owner_username); }
+        if (invoice_type !== undefined) { updates.push('invoice_type = ?'); values.push(invoice_type); }
+        if (amount !== undefined) {
+            updates.push('amount = ?');
+            values.push(amount);
+            // Recalculate tax and total
+            const taxRate = parseFloat(req.body.tax_rate || 0);
+            const baseAmount = parseFloat(amount);
+            const taxAmount = (baseAmount * taxRate) / 100;
+            const totalAmount = baseAmount + taxAmount;
+            updates.push('tax_amount = ?');
+            values.push(taxAmount);
+            updates.push('total_amount = ?');
+            values.push(totalAmount);
+        }
+        if (currency !== undefined) { updates.push('currency = ?'); values.push(currency); }
+        if (issue_date !== undefined) { updates.push('issue_date = ?'); values.push(issue_date); }
+        if (due_date !== undefined) { updates.push('due_date = ?'); values.push(due_date || null); }
+        if (status !== undefined) { updates.push('status = ?'); values.push(status); }
+        if (description !== undefined) { updates.push('description = ?'); values.push(description || null); }
+        if (notes !== undefined) { updates.push('notes = ?'); values.push(notes || null); }
+        if (items !== undefined) { updates.push('items = ?'); values.push(JSON.stringify(Array.isArray(items) ? items : [])); }
+        if (tax_rate !== undefined && amount === undefined) {
+            // Only update tax if amount wasn't updated (to avoid double calculation)
+            const taxRate = parseFloat(tax_rate);
+            const [current] = await masterPool.query('SELECT amount FROM invoices WHERE id = ?', [id]);
+            if (current.length > 0) {
+                const baseAmount = parseFloat(current[0].amount);
+                const taxAmount = (baseAmount * taxRate) / 100;
+                const totalAmount = baseAmount + taxAmount;
+                updates.push('tax_rate = ?');
+                values.push(taxRate);
+                updates.push('tax_amount = ?');
+                values.push(taxAmount);
+                updates.push('total_amount = ?');
+                values.push(totalAmount);
+            }
+        }
+        if (payment_method !== undefined) { updates.push('payment_method = ?'); values.push(payment_method || null); }
+        if (payment_date !== undefined) { updates.push('payment_date = ?'); values.push(payment_date || null); }
+        
+        values.push(id);
+        
+        await masterPool.query(
+            `UPDATE invoices SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+            values
+        );
+        
+        res.json({ success: true, message: 'تم تحديث الفاتورة بنجاح' });
+    } catch (error) {
+        console.error('[CONTROL INVOICE UPDATE] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Delete invoice
+app.delete('/api/control/invoices/:id', requireControlAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const masterPool = await dbManager.initMasterPool();
+        
+        await masterPool.query('DELETE FROM invoices WHERE id = ?', [id]);
+        
+        res.json({ success: true, message: 'تم حذف الفاتورة بنجاح' });
+    } catch (error) {
+        console.error('[CONTROL INVOICE DELETE] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Generate invoice number
+app.get('/api/control/invoices/generate-number', requireControlAuth, async (req, res) => {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        const date = new Date();
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        
+        // Get last invoice number for this month
+        const [lastInvoice] = await masterPool.query(
+            `SELECT invoice_number FROM invoices 
+             WHERE invoice_number LIKE ? 
+             ORDER BY invoice_number DESC LIMIT 1`,
+            [`INV-${year}${month}-%`]
+        );
+        
+        let sequence = 1;
+        if (lastInvoice.length > 0) {
+            const lastNum = lastInvoice[0].invoice_number;
+            const lastSeq = parseInt(lastNum.split('-')[2]) || 0;
+            sequence = lastSeq + 1;
+        }
+        
+        const invoiceNumber = `INV-${year}${month}-${String(sequence).padStart(4, '0')}`;
+        
+        res.json({ success: true, invoice_number: invoiceNumber });
+    } catch (error) {
+        console.error('[CONTROL INVOICE GENERATE NUMBER] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
 // ==================== Flowchart API Endpoints ====================
 
 // Get all flowcharts
@@ -8245,6 +8634,65 @@ async function startServer() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
         console.log('✅ تم إنشاء جدول: flowchart_data (مخططات Flowchart)');
+        
+        // ==================== جدول employees (الموظفين) ====================
+        await masterPool.query(`
+            CREATE TABLE IF NOT EXISTS employees (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                username VARCHAR(255) UNIQUE NOT NULL COMMENT 'اسم المستخدم',
+                password_hash VARCHAR(255) NOT NULL COMMENT 'كلمة المرور المشفرة',
+                full_name VARCHAR(255) NOT NULL COMMENT 'الاسم الكامل',
+                email VARCHAR(255) COMMENT 'البريد الإلكتروني',
+                phone VARCHAR(20) COMMENT 'رقم الهاتف',
+                position VARCHAR(100) COMMENT 'المنصب',
+                department VARCHAR(100) COMMENT 'القسم',
+                permissions JSON COMMENT 'الصلاحيات (JSON object)',
+                salary DECIMAL(10, 2) COMMENT 'الراتب',
+                hire_date DATE COMMENT 'تاريخ التوظيف',
+                is_active BOOLEAN DEFAULT TRUE COMMENT 'حالة تفعيل الحساب',
+                last_login TIMESTAMP NULL COMMENT 'آخر تسجيل دخول',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                created_by INT COMMENT 'من أنشأ الحساب',
+                INDEX idx_username (username),
+                INDEX idx_email (email),
+                INDEX idx_is_active (is_active),
+                INDEX idx_department (department)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        console.log('✅ تم إنشاء جدول: employees (الموظفين)');
+        
+        // ==================== جدول invoices (الفواتير) ====================
+        await masterPool.query(`
+            CREATE TABLE IF NOT EXISTS invoices (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                invoice_number VARCHAR(50) UNIQUE NOT NULL COMMENT 'رقم الفاتورة',
+                owner_username VARCHAR(255) NOT NULL COMMENT 'اسم المالك (مثل: admin@tec)',
+                invoice_type VARCHAR(50) DEFAULT 'rental' COMMENT 'نوع الفاتورة (rental, service, other)',
+                amount DECIMAL(10, 2) NOT NULL COMMENT 'المبلغ',
+                currency VARCHAR(10) DEFAULT 'IQD' COMMENT 'العملة',
+                issue_date DATE NOT NULL COMMENT 'تاريخ الإصدار',
+                due_date DATE COMMENT 'تاريخ الاستحقاق',
+                status VARCHAR(50) DEFAULT 'pending' COMMENT 'حالة الفاتورة (pending, paid, overdue, cancelled)',
+                payment_method VARCHAR(50) COMMENT 'طريقة الدفع',
+                payment_date DATE COMMENT 'تاريخ الدفع',
+                description TEXT COMMENT 'وصف الفاتورة',
+                notes TEXT COMMENT 'ملاحظات',
+                items JSON COMMENT 'عناصر الفاتورة (JSON array)',
+                tax_rate DECIMAL(5, 2) DEFAULT 0 COMMENT 'نسبة الضريبة',
+                tax_amount DECIMAL(10, 2) DEFAULT 0 COMMENT 'مبلغ الضريبة',
+                total_amount DECIMAL(10, 2) NOT NULL COMMENT 'المبلغ الإجمالي',
+                created_by VARCHAR(255) COMMENT 'من أنشأ الفاتورة',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_invoice_number (invoice_number),
+                INDEX idx_owner_username (owner_username),
+                INDEX idx_status (status),
+                INDEX idx_issue_date (issue_date),
+                INDEX idx_due_date (due_date)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        console.log('✅ تم إنشاء جدول: invoices (الفواتير)');
         
         // إضافة حساب افتراضي إذا لم يكن موجوداً
         const [existingAdmin] = await masterPool.query('SELECT id FROM control_accounts WHERE username = ?', ['admin']);
