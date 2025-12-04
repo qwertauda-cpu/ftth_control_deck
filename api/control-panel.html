@@ -2395,62 +2395,63 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label class="form-label">اسم المستخدم *</label>
-                    <input type="text" id="employeeUsername" class="form-input" required>
+                    <input type="text" id="employeeUsername" class="form-input" required placeholder="أدخل اسم المستخدم">
                 </div>
                 <div class="form-group">
                     <label class="form-label">كلمة المرور *</label>
-                    <input type="password" id="employeePassword" class="form-input" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">الاسم الكامل *</label>
-                    <input type="text" id="employeeFullName" class="form-input" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">البريد الإلكتروني</label>
-                    <input type="email" id="employeeEmail" class="form-input">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">رقم الهاتف</label>
-                    <input type="tel" id="employeePhone" class="form-input">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">المنصب</label>
-                    <input type="text" id="employeePosition" class="form-input">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">القسم</label>
-                    <input type="text" id="employeeDepartment" class="form-input">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">الراتب</label>
-                    <input type="number" id="employeeSalary" class="form-input" step="0.01">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">تاريخ التوظيف</label>
-                    <input type="date" id="employeeHireDate" class="form-input">
+                    <input type="password" id="employeePassword" class="form-input" required placeholder="أدخل كلمة المرور">
                 </div>
                 <div class="form-group">
                     <label class="form-label">الصلاحيات</label>
-                    <div id="permissionsContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 10px;">
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" class="permission-checkbox" data-permission="view_dashboard" checked>
-                            <span>عرض لوحة التحكم</span>
+                    <div id="permissionsContainer" style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px; padding: 16px; background: rgba(0, 0, 0, 0.2); border-radius: 8px;">
+                        <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; padding: 12px; background: rgba(255, 255, 255, 0.05); border-radius: 6px; transition: background 0.2s;">
+                            <input type="checkbox" class="permission-checkbox" data-permission="view_dashboard" checked style="margin-top: 4px;">
+                            <div style="flex: 1;">
+                                <div style="font-weight: 500; margin-bottom: 4px;">عرض لوحة التحكم</div>
+                                <div style="font-size: 12px; color: rgba(255, 255, 255, 0.7);">يمكن للموظف رؤية لوحة التحكم الرئيسية والإحصائيات</div>
+                            </div>
                         </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" class="permission-checkbox" data-permission="manage_owners">
-                            <span>إدارة الوكلاء</span>
+                        <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; padding: 12px; background: rgba(255, 255, 255, 0.05); border-radius: 6px; transition: background 0.2s;">
+                            <input type="checkbox" class="permission-checkbox" data-permission="manage_owners" style="margin-top: 4px;">
+                            <div style="flex: 1;">
+                                <div style="font-weight: 500; margin-bottom: 4px;">إدارة الوكلاء</div>
+                                <div style="font-size: 12px; color: rgba(255, 255, 255, 0.7);">يمكن للموظف عرض وتعديل معلومات الوكلاء وحسابات الوطني</div>
+                            </div>
                         </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" class="permission-checkbox" data-permission="manage_invoices">
-                            <span>إدارة الفواتير</span>
+                        <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; padding: 12px; background: rgba(255, 255, 255, 0.05); border-radius: 6px; transition: background 0.2s;">
+                            <input type="checkbox" class="permission-checkbox" data-permission="manage_invoices" style="margin-top: 4px;">
+                            <div style="flex: 1;">
+                                <div style="font-weight: 500; margin-bottom: 4px;">إدارة الفواتير</div>
+                                <div style="font-size: 12px; color: rgba(255, 255, 255, 0.7);">يمكن للموظف إنشاء وتعديل وحذف الفواتير</div>
+                            </div>
                         </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" class="permission-checkbox" data-permission="manage_employees">
-                            <span>إدارة الموظفين</span>
+                        <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; padding: 12px; background: rgba(255, 255, 255, 0.05); border-radius: 6px; transition: background 0.2s;">
+                            <input type="checkbox" class="permission-checkbox" data-permission="manage_employees" style="margin-top: 4px;">
+                            <div style="flex: 1;">
+                                <div style="font-weight: 500; margin-bottom: 4px;">إدارة الموظفين</div>
+                                <div style="font-size: 12px; color: rgba(255, 255, 255, 0.7);">يمكن للموظف إضافة وتعديل وحذف حسابات الموظفين الآخرين</div>
+                            </div>
                         </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" class="permission-checkbox" data-permission="view_reports">
-                            <span>عرض التقارير</span>
+                        <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; padding: 12px; background: rgba(255, 255, 255, 0.05); border-radius: 6px; transition: background 0.2s;">
+                            <input type="checkbox" class="permission-checkbox" data-permission="view_reports" style="margin-top: 4px;">
+                            <div style="flex: 1;">
+                                <div style="font-weight: 500; margin-bottom: 4px;">عرض التقارير</div>
+                                <div style="font-size: 12px; color: rgba(255, 255, 255, 0.7);">يمكن للموظف عرض التقارير والإحصائيات التفصيلية</div>
+                            </div>
+                        </label>
+                        <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; padding: 12px; background: rgba(255, 255, 255, 0.05); border-radius: 6px; transition: background 0.2s;">
+                            <input type="checkbox" class="permission-checkbox" data-permission="manage_database" style="margin-top: 4px;">
+                            <div style="flex: 1;">
+                                <div style="font-weight: 500; margin-bottom: 4px;">إدارة قاعدة البيانات</div>
+                                <div style="font-size: 12px; color: rgba(255, 255, 255, 0.7);">يمكن للموظف عرض وإدارة قواعد البيانات والجداول</div>
+                            </div>
+                        </label>
+                        <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; padding: 12px; background: rgba(255, 255, 255, 0.05); border-radius: 6px; transition: background 0.2s;">
+                            <input type="checkbox" class="permission-checkbox" data-permission="manage_chat" style="margin-top: 4px;">
+                            <div style="flex: 1;">
+                                <div style="font-weight: 500; margin-bottom: 4px;">إدارة المحادثات</div>
+                                <div style="font-size: 12px; color: rgba(255, 255, 255, 0.7);">يمكن للموظف إنشاء وإدارة غرف المحادثة</div>
+                            </div>
                         </label>
                     </div>
                 </div>
@@ -5069,13 +5070,6 @@
             document.getElementById('createEmployeeModal').classList.remove('hidden');
             document.getElementById('employeeUsername').value = '';
             document.getElementById('employeePassword').value = '';
-            document.getElementById('employeeFullName').value = '';
-            document.getElementById('employeeEmail').value = '';
-            document.getElementById('employeePhone').value = '';
-            document.getElementById('employeePosition').value = '';
-            document.getElementById('employeeDepartment').value = '';
-            document.getElementById('employeeSalary').value = '';
-            document.getElementById('employeeHireDate').value = '';
             document.querySelectorAll('.permission-checkbox').forEach(cb => {
                 cb.checked = cb.dataset.permission === 'view_dashboard';
             });
@@ -5087,6 +5081,14 @@
         
         async function createEmployee() {
             try {
+                const username = document.getElementById('employeeUsername').value.trim();
+                const password = document.getElementById('employeePassword').value;
+                
+                if (!username || !password) {
+                    alert('يرجى إدخال اسم المستخدم وكلمة المرور');
+                    return;
+                }
+                
                 const permissions = {};
                 document.querySelectorAll('.permission-checkbox').forEach(cb => {
                     permissions[cb.dataset.permission] = cb.checked;
@@ -5096,15 +5098,8 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        username: document.getElementById('employeeUsername').value,
-                        password: document.getElementById('employeePassword').value,
-                        full_name: document.getElementById('employeeFullName').value,
-                        email: document.getElementById('employeeEmail').value,
-                        phone: document.getElementById('employeePhone').value,
-                        position: document.getElementById('employeePosition').value,
-                        department: document.getElementById('employeeDepartment').value,
-                        salary: document.getElementById('employeeSalary').value || null,
-                        hire_date: document.getElementById('employeeHireDate').value || null,
+                        username: username,
+                        password: password,
                         permissions: permissions
                     })
                 });
