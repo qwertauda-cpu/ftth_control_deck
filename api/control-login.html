@@ -267,11 +267,23 @@
 
         <form id="loginForm">
             <div class="form-group">
+                <label for="username">اسم المستخدم</label>
+                <input type="text" id="username" name="username" required autocomplete="username" placeholder="أدخل اسم المستخدم" value="admin">
+            </div>
+            <div class="form-group">
                 <label for="password">كلمة المرور</label>
                 <div class="password-container">
                     <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="أدخل كلمة المرور">
                     <button type="button" class="toggle-password" onclick="togglePassword()">👁️</button>
                 </div>
+            </div>
+
+            <div class="form-group remember-me">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="rememberMe" name="rememberMe">
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">حفظ تسجيل الدخول</span>
+                </label>
             </div>
 
             <button type="submit" class="btn-login" id="loginBtn">
@@ -311,12 +323,13 @@
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
+            const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const loginBtn = document.getElementById('loginBtn');
             const loginBtnText = document.getElementById('loginBtnText');
 
-            if (!password) {
-                showError('يرجى إدخال كلمة المرور');
+            if (!username || !password) {
+                showError('يرجى إدخال اسم المستخدم وكلمة المرور');
                 return;
             }
 
@@ -330,7 +343,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ password })
+                    body: JSON.stringify({ username, password })
                 });
 
                 const data = await response.json();
@@ -339,6 +352,20 @@
                     // Store token in localStorage (persists after refresh)
                     localStorage.setItem('control_token', data.token);
                     localStorage.setItem('control_login_time', Date.now().toString());
+                    
+                    // Handle "Remember Me" checkbox
+                    const rememberMe = document.getElementById('rememberMe').checked;
+                    if (rememberMe) {
+                        // Save credentials
+                        localStorage.setItem('saved_username', username);
+                        localStorage.setItem('saved_password', password);
+                        localStorage.setItem('remember_me', 'true');
+                    } else {
+                        // Remove saved credentials
+                        localStorage.removeItem('saved_username');
+                        localStorage.removeItem('saved_password');
+                        localStorage.removeItem('remember_me');
+                    }
                     
                     // Redirect to dashboard
                     window.location.href = '/control-panel.html';
@@ -360,8 +387,25 @@
             window.location.href = '/control-panel.html';
         }
 
-        // Focus on password input
-        document.getElementById('password').focus();
+        // Load saved credentials if "Remember Me" was checked
+        const savedUsername = localStorage.getItem('saved_username');
+        const savedPassword = localStorage.getItem('saved_password');
+        const rememberMe = localStorage.getItem('remember_me') === 'true';
+
+        if (savedUsername && rememberMe) {
+            document.getElementById('username').value = savedUsername;
+        }
+        if (savedPassword && rememberMe) {
+            document.getElementById('password').value = savedPassword;
+            document.getElementById('rememberMe').checked = true;
+        }
+
+        // Focus on username input (or password if username is already filled)
+        if (savedUsername && rememberMe) {
+            document.getElementById('password').focus();
+        } else {
+            document.getElementById('username').focus();
+        }
     </script>
 </body>
 </html>
