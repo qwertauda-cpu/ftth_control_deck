@@ -4430,10 +4430,35 @@
             }
         }
 
+        function enableEdgeCreation() {
+            edgeCreationMode = !edgeCreationMode;
+            const btn = document.getElementById('edgeCreationBtn');
+            
+            if (edgeCreationMode) {
+                if (btn) {
+                    btn.style.background = 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)';
+                    btn.style.borderColor = '#FFB74D';
+                }
+                alert('وضع الربط مفعّل: اضغط على عقدة ثم اضغط على عقدة أخرى لربطها');
+            } else {
+                if (btn) {
+                    btn.style.background = '';
+                    btn.style.borderColor = '';
+                }
+                edgeFromNode = null;
+                if (flowchartNetwork) {
+                    flowchartNetwork.unselectAll();
+                }
+            }
+        }
+
         function startEdgeCreation(fromNodeId) {
             edgeCreationMode = true;
             edgeFromNode = fromNodeId;
-            document.getElementById('flowchartNetwork').style.cursor = 'crosshair';
+            const networkEl = document.getElementById('flowchartNetwork');
+            if (networkEl) {
+                networkEl.style.cursor = 'crosshair';
+            }
         }
 
         function clearFlowchart() {
