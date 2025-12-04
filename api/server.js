@@ -1,6 +1,41 @@
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2/promise');
+const path = require('path');
+const fs = require('fs');
+
+// Load .env file BEFORE requiring config
+// Try multiple locations
+const envPaths = [
+    path.join(__dirname, '.env'),                    // api/.env
+    path.join(__dirname, '..', '.env'),             // project root .env
+    path.join(require('os').homedir(), '.env'),     // home directory .env
+    '/var/www/ftth_control_deck/.env',              // server project root
+    '/var/www/ftth_control_deck/api/.env'           // server api folder
+];
+
+let envLoaded = false;
+for (const envPath of envPaths) {
+    if (fs.existsSync(envPath)) {
+        require('dotenv').config({ path: envPath });
+        console.log(`[SERVER] ✅ Loaded .env from: ${envPath}`);
+        envLoaded = true;
+        break;
+    }
+}
+
+if (!envLoaded) {
+    console.log(`[SERVER] ⚠️  No .env file found. Trying default location...`);
+    require('dotenv').config();
+}
+
+// Debug environment variables
+if (process.env.DB_PASSWORD) {
+    console.log(`[SERVER] ✅ DB_PASSWORD is set (length: ${process.env.DB_PASSWORD.length})`);
+} else {
+    console.log(`[SERVER] ❌ DB_PASSWORD is NOT set!`);
+}
+
 const config = require('./config');
 const cheerio = require('cheerio');
 const https = require('https');
