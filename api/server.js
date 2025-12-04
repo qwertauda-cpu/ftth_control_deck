@@ -101,6 +101,16 @@ app.use((req, res, next) => {
     next();
 });
 
+// Control Panel Routes (before static middleware)
+app.get('/control-login.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'control-login.html'));
+});
+
+app.get('/control-panel.html', (req, res) => {
+    // Allow access - authentication will be checked client-side and via API
+    res.sendFile(path.join(__dirname, 'control-panel.html'));
+});
+
 // Serve static files
 app.use(express.static(path.join(__dirname), {
     index: false,
@@ -6694,6 +6704,292 @@ app.put('/api/teams/:id', async (req, res) => {
             message: errorMessage,
             error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
+    }
+});
+
+// ================= Control Panel Authentication =================
+const CONTROL_PASSWORD = process.env.CONTROL_PASSWORD || 'admin123'; // Change this in .env
+
+// Simple token storage (in production, use JWT or sessions)
+const controlTokens = new Map(); // token -> { timestamp, valid }
+
+// Middleware to check control panel authentication
+function requireControlAuth(req, res, next) {
+    const token = req.headers['x-control-token'] || req.query.token;
+    
+    if (!token) {
+        return res.status(401).json({ success: false, message: 'غير مصرح' });
+    }
+    
+    const tokenData = controlTokens.get(token);
+    if (!tokenData || !tokenData.valid) {
+        return res.status(401).json({ success: false, message: 'رمز غير صالح' });
+    }
+    
+    // Check if token expired (24 hours)
+    const now = Date.now();
+    if (now - tokenData.timestamp > 24 * 60 * 60 * 1000) {
+        controlTokens.delete(token);
+        return res.status(401).json({ success: false, message: 'انتهت صلاحية الجلسة' });
+    }
+    
+    next();
+}
+
+// Control Panel Login
+app.post('/api/control/login', async (req, res) => {
+    try {
+        const { password } = req.body;
+        
+        if (!password) {
+            return res.json({ success: false, message: 'يرجى إدخال كلمة المرور' });
+        }
+        
+        if (password !== CONTROL_PASSWORD) {
+            return res.json({ success: false, message: 'كلمة المرور غير صحيحة' });
+        }
+        
+        // Generate token
+        const token = require('crypto').randomBytes(32).toString('hex');
+        controlTokens.set(token, {
+            timestamp: Date.now(),
+            valid: true
+        });
+        
+        // Clean old tokens (older than 24 hours)
+        const now = Date.now();
+        for (const [t, data] of controlTokens.entries()) {
+            if (now - data.timestamp > 24 * 60 * 60 * 1000) {
+                controlTokens.delete(t);
+            }
+        }
+        
+        res.json({ success: true, token, message: 'تم تسجيل الدخول بنجاح' });
+    } catch (error) {
+        console.error('[CONTROL LOGIN] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+
+// Control Panel Stats
+app.get('/api/control/stats', requireControlAuth, async (req, res) => {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        
+        // Get databases count
+        const [dbResult] = await masterPool.query('SHOW DATABASES');
+        const databases = dbResult.filter(db => 
+            db.Database.startsWith('ftth_') || 
+            db.Database === 'ftth_master' ||
+            db.Database === 'ftth_control_deck'
+        );
+        
+        // Get owners count
+        const [owners] = await masterPool.query(
+            'SELECT COUNT(*) as count FROM owners_databases WHERE is_active = TRUE'
+        );
+        
+        // Get users count
+        const pool = mysql.createPool(config.db);
+        const [users] = await pool.query('SELECT COUNT(*) as count FROM users');
+        await pool.end();
+        
+        // Get subscribers count (from all owner databases)
+        let totalSubscribers = 0;
+        for (const db of databases) {
+            try {
+                const tempPool = mysql.createPool({
+                    ...config.db,
+                    database: db.Database
+                });
+                const [subs] = await tempPool.query(
+                    'SELECT COUNT(*) as count FROM subscribers LIMIT 1'
+                ).catch(() => [[{ count: 0 }]]);
+                if (subs && subs[0]) {
+                    totalSubscribers += subs[0].count || 0;
+                }
+                await tempPool.end();
+            } catch (e) {
+                // Skip databases that don't have subscribers table
+            }
+        }
+        
+        res.json({
+            success: true,
+            stats: {
+                databases: databases.length,
+                owners: owners[0]?.count || 0,
+                users: users[0]?.count || 0,
+                subscribers: totalSubscribers
+            }
+        });
+    } catch (error) {
+        console.error('[CONTROL STATS] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Control Panel Database Stats
+app.get('/api/control/database/stats', requireControlAuth, async (req, res) => {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        
+        // Get all databases
+        const [dbResult] = await masterPool.query('SHOW DATABASES');
+        const databases = dbResult.filter(db => 
+            db.Database.startsWith('ftth_') || 
+            db.Database === 'ftth_master' ||
+            db.Database === 'ftth_control_deck'
+        );
+        
+        let totalTables = 0;
+        let totalRows = 0;
+        
+        for (const db of databases) {
+            try {
+                const tempPool = mysql.createPool({
+                    ...config.db,
+                    database: db.Database
+                });
+                const [tables] = await tempPool.query('SHOW TABLES');
+                totalTables += tables.length;
+                
+                // Count rows in each table
+                for (const table of tables) {
+                    const tableName = Object.values(table)[0];
+                    const [rows] = await tempPool.query(
+                        `SELECT COUNT(*) as count FROM ${tableName}`
+                    ).catch(() => [[{ count: 0 }]]);
+                    if (rows && rows[0]) {
+                        totalRows += rows[0].count || 0;
+                    }
+                }
+                
+                await tempPool.end();
+            } catch (e) {
+                // Skip errors
+            }
+        }
+        
+        res.json({
+            success: true,
+            stats: {
+                totalDatabases: databases.length,
+                totalTables,
+                totalRows
+            }
+        });
+    } catch (error) {
+        console.error('[CONTROL DB STATS] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Control Panel Database List
+app.get('/api/control/database/databases', requireControlAuth, async (req, res) => {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        const [dbResult] = await masterPool.query('SHOW DATABASES');
+        
+        const databases = dbResult
+            .filter(db => 
+                db.Database.startsWith('ftth_') || 
+                db.Database === 'ftth_master' ||
+                db.Database === 'ftth_control_deck'
+            )
+            .map(async (db) => {
+                try {
+                    const tempPool = mysql.createPool({
+                        ...config.db,
+                        database: db.Database
+                    });
+                    const [tables] = await tempPool.query('SHOW TABLES');
+                    await tempPool.end();
+                    return {
+                        name: db.Database,
+                        tables: tables.length,
+                        size: 'N/A'
+                    };
+                } catch (e) {
+                    return {
+                        name: db.Database,
+                        tables: 0,
+                        size: 'N/A'
+                    };
+                }
+            });
+        
+        const dbList = await Promise.all(databases);
+        
+        res.json({ success: true, databases: dbList });
+    } catch (error) {
+        console.error('[CONTROL DB LIST] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Control Panel Tables List
+app.get('/api/control/database/tables', requireControlAuth, async (req, res) => {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        const [dbResult] = await masterPool.query('SHOW DATABASES');
+        
+        const databases = dbResult.filter(db => 
+            db.Database.startsWith('ftth_') || 
+            db.Database === 'ftth_master' ||
+            db.Database === 'ftth_control_deck'
+        );
+        
+        const allTables = [];
+        
+        for (const db of databases) {
+            try {
+                const tempPool = mysql.createPool({
+                    ...config.db,
+                    database: db.Database
+                });
+                const [tables] = await tempPool.query('SHOW TABLES');
+                
+                for (const table of tables) {
+                    const tableName = Object.values(table)[0];
+                    const [rows] = await tempPool.query(
+                        `SELECT COUNT(*) as count FROM ${tableName}`
+                    ).catch(() => [[{ count: 0 }]]);
+                    
+                    allTables.push({
+                        name: tableName,
+                        database: db.Database,
+                        rows: rows && rows[0] ? rows[0].count : 0,
+                        size: 'N/A'
+                    });
+                }
+                
+                await tempPool.end();
+            } catch (e) {
+                // Skip errors
+            }
+        }
+        
+        res.json({ success: true, tables: allTables });
+    } catch (error) {
+        console.error('[CONTROL TABLES LIST] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Control Panel Owners List
+app.get('/api/control/owners', requireControlAuth, async (req, res) => {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        const [owners] = await masterPool.query(
+            'SELECT username, domain, database_name, is_active FROM owners_databases ORDER BY username'
+        );
+        
+        res.json({ success: true, owners });
+    } catch (error) {
+        console.error('[CONTROL OWNERS] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
     }
 });
 

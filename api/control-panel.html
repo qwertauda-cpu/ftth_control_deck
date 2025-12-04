@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم - Control Panel</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5568d3;
+            --secondary: #764ba2;
+            --success: #48bb78;
+            --danger: #f56565;
+            --warning: #ed8936;
+            --info: #4299e1;
+            --dark: #2d3748;
+            --light: #f7fafc;
+            --border: #e2e8f0;
+            --text: #2d3748;
+            --text-light: #718096;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--light);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .sidebar-header {
+            padding: 25px 20px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+        }
+
+        .sidebar-header h1 {
+            font-size: 22px;
+            margin-bottom: 5px;
+        }
+
+        .sidebar-header p {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: var(--text);
+            text-decoration: none;
+            transition: all 0.3s;
+            cursor: pointer;
+            border-right: 3px solid transparent;
+        }
+
+        .menu-item:hover {
+            background: var(--light);
+            border-right-color: var(--primary);
+        }
+
+        .menu-item.active {
+            background: var(--light);
+            border-right-color: var(--primary);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .menu-item-icon {
+            width: 24px;
+            height: 24px;
+            margin-left: 12px;
+            font-size: 20px;
+        }
+
+        .sidebar-footer {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            padding: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .logout-btn {
+            width: 100%;
+            padding: 12px;
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #e53e3e;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-right: 260px;
+            padding: 30px;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h2 {
+            font-size: 24px;
+            color: var(--dark);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .stat-card-title {
+            color: var(--text-light);
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .stat-card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .stat-card-icon.primary { background: rgba(102, 126, 234, 0.1); color: var(--primary); }
+        .stat-card-icon.success { background: rgba(72, 187, 120, 0.1); color: var(--success); }
+        .stat-card-icon.danger { background: rgba(245, 101, 101, 0.1); color: var(--danger); }
+        .stat-card-icon.warning { background: rgba(237, 137, 54, 0.1); color: var(--warning); }
+
+        .stat-card-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--dark);
+            margin-bottom: 5px;
+        }
+
+        .stat-card-change {
+            font-size: 12px;
+            color: var(--success);
+        }
+
+        .content-section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--dark);
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: right;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--light);
+            font-weight: 600;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        tr:hover {
+            background: var(--light);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-success { background: rgba(72, 187, 120, 0.1); color: var(--success); }
+        .badge-danger { background: rgba(245, 101, 101, 0.1); color: var(--danger); }
+        .badge-warning { background: rgba(237, 137, 54, 0.1); color: var(--warning); }
+        .badge-info { background: rgba(66, 153, 225, 0.1); color: var(--info); }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-light);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h1>⚡ لوحة التحكم</h1>
+                <p>Control Panel</p>
+            </div>
+            <div class="sidebar-menu">
+                <a class="menu-item active" data-section="dashboard">
+                    <span class="menu-item-icon">📊</span>
+                    <span>لوحة التحكم</span>
+                </a>
+                <a class="menu-item" data-section="database">
+                    <span class="menu-item-icon">🗄️</span>
+                    <span>قاعدة البيانات</span>
+                </a>
+                <a class="menu-item" data-section="owners">
+                    <span class="menu-item-icon">👥</span>
+                    <span>المالكين</span>
+                </a>
+                <a class="menu-item" data-section="users">
+                    <span class="menu-item-icon">👤</span>
+                    <span>المستخدمين</span>
+                </a>
+                <a class="menu-item" data-section="subscribers">
+                    <span class="menu-item-icon">📱</span>
+                    <span>المشتركين</span>
+                </a>
+                <a class="menu-item" data-section="tickets">
+                    <span class="menu-item-icon">🎫</span>
+                    <span>التذاكر</span>
+                </a>
+                <a class="menu-item" data-section="teams">
+                    <span class="menu-item-icon">👨‍👩‍👧‍👦</span>
+                    <span>الفرق</span>
+                </a>
+            </div>
+            <div class="sidebar-footer">
+                <button class="logout-btn" onclick="logout()">🚪 تسجيل الخروج</button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Dashboard Section -->
+            <div id="dashboard-section" class="content-section">
+                <div class="header">
+                    <h2>لوحة التحكم الرئيسية</h2>
+                    <div id="lastUpdate"></div>
+                </div>
+
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="stat-card-title">قواعد البيانات</span>
+                            <div class="stat-card-icon primary">🗄️</div>
+                        </div>
+                        <div class="stat-card-value" id="dbCount">-</div>
+                        <div class="stat-card-change">قاعدة بيانات نشطة</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="stat-card-title">المالكين</span>
+                            <div class="stat-card-icon success">👥</div>
+                        </div>
+                        <div class="stat-card-value" id="ownersCount">-</div>
+                        <div class="stat-card-change">مالك نشط</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="stat-card-title">المستخدمين</span>
+                            <div class="stat-card-icon warning">👤</div>
+                        </div>
+                        <div class="stat-card-value" id="usersCount">-</div>
+                        <div class="stat-card-change">مستخدم نشط</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="stat-card-title">المشتركين</span>
+                            <div class="stat-card-icon info">📱</div>
+                        </div>
+                        <div class="stat-card-value" id="subscribersCount">-</div>
+                        <div class="stat-card-change">مشترك نشط</div>
+                    </div>
+                </div>
+
+                <div class="content-section">
+                    <div class="section-title">إحصائيات سريعة</div>
+                    <div class="chart-container">
+                        <canvas id="statsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Database Section -->
+            <div id="database-section" class="content-section hidden">
+                <div class="section-title">إدارة قاعدة البيانات</div>
+                <div class="tabs">
+                    <div class="tab active" data-tab="databases">قواعد البيانات</div>
+                    <div class="tab" data-tab="tables">الجداول</div>
+                    <div class="tab" data-tab="stats">الإحصائيات</div>
+                </div>
+
+                <div class="tab-content active" id="databases-tab">
+                    <div class="table-container">
+                        <table id="databasesTable">
+                            <thead>
+                                <tr>
+                                    <th>اسم قاعدة البيانات</th>
+                                    <th>الحالة</th>
+                                    <th>عدد الجداول</th>
+                                    <th>الحجم</th>
+                                </tr>
+                            </thead>
+                            <tbody id="databasesTableBody">
+                                <tr><td colspan="4" class="loading">جاري التحميل...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="tables-tab">
+                    <div class="table-container">
+                        <table id="tablesTable">
+                            <thead>
+                                <tr>
+                                    <th>اسم الجدول</th>
+                                    <th>قاعدة البيانات</th>
+                                    <th>عدد الصفوف</th>
+                                    <th>الحجم</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablesTableBody">
+                                <tr><td colspan="4" class="loading">جاري التحميل...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="stats-tab">
+                    <div id="dbStatsContent" class="loading">جاري التحميل...</div>
+                </div>
+            </div>
+
+            <!-- Owners Section -->
+            <div id="owners-section" class="content-section hidden">
+                <div class="section-title">إدارة المالكين</div>
+                <div class="table-container">
+                    <table id="ownersTable">
+                        <thead>
+                            <tr>
+                                <th>اسم المستخدم</th>
+                                <th>النطاق</th>
+                                <th>قاعدة البيانات</th>
+                                <th>الحالة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ownersTableBody">
+                            <tr><td colspan="5" class="loading">جاري التحميل...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Users Section -->
+            <div id="users-section" class="content-section hidden">
+                <div class="section-title">إدارة المستخدمين</div>
+                <div class="table-container">
+                    <table id="usersTable">
+                        <thead>
+                            <tr>
+                                <th>اسم المستخدم</th>
+                                <th>البريد الإلكتروني</th>
+                                <th>الهاتف</th>
+                                <th>الحالة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr><td colspan="5" class="loading">جاري التحميل...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Subscribers Section -->
+            <div id="subscribers-section" class="content-section hidden">
+                <div class="section-title">إدارة المشتركين</div>
+                <div class="table-container">
+                    <table id="subscribersTable">
+                        <thead>
+                            <tr>
+                                <th>رقم الحساب</th>
+                                <th>الاسم</th>
+                                <th>الهاتف</th>
+                                <th>الحالة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="subscribersTableBody">
+                            <tr><td colspan="5" class="loading">جاري التحميل...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tickets Section -->
+            <div id="tickets-section" class="content-section hidden">
+                <div class="section-title">إدارة التذاكر</div>
+                <div class="table-container">
+                    <table id="ticketsTable">
+                        <thead>
+                            <tr>
+                                <th>رقم التذكرة</th>
+                                <th>الموضوع</th>
+                                <th>الحالة</th>
+                                <th>الفريق</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ticketsTableBody">
+                            <tr><td colspan="5" class="loading">جاري التحميل...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Teams Section -->
+            <div id="teams-section" class="content-section hidden">
+                <div class="section-title">إدارة الفرق</div>
+                <div class="table-container">
+                    <table id="teamsTable">
+                        <thead>
+                            <tr>
+                                <th>اسم الفريق</th>
+                                <th>عدد الأعضاء</th>
+                                <th>الحالة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teamsTableBody">
+                            <tr><td colspan="4" class="loading">جاري التحميل...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let statsChart = null;
+
+        // Check authentication
+        if (!sessionStorage.getItem('control_token')) {
+            window.location.href = '/control-login.html';
+        }
+
+        // Menu navigation
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const section = this.dataset.section;
+                
+                // Update active menu item
+                document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Show/hide sections
+                document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
+                document.getElementById(`${section}-section`).classList.remove('hidden');
+                
+                // Load section data
+                loadSectionData(section);
+            });
+        });
+
+        // Tab navigation
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                const tabName = this.dataset.tab;
+                
+                // Update active tab
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Show/hide tab content
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.getElementById(`${tabName}-tab`).classList.add('active');
+                
+                // Load tab data
+                if (tabName === 'databases') loadDatabases();
+                else if (tabName === 'tables') loadTables();
+                else if (tabName === 'stats') loadDatabaseStats();
+            });
+        });
+
+        // Get auth token
+        function getAuthToken() {
+            return sessionStorage.getItem('control_token');
+        }
+
+        // Fetch with auth
+        async function fetchWithAuth(url, options = {}) {
+            const token = getAuthToken();
+            if (!token) {
+                logout();
+                return null;
+            }
+            
+            const headers = {
+                'Content-Type': 'application/json',
+                'x-control-token': token,
+                ...options.headers
+            };
+            
+            const response = await fetch(url, {
+                ...options,
+                headers
+            });
+            
+            if (response.status === 401) {
+                logout();
+                return null;
+            }
+            
+            return response;
+        }
+
+        // Load section data
+        function loadSectionData(section) {
+            if (section === 'dashboard') {
+                loadDashboard();
+            } else if (section === 'database') {
+                loadDatabases();
+            } else if (section === 'owners') {
+                loadOwners();
+            } else if (section === 'users') {
+                loadUsers();
+            } else if (section === 'subscribers') {
+                loadSubscribers();
+            } else if (section === 'tickets') {
+                loadTickets();
+            } else if (section === 'teams') {
+                loadTeams();
+            }
+        }
+
+        // Load dashboard
+        async function loadDashboard() {
+            try {
+                const token = getAuthToken();
+                if (!token) {
+                    logout();
+                    return;
+                }
+                
+                const [statsRes, ownersRes, usersRes, subscribersRes] = await Promise.all([
+                    fetchWithAuth(`${API_BASE}/api/control/stats`),
+                    fetchWithAuth(`${API_BASE}/api/control/owners`),
+                    fetch(`${API_BASE}/api/users`),
+                    fetch(`${API_BASE}/api/subscribers/stats`)
+                ]);
+                
+                if (!statsRes || !ownersRes) return;
+                
+                const [stats, owners, users, subscribers] = await Promise.all([
+                    statsRes.json(),
+                    ownersRes.json(),
+                    usersRes.json(),
+                    subscribersRes.json()
+                ]);
+
+                document.getElementById('dbCount').textContent = stats.databases || 0;
+                document.getElementById('ownersCount').textContent = owners.length || 0;
+                document.getElementById('usersCount').textContent = users.length || 0;
+                document.getElementById('subscribersCount').textContent = subscribers.total || 0;
+
+                // Update chart
+                updateChart(stats);
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+
+        // Update chart
+        function updateChart(stats) {
+            const ctx = document.getElementById('statsChart').getContext('2d');
+            
+            if (statsChart) {
+                statsChart.destroy();
+            }
+
+            statsChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['قواعد البيانات', 'المالكين', 'المستخدمين', 'المشتركين'],
+                    datasets: [{
+                        label: 'الإحصائيات',
+                        data: [
+                            stats.databases || 0,
+                            stats.owners || 0,
+                            stats.users || 0,
+                            stats.subscribers || 0
+                        ],
+                        backgroundColor: [
+                            'rgba(102, 126, 234, 0.8)',
+                            'rgba(72, 187, 120, 0.8)',
+                            'rgba(237, 137, 54, 0.8)',
+                            'rgba(66, 153, 225, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Load databases
+        async function loadDatabases() {
+            try {
+                const response = await fetchWithAuth(`${API_BASE}/api/control/database/databases`);
+                if (!response) return;
+                const data = await response.json();
+                
+                const tbody = document.getElementById('databasesTableBody');
+                if (data.success && data.databases) {
+                    tbody.innerHTML = data.databases.map(db => `
+                        <tr>
+                            <td>${db.name}</td>
+                            <td><span class="badge badge-success">نشط</span></td>
+                            <td>${db.tables || 0}</td>
+                            <td>${db.size || 'N/A'}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="4" class="loading">لا توجد بيانات</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading databases:', error);
+                document.getElementById('databasesTableBody').innerHTML = '<tr><td colspan="4" class="loading">حدث خطأ في التحميل</td></tr>';
+            }
+        }
+
+        // Load tables
+        async function loadTables() {
+            try {
+                const response = await fetchWithAuth(`${API_BASE}/api/control/database/tables`);
+                if (!response) return;
+                const data = await response.json();
+                
+                const tbody = document.getElementById('tablesTableBody');
+                if (data.success && data.tables) {
+                    tbody.innerHTML = data.tables.map(table => `
+                        <tr>
+                            <td>${table.name}</td>
+                            <td>${table.database}</td>
+                            <td>${table.rows || 0}</td>
+                            <td>${table.size || 'N/A'}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="4" class="loading">لا توجد بيانات</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading tables:', error);
+                document.getElementById('tablesTableBody').innerHTML = '<tr><td colspan="4" class="loading">حدث خطأ في التحميل</td></tr>';
+            }
+        }
+
+        // Load database stats
+        async function loadDatabaseStats() {
+            try {
+                const response = await fetchWithAuth(`${API_BASE}/api/control/database/stats`);
+                if (!response) return;
+                const data = await response.json();
+                
+                const content = document.getElementById('dbStatsContent');
+                if (data.success) {
+                    content.innerHTML = `
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-card-header">
+                                    <span class="stat-card-title">إجمالي قواعد البيانات</span>
+                                    <div class="stat-card-icon primary">🗄️</div>
+                                </div>
+                                <div class="stat-card-value">${data.stats.totalDatabases || 0}</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-card-header">
+                                    <span class="stat-card-title">إجمالي الجداول</span>
+                                    <div class="stat-card-icon success">📊</div>
+                                </div>
+                                <div class="stat-card-value">${data.stats.totalTables || 0}</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-card-header">
+                                    <span class="stat-card-title">إجمالي الصفوف</span>
+                                    <div class="stat-card-icon warning">📈</div>
+                                </div>
+                                <div class="stat-card-value">${data.stats.totalRows || 0}</div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    content.innerHTML = '<div class="loading">لا توجد بيانات</div>';
+                }
+            } catch (error) {
+                console.error('Error loading database stats:', error);
+                document.getElementById('dbStatsContent').innerHTML = '<div class="loading">حدث خطأ في التحميل</div>';
+            }
+        }
+
+        // Load owners
+        async function loadOwners() {
+            try {
+                const response = await fetchWithAuth(`${API_BASE}/api/control/owners`);
+                if (!response) return;
+                const data = await response.json();
+                
+                const tbody = document.getElementById('ownersTableBody');
+                if (data.success && data.owners) {
+                    tbody.innerHTML = data.owners.map(owner => `
+                        <tr>
+                            <td>${owner.username}</td>
+                            <td>${owner.domain}</td>
+                            <td>${owner.database_name}</td>
+                            <td><span class="badge ${owner.is_active ? 'badge-success' : 'badge-danger'}">${owner.is_active ? 'نشط' : 'غير نشط'}</span></td>
+                            <td>
+                                <button class="btn btn-primary btn-sm">عرض</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" class="loading">لا توجد بيانات</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading owners:', error);
+                document.getElementById('ownersTableBody').innerHTML = '<tr><td colspan="5" class="loading">حدث خطأ في التحميل</td></tr>';
+            }
+        }
+
+        // Load users
+        async function loadUsers() {
+            try {
+                const response = await fetch(`${API_BASE}/api/users`);
+                const data = await response.json();
+                
+                const tbody = document.getElementById('usersTableBody');
+                if (Array.isArray(data) && data.length > 0) {
+                    tbody.innerHTML = data.map(user => `
+                        <tr>
+                            <td>${user.username || 'N/A'}</td>
+                            <td>${user.email || 'N/A'}</td>
+                            <td>${user.phone || 'N/A'}</td>
+                            <td><span class="badge badge-success">نشط</span></td>
+                            <td>
+                                <button class="btn btn-primary btn-sm">عرض</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" class="loading">لا توجد بيانات</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+                document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="5" class="loading">حدث خطأ في التحميل</td></tr>';
+            }
+        }
+
+        // Load subscribers
+        async function loadSubscribers() {
+            try {
+                const response = await fetch(`${API_BASE}/api/subscribers?limit=50`);
+                const data = await response.json();
+                
+                const tbody = document.getElementById('subscribersTableBody');
+                if (Array.isArray(data) && data.length > 0) {
+                    tbody.innerHTML = data.map(sub => `
+                        <tr>
+                            <td>${sub.accountId || 'N/A'}</td>
+                            <td>${sub.name || 'N/A'}</td>
+                            <td>${sub.phone || 'N/A'}</td>
+                            <td><span class="badge badge-success">نشط</span></td>
+                            <td>
+                                <button class="btn btn-primary btn-sm">عرض</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" class="loading">لا توجد بيانات</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading subscribers:', error);
+                document.getElementById('subscribersTableBody').innerHTML = '<tr><td colspan="5" class="loading">حدث خطأ في التحميل</td></tr>';
+            }
+        }
+
+        // Load tickets
+        async function loadTickets() {
+            try {
+                const response = await fetch(`${API_BASE}/api/tickets?limit=50`);
+                const data = await response.json();
+                
+                const tbody = document.getElementById('ticketsTableBody');
+                if (Array.isArray(data) && data.length > 0) {
+                    tbody.innerHTML = data.map(ticket => `
+                        <tr>
+                            <td>#${ticket.id || 'N/A'}</td>
+                            <td>${ticket.subject || 'N/A'}</td>
+                            <td><span class="badge badge-info">${ticket.status || 'مفتوح'}</span></td>
+                            <td>${ticket.team_name || 'N/A'}</td>
+                            <td>
+                                <button class="btn btn-primary btn-sm">عرض</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" class="loading">لا توجد بيانات</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading tickets:', error);
+                document.getElementById('ticketsTableBody').innerHTML = '<tr><td colspan="5" class="loading">حدث خطأ في التحميل</td></tr>';
+            }
+        }
+
+        // Load teams
+        async function loadTeams() {
+            try {
+                const response = await fetch(`${API_BASE}/api/teams`);
+                const data = await response.json();
+                
+                const tbody = document.getElementById('teamsTableBody');
+                if (Array.isArray(data) && data.length > 0) {
+                    tbody.innerHTML = data.map(team => `
+                        <tr>
+                            <td>${team.name || 'N/A'}</td>
+                            <td>${team.members_count || 0}</td>
+                            <td><span class="badge badge-success">نشط</span></td>
+                            <td>
+                                <button class="btn btn-primary btn-sm">عرض</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="4" class="loading">لا توجد بيانات</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading teams:', error);
+                document.getElementById('teamsTableBody').innerHTML = '<tr><td colspan="4" class="loading">حدث خطأ في التحميل</td></tr>';
+            }
+        }
+
+        // Logout
+        function logout() {
+            sessionStorage.removeItem('control_token');
+            sessionStorage.removeItem('control_login_time');
+            window.location.href = '/control-login.html';
+        }
+
+        // Initialize
+        loadDashboard();
+        setInterval(() => {
+            const lastUpdate = new Date().toLocaleString('ar-SA');
+            document.getElementById('lastUpdate').textContent = `آخر تحديث: ${lastUpdate}`;
+        }, 1000);
+    </script>
+</body>
+</html>
+
