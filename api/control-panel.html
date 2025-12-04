@@ -2455,8 +2455,7 @@
                                 </span>
                             </td>
                             <td>
-                                <span class="badge badge-success">${agent.subscribers_count || 0}</span>
-                                <br><small>مشترك</small>
+                                <span class="badge badge-success" style="white-space: nowrap;">${agent.subscribers_count || 0} مشترك</span>
                             </td>
                             <td>${(agent.user?.position && (agent.user.position.toLowerCase() === 'owner' || agent.user.position === 'المالك')) ? 'وكيل' : (agent.user?.position || 'غير محدد')}</td>
                             <td>
@@ -3042,7 +3041,7 @@
         
         function renderMessage(msg) {
             const date = new Date(msg.created_at);
-            const timeStr = date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+            const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
             const dateStr = date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
             const isDeleted = msg.message_type === 'deleted' || msg.message === 'تم حذف هذه الرسالة';
             const isAdmin = true; // Control panel user is always admin
