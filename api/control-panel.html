@@ -2450,7 +2450,7 @@
                             <td>${agent.user?.email || 'غير محدد'}</td>
                             <td>${agent.user?.phone || 'غير محدد'}</td>
                             <td>
-                                <span class="badge badge-info" style="cursor: pointer;" onclick="showAlwataniAccounts(${index})" title="اضغط لعرض حسابات الوطني">
+                                <span class="badge badge-info" style="cursor: pointer; white-space: nowrap;" onclick="showAlwataniAccounts(${index})" title="اضغط لعرض حسابات الوطني">
                                     ${agent.alwatani_accounts_count || 0} حساب
                                 </span>
                             </td>
@@ -2494,7 +2494,7 @@
                                         <div class="mobile-card-row">
                                             <div class="mobile-card-label">حساب الوطني</div>
                                             <div class="mobile-card-value">
-                                                <span class="badge badge-info" style="cursor: pointer;" onclick="showAlwataniAccounts(${index})" title="اضغط لعرض حسابات الوطني">
+                                                <span class="badge badge-info" style="cursor: pointer; white-space: nowrap;" onclick="showAlwataniAccounts(${index})" title="اضغط لعرض حسابات الوطني">
                                                     ${agent.alwatani_accounts_count || 0} حساب
                                                 </span>
                                             </div>
@@ -2502,7 +2502,7 @@
                                         <div class="mobile-card-row">
                                             <div class="mobile-card-label">عدد المشتركين</div>
                                             <div class="mobile-card-value">
-                                                <span class="badge badge-success">${agent.subscribers_count || 0}</span>
+                                                <span class="badge badge-success" style="white-space: nowrap;">${agent.subscribers_count || 0} مشترك</span>
                                             </div>
                                         </div>
                                         <div class="mobile-card-row">
@@ -3043,7 +3043,7 @@
         function renderMessage(msg) {
             const date = new Date(msg.created_at);
             const timeStr = date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
-            const dateStr = date.toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' });
+            const dateStr = date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
             const isDeleted = msg.message_type === 'deleted' || msg.message === 'تم حذف هذه الرسالة';
             const isAdmin = true; // Control panel user is always admin
             const canDelete = isAdmin || msg.sender_username === 'admin';
@@ -3330,7 +3330,7 @@
         // Initialize
         loadDashboard();
         setInterval(() => {
-            const lastUpdate = new Date().toLocaleString('ar-SA');
+            const lastUpdate = new Date().toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
             document.getElementById('lastUpdate').textContent = `آخر تحديث: ${lastUpdate}`;
         }, 1000);
     </script>
