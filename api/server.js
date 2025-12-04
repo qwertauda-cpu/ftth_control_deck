@@ -87,7 +87,32 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files
+// Block admin dashboard routes - return 404 immediately
+app.get('/admin-dashboard.html', (req, res) => {
+    res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
+});
+
+app.get('/admin-login.html', (req, res) => {
+    res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
+});
+
+app.get('/admin/login', (req, res) => {
+    res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
+});
+
+app.get('/admin/dashboard', (req, res) => {
+    res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
+});
+
+app.get('/admin', (req, res) => {
+    res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
+});
+
+app.get('/admin-link.html', (req, res) => {
+    res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
+});
+
+// Serve static files (but admin files are blocked above)
 app.use(express.static(path.join(__dirname), {
     index: false,
     extensions: ['html', 'htm']
