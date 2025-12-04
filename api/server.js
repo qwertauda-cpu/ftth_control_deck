@@ -7026,7 +7026,6 @@ app.get('/api/control/database/databases', requireControlAuth, async (req, res) 
                 db.Database.startsWith('ftth_') || 
                 db.Database === 'ftth_master' ||
                 db.Database === 'ftth_control_deck'
-            )
             );
         
         const databasesWithInfo = await Promise.all(databases.map(async (db) => {

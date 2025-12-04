@@ -1396,60 +1396,96 @@
                 height: calc(100vh - 200px);
             }
 
-            /* WhatsApp-like mobile chat design */
+            /* Mobile Chat Section - Complete Rewrite for Mobile Only */
             #chat-section {
-                position: relative;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
                 padding: 0;
                 margin: 0;
-                height: calc(100vh - 60px);
+                height: 100vh;
+                width: 100vw;
                 overflow: hidden;
+                background: var(--mdc-background);
+                z-index: 100;
             }
 
             #chat-section .section-title {
                 display: none;
             }
 
-            #chat-section > div:first-child {
-                display: none;
-            }
-
-            #chatMainContainer {
-                display: block !important;
-                grid-template-columns: 1fr !important;
-                height: 100% !important;
-                gap: 0 !important;
-                position: relative;
-            }
-
-            .chat-rooms-sidebar {
-                width: 100% !important;
-                height: 100% !important;
-                border-bottom: none;
-                border-left: none;
-                border-radius: 0;
-                padding: 0;
-                overflow-y: auto;
-                -webkit-overflow-scrolling: touch;
-                background: var(--mdc-background);
+            .mobile-chat-view {
+                width: 100%;
+                height: 100%;
                 display: flex;
                 flex-direction: column;
+                background: var(--mdc-background);
             }
 
-            .chat-rooms-sidebar > div:first-child {
-                padding: 16px;
+            .mobile-chat-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 12px 16px;
                 background: var(--mdc-surface);
                 border-bottom: 1px solid var(--mdc-divider);
                 position: sticky;
                 top: 0;
-                z-index: 5;
-                flex-shrink: 0;
+                z-index: 10;
+                min-height: 56px;
             }
 
-            #chatRoomsList {
+            .mobile-chat-create-btn {
+                background: var(--mdc-primary);
+                color: white;
+                border: none;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+                cursor: pointer;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                transition: all 0.2s;
+            }
+
+            .mobile-chat-create-btn:active {
+                transform: scale(0.95);
+            }
+
+            .mobile-chat-back-btn {
+                background: none;
+                border: none;
+                color: var(--mdc-primary);
+                font-size: 24px;
+                cursor: pointer;
                 padding: 8px;
+                min-width: 40px;
+                min-height: 40px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                -webkit-tap-highlight-color: transparent;
+            }
+
+            .mobile-chat-room-title {
+                flex: 1;
+                font-size: 18px;
+                font-weight: 500;
+                color: var(--mdc-on-surface);
+                text-align: center;
+                padding: 0 8px;
+            }
+
+            .mobile-chat-rooms-list {
                 flex: 1;
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
+                padding: 8px;
             }
 
             .chat-room-item {
@@ -1460,7 +1496,7 @@
                 background: var(--mdc-surface);
                 border: 1px solid var(--mdc-divider);
                 cursor: pointer;
-                -webkit-tap-highlight-color: rgba(33, 150, 243, 0.2);
+                -webkit-tap-highlight-color: rgba(33, 150, 243, 0.1);
                 user-select: none;
                 transition: all 0.2s ease;
                 box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -1502,74 +1538,15 @@
                 color: var(--mdc-on-surface-secondary);
             }
 
-            .chat-rooms-sidebar.mobile-hidden {
-                display: none !important;
-            }
-
-            .chat-messages-container {
-                width: 100% !important;
-                height: 100% !important;
-                display: none !important;
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                flex-direction: column;
-                border-radius: 0;
-                padding: 0;
-                background: var(--mdc-background);
-                z-index: 10;
-            }
-
-            .chat-messages-container.mobile-visible {
-                display: flex !important;
-            }
-
-            .chat-messages-header {
-                display: flex;
-                align-items: center;
-                padding: 12px 16px;
-                background: var(--mdc-surface);
-                border-bottom: 1px solid var(--mdc-divider);
-                position: sticky;
-                top: 0;
-                z-index: 10;
-            }
-
-            .chat-back-btn {
-                background: none;
-                border: none;
-                color: var(--mdc-primary);
-                font-size: 24px;
-                cursor: pointer;
-                padding: 8px;
-                margin-right: 12px;
-                min-width: 40px;
-                min-height: 40px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .chat-messages-title {
-                flex: 1;
-                font-size: 18px;
-                font-weight: 500;
-                color: var(--mdc-on-surface);
-            }
-
-            .chat-messages-area {
+            .mobile-chat-messages-area {
                 flex: 1;
                 overflow-y: auto;
                 padding: 16px;
                 -webkit-overflow-scrolling: touch;
-                margin-bottom: 0;
                 min-height: 0;
-                max-height: none;
             }
 
-            .chat-input-area {
+            .mobile-chat-input-area {
                 padding: 12px;
                 background: var(--mdc-surface);
                 border-top: 1px solid var(--mdc-divider);
@@ -1577,20 +1554,56 @@
                 bottom: 0;
             }
 
-            #chat-section .section-title {
-                display: none;
+            .mobile-chat-image-btn {
+                background: var(--mdc-surface-variant);
+                color: var(--mdc-on-surface-variant);
+                border: none;
+                border-radius: 50%;
+                width: 44px;
+                height: 44px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+                cursor: pointer;
+                flex-shrink: 0;
+                -webkit-tap-highlight-color: transparent;
             }
 
-            #chat-section > div:first-child {
-                display: none;
+            .mobile-chat-input {
+                flex: 1;
+                padding: 12px 16px;
+                background: var(--mdc-surface-variant);
+                border: 1px solid var(--mdc-divider);
+                border-radius: 24px;
+                color: var(--mdc-on-surface);
+                font-size: 16px;
+                outline: none;
             }
 
-            #createChatRoomBtn {
-                display: none;
+            .mobile-chat-input:focus {
+                border-color: var(--mdc-primary);
             }
 
-            #createChatRoomBtnMobile {
-                display: flex !important;
+            .mobile-chat-send-btn {
+                background: var(--mdc-primary);
+                color: white;
+                border: none;
+                border-radius: 50%;
+                width: 44px;
+                height: 44px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+                cursor: pointer;
+                flex-shrink: 0;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                transition: all 0.2s;
+            }
+
+            .mobile-chat-send-btn:active {
+                transform: scale(0.95);
             }
 
             .chat-room-item {
@@ -2034,51 +2047,46 @@
                 </div>
             </div>
 
-            <!-- Chat Section -->
+            <!-- Chat Section - Mobile Only -->
             <div id="chat-section" class="content-section hidden">
-                <div class="section-title">إدارة المحادثات</div>
-                <div style="display: flex; gap: 20px; margin-bottom: 20px;">
-                    <button id="createChatRoomBtn" class="btn btn-primary" onclick="showCreateChatModal()">
-                        ➕ إنشاء محادثة جديدة
-                    </button>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; height: calc(100vh - 250px);" id="chatMainContainer">
-                    <div class="chat-rooms-sidebar" id="chatRoomsSidebar">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3 style="color: var(--mdc-on-surface); font-weight: 500; margin: 0;">المحادثات</h3>
-                            <button id="createChatRoomBtnMobile" class="btn btn-primary btn-sm" onclick="showCreateChatModal()" style="display: none;">
-                                ➕
-                            </button>
-                        </div>
-                        <div id="chatRoomsList">
-                            <div class="loading">جاري التحميل...</div>
-                        </div>
+                <!-- Chat Rooms List View (Default on Mobile) -->
+                <div id="chatRoomsView" class="mobile-chat-view">
+                    <div class="mobile-chat-header">
+                        <h2 style="margin: 0; color: var(--mdc-on-surface); font-size: 20px; font-weight: 500;">المحادثات</h2>
+                        <button class="mobile-chat-create-btn" onclick="showCreateChatModal()" title="إنشاء محادثة جديدة">
+                            ➕
+                        </button>
                     </div>
-                    <div class="chat-messages-container" id="chatMessagesContainer">
-                        <div class="chat-messages-header" id="chatMessagesHeader" style="display: none;">
-                            <button class="chat-back-btn" onclick="backToChatList()" title="رجوع">←</button>
-                            <div class="chat-messages-title" id="chatMessagesTitle">المحادثة</div>
-                            <div class="chat-messages-title" id="currentChatRoomName" style="display: none;">المحادثة</div>
-                        </div>
-                        <div id="chatMessagesArea" class="chat-messages-area">
-                            <div style="text-align: center; color: var(--mdc-on-surface-secondary); padding: 40px;">اختر محادثة لعرض الرسائل</div>
-                        </div>
-                        <div id="chatInputArea" style="display: none;">
-                            <div id="chatImagePreview" style="display: none; margin-bottom: 10px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <img id="chatImagePreviewImg" src="" alt="Preview" style="max-width: 100px; max-height: 100px; border-radius: 4px;">
-                                    <span id="chatImagePreviewName" style="color: var(--mdc-on-surface); flex: 1;"></span>
-                                    <button class="btn btn-sm" onclick="removeChatImage()" style="background: var(--mdc-error); color: white; padding: 4px 8px;">✕</button>
-                                </div>
+                    <div id="chatRoomsList" class="mobile-chat-rooms-list">
+                        <div class="loading">جاري التحميل...</div>
+                    </div>
+                </div>
+
+                <!-- Chat Messages View (Shown when room is selected) -->
+                <div id="chatMessagesView" class="mobile-chat-view" style="display: none;">
+                    <div class="mobile-chat-header">
+                        <button class="mobile-chat-back-btn" onclick="backToChatList()" title="رجوع">←</button>
+                        <div class="mobile-chat-room-title" id="chatMessagesTitle">المحادثة</div>
+                        <div style="width: 40px;"></div> <!-- Spacer for alignment -->
+                    </div>
+                    <div id="chatMessagesArea" class="mobile-chat-messages-area">
+                        <div style="text-align: center; color: var(--mdc-on-surface-secondary); padding: 40px;">جاري التحميل...</div>
+                    </div>
+                    <div id="chatInputArea" class="mobile-chat-input-area" style="display: none;">
+                        <div id="chatImagePreview" style="display: none; margin-bottom: 10px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <img id="chatImagePreviewImg" src="" alt="Preview" style="max-width: 100px; max-height: 100px; border-radius: 4px;">
+                                <span id="chatImagePreviewName" style="color: var(--mdc-on-surface); flex: 1; font-size: 12px;"></span>
+                                <button class="btn btn-sm" onclick="removeChatImage()" style="background: var(--mdc-error); color: white; padding: 4px 8px; min-width: 32px;">✕</button>
                             </div>
-                            <div style="display: flex; gap: 10px;">
-                                <label for="chatImageInput" class="btn btn-sm" style="background: var(--mdc-surface-variant); color: var(--mdc-on-surface-variant); cursor: pointer; padding: 10px 16px; display: flex; align-items: center; gap: 8px;">
-                                    📷
-                                </label>
-                                <input type="file" id="chatImageInput" accept="image/*" style="display: none;" onchange="handleChatImageSelect(event)">
-                                <input type="text" id="chatMessageInput" class="chat-input" placeholder="اكتب رسالتك...">
-                                <button class="btn btn-primary" onclick="sendChatMessage()">إرسال</button>
-                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <label for="chatImageInput" class="mobile-chat-image-btn" title="إرسال صورة">
+                                📷
+                            </label>
+                            <input type="file" id="chatImageInput" accept="image/*" style="display: none;" onchange="handleChatImageSelect(event)">
+                            <input type="text" id="chatMessageInput" class="mobile-chat-input" placeholder="اكتب رسالتك..." autocomplete="off">
+                            <button class="mobile-chat-send-btn" onclick="sendChatMessage()" title="إرسال">➤</button>
                         </div>
                     </div>
                 </div>
@@ -3260,7 +3268,6 @@
         }
 
         async function selectChatRoom(roomId) {
-            console.log('selectChatRoom called with roomId:', roomId);
             currentChatRoomId = roomId;
             
             // Highlight selected room
@@ -3272,35 +3279,22 @@
                 selectedRoom.classList.add('active');
             }
             
-            // Mobile: Switch to messages view
-            if (window.innerWidth <= 768) {
-                console.log('Mobile view detected, switching to messages');
-                const sidebar = document.getElementById('chatRoomsSidebar');
-                const messagesContainer = document.getElementById('chatMessagesContainer');
-                const messagesHeader = document.getElementById('chatMessagesHeader');
-                const chatMessagesTitle = document.getElementById('chatMessagesTitle');
+            // Switch to messages view (mobile only)
+            const roomsView = document.getElementById('chatRoomsView');
+            const messagesView = document.getElementById('chatMessagesView');
+            const chatMessagesTitle = document.getElementById('chatMessagesTitle');
+            
+            if (roomsView && messagesView) {
+                // Hide rooms list
+                roomsView.style.display = 'none';
                 
-                if (sidebar && messagesContainer) {
-                    // Hide sidebar
-                    sidebar.style.display = 'none';
-                    sidebar.classList.add('mobile-hidden');
-                    
-                    // Show messages container
-                    messagesContainer.style.display = 'flex';
-                    messagesContainer.classList.add('mobile-visible');
-                    
-                    // Set chat room name in header
-                    if (selectedRoom && chatMessagesTitle) {
-                        const roomName = selectedRoom.querySelector('.chat-room-name')?.textContent || 'المحادثة';
-                        chatMessagesTitle.textContent = roomName;
-                    }
-                    
-                    // Show header
-                    if (messagesHeader) {
-                        messagesHeader.style.display = 'flex';
-                    }
-                } else {
-                    console.error('Sidebar or messages container not found:', { sidebar, messagesContainer });
+                // Show messages view
+                messagesView.style.display = 'flex';
+                
+                // Set chat room name in header
+                if (selectedRoom && chatMessagesTitle) {
+                    const roomName = selectedRoom.querySelector('.chat-room-name')?.textContent || 'المحادثة';
+                    chatMessagesTitle.textContent = roomName;
                 }
             }
             
@@ -3323,31 +3317,30 @@
             chatPollInterval = setInterval(() => loadChatMessages(roomId), 3000);
         }
 
-        // Back to chat list (mobile)
+        // Back to chat list (mobile only)
         function backToChatList() {
-            if (window.innerWidth <= 768) {
-                const sidebar = document.getElementById('chatRoomsSidebar');
-                const messagesContainer = document.getElementById('chatMessagesContainer');
-                const messagesHeader = document.getElementById('chatMessagesHeader');
+            const roomsView = document.getElementById('chatRoomsView');
+            const messagesView = document.getElementById('chatMessagesView');
+            
+            if (roomsView && messagesView) {
+                // Show rooms list
+                roomsView.style.display = 'flex';
                 
-                if (sidebar && messagesContainer) {
-                    sidebar.classList.remove('mobile-hidden');
-                    messagesContainer.classList.remove('mobile-visible');
-                    
-                    if (messagesHeader) {
-                        messagesHeader.style.display = 'none';
-                    }
-                }
-                
-                // Clear current room
-                currentChatRoomId = null;
-                document.getElementById('chatInputArea').style.display = 'none';
-                
-                // Stop polling
-                if (chatPollInterval) {
-                    clearInterval(chatPollInterval);
-                    chatPollInterval = null;
-                }
+                // Hide messages view
+                messagesView.style.display = 'none';
+            }
+            
+            // Clear current room
+            currentChatRoomId = null;
+            const chatInputArea = document.getElementById('chatInputArea');
+            if (chatInputArea) {
+                chatInputArea.style.display = 'none';
+            }
+            
+            // Stop polling
+            if (chatPollInterval) {
+                clearInterval(chatPollInterval);
+                chatPollInterval = null;
             }
         }
 
