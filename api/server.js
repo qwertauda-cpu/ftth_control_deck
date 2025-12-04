@@ -139,14 +139,18 @@ app.get('/admin-login.html', (req, res) => {
     });
 });
 
-app.get('/admin-dashboard.html', (req, res) => {
+app.get('/admin-dashboard.html', (req, res, next) => {
     console.log('[ADMIN] 🎯 ROUTE HANDLER CALLED: /admin-dashboard.html');
+    console.log('[ADMIN] Request path:', req.path);
+    console.log('[ADMIN] Request method:', req.method);
+    
     const filePath = path.join(__dirname, 'admin-dashboard.html');
+    console.log('[ADMIN] File path:', filePath);
+    console.log('[ADMIN] __dirname:', __dirname);
     
     // Check if file exists
     if (!fs.existsSync(filePath)) {
         console.error('[ADMIN] ❌ File does not exist:', filePath);
-        console.error('[ADMIN] ❌ __dirname:', __dirname);
         return res.status(404).send(`
             <!DOCTYPE html>
             <html lang="ar" dir="rtl">
@@ -159,6 +163,8 @@ app.get('/admin-dashboard.html', (req, res) => {
             </html>
         `);
     }
+    
+    console.log('[ADMIN] ✅ File exists, sending...');
     
     // Send file
     res.sendFile(filePath, (err) => {
