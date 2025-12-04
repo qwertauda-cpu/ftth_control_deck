@@ -60,17 +60,18 @@
         /* Mobile Optimizations */
         @media (max-width: 768px) {
             * {
-                -webkit-tap-highlight-color: transparent;
+                -webkit-tap-highlight-color: rgba(59, 130, 246, 0.1);
             }
             
             body {
                 overflow-x: hidden;
                 -webkit-font-smoothing: antialiased;
+                background: linear-gradient(to bottom, #f9fafb 0%, #f3f4f6 100%);
             }
             
             .container {
-                padding-left: 0.75rem;
-                padding-right: 0.75rem;
+                padding-left: 1rem;
+                padding-right: 1rem;
             }
             
             /* Header adjustments */
@@ -78,7 +79,8 @@
                 position: sticky;
                 top: 0;
                 z-index: 40;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                backdrop-filter: blur(10px);
             }
             
             header .container {
@@ -88,8 +90,9 @@
             }
             
             header h1 {
-                font-size: 1.1rem;
+                font-size: 1.15rem;
                 line-height: 1.3;
+                font-weight: 700;
             }
             
             header p {
@@ -106,21 +109,29 @@
             /* Statistics cards - stack vertically on mobile */
             .grid {
                 grid-template-columns: 1fr !important;
-                gap: 0.75rem !important;
+                gap: 1rem !important;
             }
             
             .stat-card {
                 margin-bottom: 0;
-                padding: 1rem !important;
+                padding: 1.25rem !important;
+                border-radius: 1rem;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+                transition: all 0.3s ease;
+            }
+            
+            .stat-card:active {
+                transform: scale(0.98);
             }
             
             .stat-card .text-3xl {
-                font-size: 1.75rem;
+                font-size: 1.875rem;
+                font-weight: 700;
             }
             
             .stat-card .w-12 {
-                width: 2.5rem;
-                height: 2.5rem;
+                width: 3rem;
+                height: 3rem;
             }
             
             /* Hide table on mobile, show cards instead */
@@ -134,58 +145,96 @@
             }
             
             .owner-card {
-                background: white;
+                background: linear-gradient(to bottom, #ffffff 0%, #fafafa 100%);
                 border: 1px solid #e5e7eb;
-                border-radius: 0.75rem;
-                padding: 1rem;
-                margin-bottom: 0.75rem;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                border-radius: 1rem;
+                padding: 1.25rem;
+                margin-bottom: 1rem;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .owner-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                right: 0;
+                width: 4px;
+                height: 100%;
+                background: linear-gradient(to bottom, #3b82f6, #8b5cf6);
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            }
+            
+            .owner-card:active {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+            }
+            
+            .owner-card:active::before {
+                opacity: 1;
             }
             
             .owner-card-header {
                 display: flex;
                 justify-content: space-between;
-                align-items: center;
-                margin-bottom: 0.75rem;
-                padding-bottom: 0.75rem;
-                border-bottom: 1px solid #e5e7eb;
+                align-items: flex-start;
+                margin-bottom: 1rem;
+                padding-bottom: 1rem;
+                border-bottom: 2px solid #f3f4f6;
             }
             
             .owner-card-title {
-                font-size: 1rem;
-                font-weight: bold;
+                font-size: 1.1rem;
+                font-weight: 700;
                 color: #1f2937;
+                line-height: 1.4;
             }
             
             .owner-card-badge {
                 display: inline-flex;
                 align-items: center;
-                padding: 0.25rem 0.75rem;
+                padding: 0.375rem 0.875rem;
                 border-radius: 9999px;
                 font-size: 0.75rem;
-                font-weight: 600;
+                font-weight: 700;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             }
             
             .owner-card-body {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
-                gap: 0.75rem;
+                gap: 1rem;
             }
             
             .owner-card-item {
                 display: flex;
                 flex-direction: column;
+                padding: 0.75rem;
+                background: #f9fafb;
+                border-radius: 0.75rem;
+                transition: all 0.2s ease;
+            }
+            
+            .owner-card-item:active {
+                background: #f3f4f6;
+                transform: scale(0.98);
             }
             
             .owner-card-label {
                 font-size: 0.7rem;
                 color: #6b7280;
-                margin-bottom: 0.25rem;
+                margin-bottom: 0.5rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
             }
             
             .owner-card-value {
-                font-size: 0.875rem;
-                font-weight: 600;
+                font-size: 0.95rem;
+                font-weight: 700;
                 color: #1f2937;
             }
             
@@ -196,6 +245,49 @@
             /* Table container - hidden on mobile */
             .overflow-x-auto {
                 display: none;
+            }
+            
+            /* Better button styles */
+            button {
+                border-radius: 0.75rem;
+                font-weight: 600;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+                transition: all 0.2s ease;
+            }
+            
+            button:active {
+                transform: scale(0.96);
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            
+            /* Section titles */
+            h2 {
+                font-weight: 700;
+                letter-spacing: -0.5px;
+            }
+            
+            /* Loading spinner */
+            .loading-spinner {
+                border-width: 3px;
+            }
+            
+            /* Better spacing */
+            .p-6 {
+                padding: 1.25rem;
+            }
+            
+            .mb-6 {
+                margin-bottom: 1.5rem;
+            }
+            
+            .mb-4 {
+                margin-bottom: 1.25rem;
+            }
+            
+            /* Cards section */
+            .bg-white {
+                border-radius: 1rem;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.08);
             }
             
             /* Buttons - better mobile UX */
@@ -324,19 +416,28 @@
         /* Small phones */
         @media (max-width: 480px) {
             .owner-card {
-                padding: 0.875rem;
+                padding: 1rem;
+                border-radius: 0.875rem;
             }
             
             .owner-card-title {
-                font-size: 0.95rem;
+                font-size: 1rem;
+            }
+            
+            .owner-card-body {
+                gap: 0.875rem;
+            }
+            
+            .owner-card-item {
+                padding: 0.625rem;
             }
             
             .text-3xl {
-                font-size: 1.5rem;
+                font-size: 1.75rem;
             }
             
             header h1 {
-                font-size: 1rem;
+                font-size: 1.05rem;
             }
             
             header p {
@@ -344,36 +445,45 @@
             }
             
             .stat-card {
-                padding: 0.875rem !important;
+                padding: 1.125rem !important;
             }
             
             .stat-card .text-3xl {
-                font-size: 1.5rem;
+                font-size: 1.75rem;
             }
             
             button {
-                font-size: 0.8rem;
-                padding: 0.5rem 0.875rem;
+                font-size: 0.875rem;
+                padding: 0.625rem 1rem;
             }
         }
         
         /* Very small phones */
         @media (max-width: 360px) {
             .owner-card {
-                padding: 0.75rem;
+                padding: 0.875rem;
+                border-radius: 0.75rem;
             }
             
             .owner-card-body {
                 grid-template-columns: 1fr;
-                gap: 0.5rem;
+                gap: 0.75rem;
+            }
+            
+            .owner-card-item {
+                padding: 0.625rem;
             }
             
             .text-3xl {
-                font-size: 1.25rem;
+                font-size: 1.5rem;
             }
             
             .stat-card {
-                padding: 0.75rem !important;
+                padding: 1rem !important;
+            }
+            
+            .stat-card .text-3xl {
+                font-size: 1.5rem;
             }
         }
         
@@ -568,6 +678,11 @@
                         </tbody>
                     </table>
                 </div>
+                
+                <!-- Mobile Cards Container -->
+                <div id="owners-mobile-cards" class="md:hidden space-y-3">
+                    <!-- Mobile cards will be loaded here -->
+                </div>
             </div>
 
             <!-- Manager Insights Section -->
@@ -680,9 +795,11 @@
             const loadingDiv = document.getElementById('owners-loading');
             const container = document.getElementById('owners-table-container');
             const tbody = document.getElementById('owners-table-body');
+            const mobileCards = document.getElementById('owners-mobile-cards');
             
             loadingDiv.classList.remove('hidden');
             container.classList.add('hidden');
+            if (mobileCards) mobileCards.innerHTML = '';
             tbody.innerHTML = '';
             
             try {
@@ -705,9 +822,17 @@
                                 </td>
                             </tr>
                         `;
+                        if (mobileCards) {
+                            mobileCards.innerHTML = `
+                                <div class="text-center py-8 text-gray-500 text-sm">
+                                    لا يوجد وكلاء مسجلين في النظام
+                                </div>
+                            `;
+                        }
                         return;
                     }
                     
+                    // Render table rows (desktop)
                     data.owners.forEach((owner, index) => {
                         const row = document.createElement('tr');
                         row.className = 'table-row';
@@ -734,6 +859,67 @@
                         tbody.appendChild(row);
                     });
                     
+                    // Render mobile cards
+                    if (mobileCards) {
+                        mobileCards.innerHTML = '';
+                        data.owners.forEach((owner, index) => {
+                            const card = document.createElement('div');
+                            card.className = 'owner-card';
+                            const passwordId = `mobile-owner-password-${owner.id}`;
+                            const toggleId = `mobile-owner-toggle-${owner.id}`;
+                            card.innerHTML = `
+                                <div class="owner-card-header">
+                                    <div class="owner-card-title">${owner.agent_name}</div>
+                                    <span class="owner-card-badge ${owner.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                        ${owner.status}
+                                    </span>
+                                </div>
+                                <div class="owner-card-body">
+                                    <div class="owner-card-item">
+                                        <div class="owner-card-label">رقم الهاتف</div>
+                                        <div class="owner-card-value font-mono">${owner.phone}</div>
+                                    </div>
+                                    <div class="owner-card-item">
+                                        <div class="owner-card-label">عدد صفحات الوطني</div>
+                                        <div class="owner-card-value">
+                                            <button onclick="showAlwataniPages(${owner.id}, '${owner.agent_name}', ${owner.alwatani_pages_count})" 
+                                                    class="px-3 py-1 bg-purple-100 text-purple-800 rounded-full font-semibold text-sm">
+                                                ${owner.alwatani_pages_count}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="owner-card-item">
+                                        <div class="owner-card-label">عدد الأيام</div>
+                                        <div class="owner-card-value">
+                                            <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">${owner.days_used} يوم</span>
+                                        </div>
+                                    </div>
+                                    <div class="owner-card-item">
+                                        <div class="owner-card-label">اسم المستخدم</div>
+                                        <div class="owner-card-value font-mono text-sm">${owner.username}</div>
+                                    </div>
+                                    <div class="owner-card-item owner-card-full">
+                                        <div class="owner-card-label">كلمة مرور الحساب</div>
+                                        <div class="flex items-center gap-2 mt-1">
+                                            <div id="${passwordId}" class="flex-1 px-3 py-2 bg-gray-100 rounded-lg font-mono text-sm text-center">
+                                                ${'*'.repeat(owner.password ? owner.password.length : 8)}
+                                            </div>
+                                            <button id="${toggleId}" onclick="toggleOwnerPasswordMobile(${owner.id}, ${JSON.stringify(owner.password || '')})" 
+                                                    class="px-3 py-2 bg-blue-500 text-white rounded-lg text-xs font-semibold">
+                                                إظهار
+                                            </button>
+                                            <button onclick="copyOwnerPasswordMobile(${JSON.stringify(owner.password || '')})" 
+                                                    class="px-3 py-2 bg-green-500 text-white rounded-lg text-xs font-semibold">
+                                                نسخ
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            mobileCards.appendChild(card);
+                        });
+                    }
+                    
                     // Update statistics
                     updateStatistics(data.owners);
                 } else {
@@ -746,7 +932,6 @@
                             </td>
                         </tr>
                     `;
-                    const mobileCards = document.getElementById('owners-mobile-cards');
                     if (mobileCards) {
                         mobileCards.innerHTML = `
                             <div class="text-center py-8 text-red-500 text-sm">
@@ -766,7 +951,6 @@
                         </td>
                     </tr>
                 `;
-                const mobileCards = document.getElementById('owners-mobile-cards');
                 if (mobileCards) {
                     mobileCards.innerHTML = `
                         <div class="text-center py-8 text-red-500 text-sm">
@@ -797,6 +981,32 @@
                     passwordElement.classList.add('bg-gray-100');
                 }
             }
+        }
+        
+        // Copy owner password (Mobile)
+        function copyOwnerPasswordMobile(password) {
+            if (!password) {
+                alert('لا توجد كلمة مرور للنسخ');
+                return;
+            }
+            
+            navigator.clipboard.writeText(password).then(() => {
+                // Show temporary success message
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = 'تم النسخ!';
+                button.classList.remove('bg-green-500');
+                button.classList.add('bg-green-600');
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.classList.remove('bg-green-600');
+                    button.classList.add('bg-green-500');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy password:', err);
+                alert('فشل نسخ كلمة المرور');
+            });
         }
 
         // Update statistics
