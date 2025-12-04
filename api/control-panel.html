@@ -2852,6 +2852,23 @@
             content.innerHTML = html;
         }
 
+        // Prevent body scroll when modal is open on mobile
+        function preventBodyScroll() {
+            if (window.innerWidth <= 768) {
+                document.body.style.overflow = 'hidden';
+                document.body.style.position = 'fixed';
+                document.body.style.width = '100%';
+            }
+        }
+
+        function allowBodyScroll() {
+            if (window.innerWidth <= 768) {
+                document.body.style.overflow = '';
+                document.body.style.position = '';
+                document.body.style.width = '';
+            }
+        }
+
         // Close agent details modal
         function closeAgentDetailsModal() {
             document.getElementById('agentDetailsModal').style.display = 'none';
