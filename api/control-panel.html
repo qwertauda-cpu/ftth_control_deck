@@ -2701,6 +2701,13 @@
                     }
                     loadFlowchartList();
                 }, 200);
+            } else if (section === 'employees') {
+                loadEmployees();
+            } else if (section === 'invoices') {
+                loadInvoices();
+                loadOwnersForInvoice();
+            } else if (section === 'accounts') {
+                loadAccounts();
             }
         }
 
