@@ -1557,7 +1557,7 @@
                                 <span class="badge badge-success">${agent.subscribers_count || 0}</span>
                                 <br><small>مشترك</small>
                             </td>
-                            <td>${agent.user?.position || 'غير محدد'}</td>
+                            <td>${agent.user?.position === 'owner' ? 'وكيل' : (agent.user?.position || 'غير محدد')}</td>
                             <td>
                                 <button class="btn btn-primary btn-sm" onclick="viewAgentDetails(${index})" data-agent-index="${index}">عرض</button>
                             </td>
