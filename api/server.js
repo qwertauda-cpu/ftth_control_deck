@@ -52,6 +52,15 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve admin HTML files directly
+app.get('/admin-login.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin-login.html'));
+});
+
+app.get('/admin-dashboard.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin-dashboard.html'));
+});
+
 // Serve static files (HTML files in api directory)
 app.use(express.static(path.join(__dirname)));
 
