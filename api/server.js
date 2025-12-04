@@ -201,60 +201,6 @@ app.get('/admin-login.html', (req, res) => {
     });
 });
 
-app.get('/admin-dashboard.html', (req, res) => {
-    console.log('[ADMIN] ========================================');
-    console.log('[ADMIN] 🎯 ROUTE HANDLER CALLED: /admin-dashboard.html');
-    console.log('[ADMIN] Request path:', req.path);
-    console.log('[ADMIN] Request method:', req.method);
-    console.log('[ADMIN] Request URL:', req.url);
-    console.log('[ADMIN] Request originalUrl:', req.originalUrl);
-    
-    const filePath = path.join(__dirname, 'admin-dashboard.html');
-    console.log('[ADMIN] File path:', filePath);
-    console.log('[ADMIN] __dirname:', __dirname);
-    
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-        console.error('[ADMIN] ❌ File does not exist:', filePath);
-        return res.status(404).send(`
-            <!DOCTYPE html>
-            <html lang="ar" dir="rtl">
-            <head><meta charset="UTF-8"><title>خطأ</title></head>
-            <body>
-                <h1>خطأ: الملف غير موجود</h1>
-                <p>المسار: ${filePath}</p>
-                <p>__dirname: ${__dirname}</p>
-            </body>
-            </html>
-        `);
-    }
-    
-    console.log('[ADMIN] ✅ File exists, sending...');
-    
-    // Send file - use absolute path
-    res.sendFile(filePath, (err) => {
-        if (err) {
-            console.error('[ADMIN] ❌ Error serving admin-dashboard.html:', err);
-            if (!res.headersSent) {
-                res.status(500).send(`
-                    <!DOCTYPE html>
-                    <html lang="ar" dir="rtl">
-                    <head><meta charset="UTF-8"><title>خطأ</title></head>
-                    <body>
-                        <h1>خطأ في تحميل الصفحة</h1>
-                        <p>${err.message}</p>
-                        <p>الملف: ${filePath}</p>
-                    </body>
-                    </html>
-                `);
-            }
-        } else {
-            console.log('[ADMIN] ✅ Successfully served admin-dashboard.html');
-            console.log('[ADMIN] ========================================');
-        }
-    });
-});
-
 // Also serve at root paths
 app.get('/admin/login', (req, res) => {
     res.redirect('/admin-login.html');
