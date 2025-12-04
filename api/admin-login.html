@@ -47,10 +47,25 @@
         async function handleLogin(e) {
             e.preventDefault();
             
-            const password = document.getElementById('password').value;
+            const passwordInput = document.getElementById('password');
+            const password = passwordInput.value;
             const errorDiv = document.getElementById('error-message');
+            const submitButton = e.target.querySelector('button[type="submit"]');
             
+            // إخفاء رسالة الخطأ
             errorDiv.classList.add('hidden');
+            
+            // التحقق من وجود كلمة المرور
+            if (!password || password.trim() === '') {
+                errorDiv.textContent = 'يرجى إدخال كلمة المرور';
+                errorDiv.classList.remove('hidden');
+                passwordInput.focus();
+                return;
+            }
+            
+            // تعطيل الزر أثناء الإرسال
+            submitButton.disabled = true;
+            submitButton.textContent = 'جاري التحقق...';
             
             try {
                 const response = await fetch(`${API_URL}/api/admin/login`, {
@@ -58,24 +73,59 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ password })
+                    body: JSON.stringify({ password: password.trim() })
                 });
                 
                 const data = await response.json();
                 
                 if (data.success) {
+                    // حفظ التوكن
                     localStorage.setItem('admin_token', data.token);
-                    window.location.href = '/admin-dashboard.html';
+                    
+                    // رسالة نجاح
+                    errorDiv.className = 'bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm';
+                    errorDiv.textContent = '✅ تم تسجيل الدخول بنجاح، جاري التوجيه...';
+                    errorDiv.classList.remove('hidden');
+                    
+                    // توجيه بعد ثانية
+                    setTimeout(() => {
+                        window.location.href = '/admin-dashboard.html';
+                    }, 500);
                 } else {
+                    // عرض رسالة الخطأ
+                    errorDiv.className = 'bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm';
                     errorDiv.textContent = data.error || 'كلمة المرور غير صحيحة';
                     errorDiv.classList.remove('hidden');
+                    
+                    // تفعيل الزر مرة أخرى
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'تسجيل الدخول';
+                    
+                    // التركيز على حقل كلمة المرور
+                    passwordInput.focus();
+                    passwordInput.select();
                 }
             } catch (error) {
-                errorDiv.textContent = 'حدث خطأ أثناء الاتصال بالسيرفر';
+                console.error('Login error:', error);
+                errorDiv.className = 'bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm';
+                errorDiv.textContent = 'حدث خطأ أثناء الاتصال بالسيرفر. يرجى المحاولة مرة أخرى.';
                 errorDiv.classList.remove('hidden');
+                
+                // تفعيل الزر مرة أخرى
+                submitButton.disabled = false;
+                submitButton.textContent = 'تسجيل الدخول';
             }
         }
+        
+        // إضافة Enter key support
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.querySelector('form').dispatchEvent(new Event('submit'));
+            }
+        });
     </script>
 </body>
 </html>
+
 

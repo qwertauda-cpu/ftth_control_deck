@@ -127,7 +127,17 @@
 
         // Check authentication
         if (!authToken) {
+            console.log('[ADMIN] No token found, redirecting to login');
             window.location.href = '/admin-login.html';
+            throw new Error('Redirecting to login');
+        }
+        
+        // Verify token is valid by checking format
+        if (typeof authToken !== 'string' || authToken.trim() === '') {
+            console.log('[ADMIN] Invalid token format, redirecting to login');
+            localStorage.removeItem('admin_token');
+            window.location.href = '/admin-login.html';
+            throw new Error('Invalid token');
         }
 
         // Load statistics

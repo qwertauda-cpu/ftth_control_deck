@@ -7100,13 +7100,39 @@ const requireAdminAuth = (req, res, next) => {
 app.post('/api/admin/login', (req, res) => {
     try {
         const { password } = req.body;
-        if (password === ADMIN_PASSWORD) {
-            res.json({ success: true, token: ADMIN_PASSWORD });
+        
+        // التحقق من وجود كلمة المرور
+        if (!password || typeof password !== 'string' || password.trim() === '') {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'يرجى إدخال كلمة المرور' 
+            });
+        }
+        
+        // التحقق من كلمة المرور (trim للفضاءات)
+        const trimmedPassword = password.trim();
+        const correctPassword = ADMIN_PASSWORD.trim();
+        
+        if (trimmedPassword === correctPassword) {
+            console.log('[ADMIN LOGIN] ✅ Login successful');
+            res.json({ 
+                success: true, 
+                token: ADMIN_PASSWORD,
+                message: 'تم تسجيل الدخول بنجاح'
+            });
         } else {
-            res.status(401).json({ success: false, error: 'كلمة المرور غير صحيحة' });
+            console.log('[ADMIN LOGIN] ❌ Invalid password attempt');
+            res.status(401).json({ 
+                success: false, 
+                error: 'كلمة المرور غير صحيحة. كلمة المرور الافتراضية: admin123' 
+            });
         }
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        console.error('[ADMIN LOGIN] Error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'حدث خطأ في الخادم: ' + error.message 
+        });
     }
 });
 
