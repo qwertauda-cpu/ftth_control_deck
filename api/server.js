@@ -87,58 +87,25 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CRITICAL: Block admin routes BEFORE static middleware
-// This ensures they return 404 even if files exist
-app.get('/admin-dashboard.html', (req, res) => {
-    console.log('[BLOCK] Admin dashboard request blocked');
-    res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
+// BLOCK ALL ADMIN ROUTES - Complete removal
+// This middleware blocks ANY request that starts with /admin
+app.use((req, res, next) => {
+    const path = req.path.toLowerCase();
+    if (path.startsWith('/admin') || 
+        path.includes('/admin-dashboard') || 
+        path.includes('/admin-login') ||
+        path.includes('/admin-link')) {
+        console.log(`[BLOCKED] Admin route blocked: ${req.method} ${req.path}`);
+        return res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
+    }
+    next();
 });
 
-app.get('/admin-login.html', (req, res) => {
-    console.log('[BLOCK] Admin login request blocked');
-    res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
-});
-
-app.get('/admin/login', (req, res) => {
-    console.log('[BLOCK] Admin login route blocked');
-    res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
-});
-
-app.get('/admin/dashboard', (req, res) => {
-    console.log('[BLOCK] Admin dashboard route blocked');
-    res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
-});
-
-app.get('/admin', (req, res) => {
-    console.log('[BLOCK] Admin root route blocked');
-    res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
-});
-
-app.get('/admin-link.html', (req, res) => {
-    console.log('[BLOCK] Admin link page blocked');
-    res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
-});
-
-// Serve static files - but skip admin files
-const staticMiddleware = express.static(path.join(__dirname), {
+// Serve static files
+app.use(express.static(path.join(__dirname), {
     index: false,
     extensions: ['html', 'htm']
-});
-
-app.use((req, res, next) => {
-    // Skip static middleware for admin files
-    if (req.path === '/admin-dashboard.html' || 
-        req.path === '/admin-login.html' || 
-        req.path === '/admin-link.html' ||
-        req.path === '/admin' ||
-        req.path === '/admin/login' ||
-        req.path === '/admin/dashboard') {
-        console.log(`[STATIC] Skipping static middleware for: ${req.path}`);
-        return next(); // Let it fall through to 404 handler
-    }
-    // For other files, use static middleware
-    staticMiddleware(req, res, next);
-});
+}));
 
 // Store sync progress for each user (in-memory)
 const syncProgressStore = new Map(); // userId -> { stage, current, total, message, startedAt, updatedAt, phoneFound }
@@ -6817,10 +6784,20 @@ function escapeHtml(text) {
 // 404 handler (only for API routes, not for static files)
 // NOTE: This MUST be the last route handler!
 app.use((req, res) => {
+    // BLOCK admin files even in 404 handler
+    const path = req.path.toLowerCase();
+    if (path.startsWith('/admin') || 
+        path.includes('/admin-dashboard') || 
+        path.includes('/admin-login') ||
+        path.includes('/admin-link')) {
+        console.log(`[404 BLOCKED] Admin file blocked: ${req.method} ${req.path}`);
+        return res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
+    }
+    
     // Log the 404 request for debugging (server-side only)
     console.log(`[404] ${req.method} ${req.path} - Not found`);
     
-    // Check if file exists for other HTML files
+    // Check if file exists for other HTML files (but NOT admin files)
     if (req.path.endsWith('.html')) {
         const filePath = path.join(__dirname, req.path);
         console.log(`[404] Checking if file exists: ${filePath}`);
