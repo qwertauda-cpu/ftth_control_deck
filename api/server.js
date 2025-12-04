@@ -116,15 +116,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve admin HTML files directly with explicit routes - MUST be before static middleware
-// Add logging middleware to track all requests
-app.use((req, res, next) => {
-    if (req.path === '/admin-dashboard.html') {
-        console.log(`[ROUTE DEBUG] Request to /admin-dashboard.html detected`);
-        console.log(`[ROUTE DEBUG] Method: ${req.method}, Path: ${req.path}`);
-    }
-    next();
-});
-
 app.get('/admin-login.html', (req, res) => {
     const filePath = path.join(__dirname, 'admin-login.html');
     console.log('[ADMIN] ✅ Serving admin-login.html from:', filePath);
@@ -151,13 +142,11 @@ app.get('/admin-login.html', (req, res) => {
 app.get('/admin-dashboard.html', (req, res) => {
     console.log('[ADMIN] 🎯 ROUTE HANDLER CALLED: /admin-dashboard.html');
     const filePath = path.join(__dirname, 'admin-dashboard.html');
-    console.log('[ADMIN] ✅ Route matched: /admin-dashboard.html');
-    console.log('[ADMIN] ✅ Serving admin-dashboard.html from:', filePath);
-    console.log('[ADMIN] ✅ File exists:', fs.existsSync(filePath));
-    console.log('[ADMIN] ✅ __dirname:', __dirname);
     
+    // Check if file exists
     if (!fs.existsSync(filePath)) {
         console.error('[ADMIN] ❌ File does not exist:', filePath);
+        console.error('[ADMIN] ❌ __dirname:', __dirname);
         return res.status(404).send(`
             <!DOCTYPE html>
             <html lang="ar" dir="rtl">
@@ -171,20 +160,23 @@ app.get('/admin-dashboard.html', (req, res) => {
         `);
     }
     
+    // Send file
     res.sendFile(filePath, (err) => {
         if (err) {
             console.error('[ADMIN] ❌ Error serving admin-dashboard.html:', err);
-            res.status(500).send(`
-                <!DOCTYPE html>
-                <html lang="ar" dir="rtl">
-                <head><meta charset="UTF-8"><title>خطأ</title></head>
-                <body>
-                    <h1>خطأ في تحميل الصفحة</h1>
-                    <p>${err.message}</p>
-                    <p>الملف: ${filePath}</p>
-                </body>
-                </html>
-            `);
+            if (!res.headersSent) {
+                res.status(500).send(`
+                    <!DOCTYPE html>
+                    <html lang="ar" dir="rtl">
+                    <head><meta charset="UTF-8"><title>خطأ</title></head>
+                    <body>
+                        <h1>خطأ في تحميل الصفحة</h1>
+                        <p>${err.message}</p>
+                        <p>الملف: ${filePath}</p>
+                    </body>
+                    </html>
+                `);
+            }
         } else {
             console.log('[ADMIN] ✅ Successfully served admin-dashboard.html');
         }
@@ -201,9 +193,16 @@ app.get('/admin/dashboard', (req, res) => {
 });
 
 // Serve static files (HTML files in api directory) - AFTER specific routes
+// BUT exclude admin files that are handled by explicit routes
 app.use(express.static(path.join(__dirname), {
     index: false, // Don't serve index.html automatically
-    extensions: ['html', 'htm']
+    extensions: ['html', 'htm'],
+    setHeaders: (res, path) => {
+        // Don't serve admin files via static - they're handled by explicit routes
+        if (path.includes('admin-login.html') || path.includes('admin-dashboard.html')) {
+            return;
+        }
+    }
 }));
 
 // Store sync progress for each user (in-memory)
