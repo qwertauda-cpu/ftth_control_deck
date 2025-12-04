@@ -3841,8 +3841,7 @@
                     font: {
                         size: 15,
                         color: '#FFFFFF',
-                        face: 'Roboto',
-                        bold: true
+                        face: 'Roboto'
                     },
                     borderWidth: 3,
                     shadow: {
@@ -4153,11 +4152,15 @@
             });
         }
 
-        function addFlowchartNode() {
-            console.log('🔵 addFlowchartNode called');
-            console.log('isFlowchartEditMode:', isFlowchartEditMode);
-            console.log('flowchartNetwork:', flowchartNetwork);
-            console.log('flowchartNodes:', flowchartNodes);
+        function addFlowchartNode(nodeType = 'box') {
+            // Close menu
+            const menu = document.getElementById('nodeTypeMenu');
+            if (menu) {
+                menu.style.display = 'none';
+                nodeTypeMenuOpen = false;
+            }
+            
+            console.log('🔵 addFlowchartNode called with type:', nodeType);
             
             if (!isFlowchartEditMode) {
                 alert('ليس لديك صلاحية للتعديل');
@@ -4194,21 +4197,17 @@
                 const view = flowchartNetwork.getViewPosition();
                 const scale = flowchartNetwork.getScale();
                 
-                console.log('📐 Container rect:', rect);
-                console.log('👁️ View position:', view);
-                console.log('🔍 Scale:', scale);
-                
                 // Calculate center position in network coordinates
                 const centerX = (rect.width / 2 - view.x) / scale;
                 const centerY = (rect.height / 2 - view.y) / scale;
                 
                 console.log('📍 Adding node at:', centerX, centerY);
-                addNodeAtPosition(centerX, centerY);
+                addNodeAtPosition(centerX, centerY, nodeType);
             } catch (error) {
                 console.error('❌ Error getting view position:', error);
                 // Fallback: add at origin (0, 0)
                 console.log('🔄 Using fallback position (0, 0)');
-                addNodeAtPosition(0, 0);
+                addNodeAtPosition(0, 0, nodeType);
             }
         }
 
@@ -4403,6 +4402,33 @@
 
         let edgeCreationMode = false;
         let edgeFromNode = null;
+        let nodeTypeMenuOpen = false;
+
+        function toggleNodeTypeMenu() {
+            const menu = document.getElementById('nodeTypeMenu');
+            if (!menu) return;
+            
+            nodeTypeMenuOpen = !nodeTypeMenuOpen;
+            menu.style.display = nodeTypeMenuOpen ? 'block' : 'none';
+            
+            // Close menu when clicking outside
+            if (nodeTypeMenuOpen) {
+                setTimeout(() => {
+                    document.addEventListener('click', closeNodeTypeMenuOnClickOutside);
+                }, 100);
+            }
+        }
+
+        function closeNodeTypeMenuOnClickOutside(event) {
+            const menu = document.getElementById('nodeTypeMenu');
+            const button = event.target.closest('#flowchartToolbar button');
+            
+            if (menu && !menu.contains(event.target) && !button) {
+                menu.style.display = 'none';
+                nodeTypeMenuOpen = false;
+                document.removeEventListener('click', closeNodeTypeMenuOnClickOutside);
+            }
+        }
 
         function startEdgeCreation(fromNodeId) {
             edgeCreationMode = true;
