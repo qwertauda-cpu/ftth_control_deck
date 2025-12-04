@@ -6793,9 +6793,10 @@ app.put('/api/teams/:id', async (req, res) => {
 
 // ================= Control Panel Authentication =================
 const CONTROL_PASSWORD = process.env.CONTROL_PASSWORD || 'admin123'; // Change this in .env
+const bcrypt = require('bcrypt');
 
 // Simple token storage (in production, use JWT or sessions)
-const controlTokens = new Map(); // token -> { timestamp, valid }
+const controlTokens = new Map(); // token -> { timestamp, valid, username, userId }
 
 // Middleware to check control panel authentication
 function requireControlAuth(req, res, next) {
@@ -6817,27 +6818,71 @@ function requireControlAuth(req, res, next) {
         return res.status(401).json({ success: false, message: 'انتهت صلاحية الجلسة' });
     }
     
+    // Attach user info to request
+    req.controlUser = {
+        id: tokenData.userId,
+        username: tokenData.username,
+        role: tokenData.role
+    };
+    
     next();
 }
 
 // Control Panel Login
 app.post('/api/control/login', async (req, res) => {
     try {
-        const { password } = req.body;
+        const { username, password } = req.body;
         
-        if (!password) {
-            return res.json({ success: false, message: 'يرجى إدخال كلمة المرور' });
+        if (!username || !password) {
+            return res.json({ success: false, message: 'يرجى إدخال اسم المستخدم وكلمة المرور' });
         }
         
-        if (password !== CONTROL_PASSWORD) {
-            return res.json({ success: false, message: 'كلمة المرور غير صحيحة' });
+        const masterPool = await dbManager.initMasterPool();
+        
+        // Try to find account in database
+        const [accounts] = await masterPool.query(
+            'SELECT id, username, password_hash, full_name, email, role, is_active FROM control_accounts WHERE username = ?',
+            [username]
+        );
+        
+        let isValid = false;
+        let account = null;
+        
+        if (accounts.length > 0) {
+            account = accounts[0];
+            if (!account.is_active) {
+                return res.json({ success: false, message: 'الحساب معطل' });
+            }
+            // Verify password
+            isValid = await bcrypt.compare(password, account.password_hash);
+        } else {
+            // Fallback to old password system for backward compatibility
+            if (username === 'admin' && password === CONTROL_PASSWORD) {
+                isValid = true;
+                account = { id: 0, username: 'admin', full_name: 'مدير النظام', role: 'admin' };
+            }
+        }
+        
+        if (!isValid) {
+            return res.json({ success: false, message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+        }
+        
+        // Update last login
+        if (account.id) {
+            await masterPool.query(
+                'UPDATE control_accounts SET last_login = NOW() WHERE id = ?',
+                [account.id]
+            );
         }
         
         // Generate token
         const token = require('crypto').randomBytes(32).toString('hex');
         controlTokens.set(token, {
             timestamp: Date.now(),
-            valid: true
+            valid: true,
+            username: account.username,
+            userId: account.id || 0,
+            role: account.role || 'admin'
         });
         
         // Clean old tokens (older than 24 hours)

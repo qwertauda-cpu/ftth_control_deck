@@ -126,6 +126,28 @@ async function initMasterDatabase() {
         `);
         console.log('✅ تم إنشاء جدول: chat_messages (رسائل المحادثة)');
         
+        // ==================== جدول control_accounts (حسابات لوحة التحكم) ====================
+        await connection.query(`
+            CREATE TABLE IF NOT EXISTS control_accounts (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                username VARCHAR(255) UNIQUE NOT NULL COMMENT 'اسم المستخدم',
+                password_hash VARCHAR(255) NOT NULL COMMENT 'كلمة المرور المشفرة',
+                full_name VARCHAR(255) COMMENT 'الاسم الكامل',
+                email VARCHAR(255) COMMENT 'البريد الإلكتروني',
+                role VARCHAR(50) DEFAULT 'admin' COMMENT 'الدور (admin, manager, viewer)',
+                is_active BOOLEAN DEFAULT TRUE COMMENT 'حالة تفعيل الحساب',
+                last_login TIMESTAMP NULL COMMENT 'آخر تسجيل دخول',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                created_by INT COMMENT 'من أنشأ الحساب',
+                INDEX idx_username (username),
+                INDEX idx_email (email),
+                INDEX idx_role (role),
+                INDEX idx_is_active (is_active)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        console.log('✅ تم إنشاء جدول: control_accounts (حسابات لوحة التحكم)');
+        
         console.log('\n🎉 تم إعداد قاعدة البيانات الرئيسية بنجاح!');
         console.log('📝 الآن يمكنك إنشاء قواعد البيانات للعملاء');
         
