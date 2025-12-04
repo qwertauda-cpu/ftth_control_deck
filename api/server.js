@@ -7429,9 +7429,28 @@ function escapeHtml(text) {
 }
 
 // 404 handler (only for API routes, not for static files)
+// NOTE: This MUST be the last route handler!
 app.use((req, res) => {
     // Log the 404 request for debugging (server-side only)
     console.log(`[404] ${req.method} ${req.path} - Not found`);
+    console.log(`[404] Request headers:`, JSON.stringify(req.headers, null, 2));
+    console.log(`[404] __dirname:`, __dirname);
+    
+    // Check if file exists
+    if (req.path.endsWith('.html')) {
+        const filePath = path.join(__dirname, req.path);
+        console.log(`[404] Checking if file exists: ${filePath}`);
+        if (fs.existsSync(filePath)) {
+            console.log(`[404] ✅ File exists! Serving directly...`);
+            return res.sendFile(filePath, (err) => {
+                if (err) {
+                    console.error(`[404] ❌ Error serving file:`, err);
+                }
+            });
+        } else {
+            console.log(`[404] ❌ File does not exist: ${filePath}`);
+        }
+    }
     
     // Escape the path for safe HTML rendering
     const safePath = escapeHtml(req.path);
