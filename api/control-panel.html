@@ -2208,65 +2208,6 @@
             <!-- Flowchart Section -->
             <div id="flowchart-section" class="content-section hidden">
                 <div class="section-title">المخطط الانسيابي</div>
-                <div class="section-title">إدارة الموظفين</div>
-                <div style="margin-bottom: 20px;">
-                    <button class="btn btn-primary" onclick="showCreateEmployeeModal()">➕ إضافة موظف جديد</button>
-                </div>
-                <div class="table-container">
-                    <table id="employeesTable" class="data-table">
-                        <thead>
-                            <tr>
-                                <th>اسم المستخدم</th>
-                                <th>الاسم الكامل</th>
-                                <th>البريد الإلكتروني</th>
-                                <th>الهاتف</th>
-                                <th>المنصب</th>
-                                <th>القسم</th>
-                                <th>الراتب</th>
-                                <th>الحالة</th>
-                                <th>الإجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr><td colspan="9" style="text-align: center; padding: 20px;">جاري التحميل...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Invoices Section -->
-            <div id="invoices-section" class="content-section hidden">
-                <div class="section-title">إدارة الفواتير</div>
-                <div style="margin-bottom: 20px; display: flex; gap: 12px; flex-wrap: wrap;">
-                    <button class="btn btn-primary" onclick="showCreateInvoiceModal()">➕ فاتورة جديدة</button>
-                    <select id="invoiceStatusFilter" class="form-input" style="width: auto; min-width: 150px;" onchange="loadInvoices()">
-                        <option value="">جميع الحالات</option>
-                        <option value="pending">معلقة</option>
-                        <option value="paid">مدفوعة</option>
-                        <option value="overdue">متأخرة</option>
-                        <option value="cancelled">ملغاة</option>
-                    </select>
-                </div>
-                <div class="table-container">
-                    <table id="invoicesTable" class="data-table">
-                        <thead>
-                            <tr>
-                                <th>رقم الفاتورة</th>
-                                <th>الوكيل</th>
-                                <th>النوع</th>
-                                <th>المبلغ</th>
-                                <th>تاريخ الإصدار</th>
-                                <th>تاريخ الاستحقاق</th>
-                                <th>الحالة</th>
-                                <th>الإجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr><td colspan="8" style="text-align: center; padding: 20px;">جاري التحميل...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
                 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
                     <div style="display: flex; gap: 12px;">
