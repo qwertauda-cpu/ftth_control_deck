@@ -87,36 +87,58 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Block admin dashboard routes - return 404 immediately
+// CRITICAL: Block admin routes BEFORE static middleware
+// This ensures they return 404 even if files exist
 app.get('/admin-dashboard.html', (req, res) => {
+    console.log('[BLOCK] Admin dashboard request blocked');
     res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
 });
 
 app.get('/admin-login.html', (req, res) => {
+    console.log('[BLOCK] Admin login request blocked');
     res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
 });
 
 app.get('/admin/login', (req, res) => {
+    console.log('[BLOCK] Admin login route blocked');
     res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
 });
 
 app.get('/admin/dashboard', (req, res) => {
+    console.log('[BLOCK] Admin dashboard route blocked');
     res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
 });
 
 app.get('/admin', (req, res) => {
+    console.log('[BLOCK] Admin root route blocked');
     res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
 });
 
 app.get('/admin-link.html', (req, res) => {
+    console.log('[BLOCK] Admin link page blocked');
     res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
 });
 
-// Serve static files (but admin files are blocked above)
-app.use(express.static(path.join(__dirname), {
+// Serve static files - but skip admin files
+const staticMiddleware = express.static(path.join(__dirname), {
     index: false,
     extensions: ['html', 'htm']
-}));
+});
+
+app.use((req, res, next) => {
+    // Skip static middleware for admin files
+    if (req.path === '/admin-dashboard.html' || 
+        req.path === '/admin-login.html' || 
+        req.path === '/admin-link.html' ||
+        req.path === '/admin' ||
+        req.path === '/admin/login' ||
+        req.path === '/admin/dashboard') {
+        console.log(`[STATIC] Skipping static middleware for: ${req.path}`);
+        return next(); // Let it fall through to 404 handler
+    }
+    // For other files, use static middleware
+    staticMiddleware(req, res, next);
+});
 
 // Store sync progress for each user (in-memory)
 const syncProgressStore = new Map(); // userId -> { stage, current, total, message, startedAt, updatedAt, phoneFound }
