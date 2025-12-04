@@ -336,18 +336,12 @@
             box-shadow: var(--mdc-elevation-2);
             margin-top: 24px;
             min-height: 200px;
-            opacity: 0;
-            max-height: 0;
-            overflow: hidden;
-            transition: opacity 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), max-height 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), margin-top 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
-            margin-top: 0;
+            display: none;
+            animation: slideDown 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
         }
 
         .section-details-container.show {
-            opacity: 1;
-            max-height: 2000px;
-            margin-top: 24px;
-            overflow: visible;
+            display: block;
         }
 
         @keyframes slideDown {
@@ -628,10 +622,6 @@
                     <span class="menu-item-icon">👥</span>
                     <span>الوكلاء</span>
                 </a>
-                <a class="menu-item" data-section="users">
-                    <span class="menu-item-icon">👤</span>
-                    <span>المستخدمين</span>
-                </a>
                 <a class="menu-item" data-section="subscribers">
                     <span class="menu-item-icon">📱</span>
                     <span>المشتركين</span>
@@ -680,15 +670,6 @@
                         </div>
                         <div class="stat-card-value" id="ownersCount">-</div>
                         <div class="stat-card-change">وكيل نشط</div>
-                    </div>
-
-                    <div class="stat-card" data-section="users" onclick="showSectionDetails('users', this)">
-                        <div class="stat-card-header">
-                            <span class="stat-card-title">المستخدمين</span>
-                            <div class="stat-card-icon warning">👤</div>
-                        </div>
-                        <div class="stat-card-value" id="usersCount">-</div>
-                        <div class="stat-card-change">مستخدم نشط</div>
                     </div>
 
                     <div class="stat-card" data-section="subscribers" onclick="showSectionDetails('subscribers', this)">
@@ -783,26 +764,6 @@
             </div>
 
             <!-- Users Section -->
-            <div id="users-section" class="content-section hidden">
-                <div class="section-title">إدارة المستخدمين</div>
-                <div class="table-container">
-                    <table id="usersTable">
-                        <thead>
-                            <tr>
-                                <th>اسم المستخدم</th>
-                                <th>البريد الإلكتروني</th>
-                                <th>الهاتف</th>
-                                <th>الحالة</th>
-                                <th>الإجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody id="usersTableBody">
-                            <tr><td colspan="5" class="loading">جاري التحميل...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
             <!-- Subscribers Section -->
             <div id="subscribers-section" class="content-section hidden">
                 <div class="section-title">إدارة المشتركين</div>
@@ -1006,8 +967,6 @@
                 loadDatabases();
             } else if (section === 'owners') {
                 loadOwners();
-            } else if (section === 'users') {
-                loadUsers();
             } else if (section === 'subscribers') {
                 loadSubscribers();
             } else if (section === 'tickets') {
@@ -1028,33 +987,31 @@
                     return;
                 }
                 
-                const [statsRes, ownersRes, usersRes, subscribersRes] = await Promise.all([
+                const [statsRes, ownersRes, subscribersRes] = await Promise.all([
                     fetchWithAuth(`${API_BASE}/api/control/stats`),
                     fetchWithAuth(`${API_BASE}/api/control/owners`),
-                    fetchWithAuth(`${API_BASE}/api/control/users`),
                     fetchWithAuth(`${API_BASE}/api/control/subscribers?limit=1`)
                 ]);
                 
                 if (!statsRes || !ownersRes) return;
                 
-                const [stats, owners, users, subscribers] = await Promise.all([
+                const [statsData, owners, subscribers] = await Promise.all([
                     statsRes.json(),
                     ownersRes.json(),
-                    usersRes.json(),
                     subscribersRes.json()
                 ]);
 
+                // statsData comes as { success: true, stats: { databases, owners, users, subscribers } }
+                const stats = statsData.success ? statsData.stats : {};
+                
                 document.getElementById('dbCount').textContent = stats.databases || 0;
                 // owners comes as { success: true, owners: [...], total: ... }
                 const ownersCount = owners.success ? (owners.owners?.length || owners.total || 0) : 0;
-                // users contains the actual owners/agents, so use it for owners count
-                const usersCount = Array.isArray(users) ? users.length : 0;
-                document.getElementById('ownersCount').textContent = usersCount || ownersCount;
-                document.getElementById('usersCount').textContent = 0; // Users section is not used, set to 0
+                document.getElementById('ownersCount').textContent = ownersCount;
                 document.getElementById('subscribersCount').textContent = Array.isArray(subscribers) ? subscribers.length : (subscribers.total || 0);
 
                 // Store data for section details
-                sectionData = { stats, owners, users, subscribers };
+                sectionData = { stats, owners, subscribers };
             } catch (error) {
                 console.error('Error loading dashboard:', error);
             }
@@ -1094,9 +1051,6 @@
                 } else if (section === 'owners') {
                     title.textContent = 'تفاصيل الوكلاء';
                     await loadOwnersDetails(content);
-                } else if (section === 'users') {
-                    title.textContent = 'تفاصيل المستخدمين';
-                    await loadUsersDetails(content);
                 } else if (section === 'subscribers') {
                     title.textContent = 'تفاصيل المشتركين';
                     await loadSubscribersDetails(content);
@@ -1189,57 +1143,6 @@
                                                 <td>${owner.alwatani_accounts_count || 0}</td>
                                                 <td>${owner.subscribers_count || 0}</td>
                                                 <td><span class="badge ${owner.is_active ? 'badge-success' : 'badge-danger'}">${owner.is_active ? 'نشط' : 'غير نشط'}</span></td>
-                                            </tr>
-                                        `).join('')}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    container.innerHTML = '<div class="loading">لا توجد بيانات</div>';
-                }
-            } catch (error) {
-                container.innerHTML = '<div class="loading">حدث خطأ في التحميل</div>';
-            }
-        }
-
-        async function loadUsersDetails(container) {
-            try {
-                const response = await fetchWithAuth(`${API_BASE}/api/control/users`);
-                if (!response) return;
-                const data = await response.json();
-
-                if (Array.isArray(data) && data.length > 0) {
-                    container.innerHTML = `
-                        <div class="section-details-grid">
-                            <div class="section-details-item">
-                                <div class="section-details-item-label">إجمالي المستخدمين</div>
-                                <div class="section-details-item-value">${data.length}</div>
-                            </div>
-                            <div class="section-details-item">
-                                <div class="section-details-item-label">المستخدمين النشطين</div>
-                                <div class="section-details-item-value">${data.length}</div>
-                            </div>
-                        </div>
-                        <div class="section-details-table">
-                            <div class="table-container">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>اسم المستخدم</th>
-                                            <th>البريد الإلكتروني</th>
-                                            <th>الهاتف</th>
-                                            <th>الوكيل</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${data.slice(0, 10).map(user => `
-                                            <tr>
-                                                <td>${user.username || 'N/A'}</td>
-                                                <td>${user.email || 'N/A'}</td>
-                                                <td>${user.phone || 'N/A'}</td>
-                                                <td>${user.owner_username || 'N/A'}</td>
                                             </tr>
                                         `).join('')}
                                     </tbody>
@@ -1458,35 +1361,6 @@
         // View agent details
         function viewAgentDetails(ownerUsername) {
             alert(`عرض تفاصيل الوكيل: ${ownerUsername}\n(سيتم إضافة هذه الميزة قريباً)`);
-        }
-
-        // Load users
-        async function loadUsers() {
-            try {
-                const response = await fetchWithAuth(`${API_BASE}/api/control/users`);
-                if (!response) return;
-                const data = await response.json();
-                
-                const tbody = document.getElementById('usersTableBody');
-                if (Array.isArray(data) && data.length > 0) {
-                    tbody.innerHTML = data.map(user => `
-                        <tr>
-                            <td>${user.username || 'N/A'}</td>
-                            <td>${user.email || 'N/A'}</td>
-                            <td>${user.phone || 'N/A'}</td>
-                            <td><span class="badge badge-success">نشط</span></td>
-                            <td>
-                                <button class="btn btn-primary btn-sm">عرض</button>
-                            </td>
-                        </tr>
-                    `).join('');
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="5" class="loading">لا توجد بيانات</td></tr>';
-                }
-            } catch (error) {
-                console.error('Error loading users:', error);
-                document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="5" class="loading">حدث خطأ في التحميل</td></tr>';
-            }
         }
 
         // Load subscribers
