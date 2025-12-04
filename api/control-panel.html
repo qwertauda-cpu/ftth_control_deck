@@ -1727,6 +1727,23 @@
             document.getElementById('agentDetailsModal').style.display = 'none';
         }
 
+        // Toggle password visibility
+        function togglePassword(accountId, password) {
+            const displayElement = document.getElementById(`password-display-${accountId}`);
+            const button = event.target;
+            
+            if (displayElement && button) {
+                if (displayElement.textContent.includes('*')) {
+                    // Show password
+                    displayElement.textContent = password;
+                    button.textContent = 'إخفاء';
+                } else {
+                    // Hide password
+                    displayElement.textContent = '*'.repeat(password.length);
+                    button.textContent = 'عرض';
+                }
+            }
+        }
 
         // Close modal when clicking outside
         document.addEventListener('click', function(e) {
