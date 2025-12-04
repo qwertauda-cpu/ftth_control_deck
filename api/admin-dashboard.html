@@ -123,35 +123,79 @@
                 height: 2.5rem;
             }
             
-            /* Table container - horizontal scroll with better UX */
-            .overflow-x-auto {
-                -webkit-overflow-scrolling: touch;
-                overflow-x: auto;
-                overflow-y: visible;
-                margin-left: -0.75rem;
-                margin-right: -0.75rem;
-                padding-left: 0.75rem;
-                padding-right: 0.75rem;
+            /* Hide table on mobile, show cards instead */
+            #owners-table-container table {
+                display: none;
             }
             
-            /* Table adjustments */
-            table {
+            /* Mobile cards container */
+            #owners-mobile-cards {
+                display: block;
+            }
+            
+            .owner-card {
+                background: white;
+                border: 1px solid #e5e7eb;
+                border-radius: 0.75rem;
+                padding: 1rem;
+                margin-bottom: 0.75rem;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            
+            .owner-card-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 0.75rem;
+                padding-bottom: 0.75rem;
+                border-bottom: 1px solid #e5e7eb;
+            }
+            
+            .owner-card-title {
+                font-size: 1rem;
+                font-weight: bold;
+                color: #1f2937;
+            }
+            
+            .owner-card-badge {
+                display: inline-flex;
+                align-items: center;
+                padding: 0.25rem 0.75rem;
+                border-radius: 9999px;
+                font-size: 0.75rem;
+                font-weight: 600;
+            }
+            
+            .owner-card-body {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 0.75rem;
+            }
+            
+            .owner-card-item {
+                display: flex;
+                flex-direction: column;
+            }
+            
+            .owner-card-label {
                 font-size: 0.7rem;
-                min-width: 700px;
-                border-collapse: separate;
-                border-spacing: 0;
+                color: #6b7280;
+                margin-bottom: 0.25rem;
             }
             
-            table th, table td {
-                padding: 0.5rem 0.375rem;
-                white-space: nowrap;
+            .owner-card-value {
+                font-size: 0.875rem;
+                font-weight: 600;
+                color: #1f2937;
             }
             
-            table th {
-                position: sticky;
-                top: 0;
-                background-color: #f9fafb;
-                z-index: 10;
+            .owner-card-full {
+                grid-column: 1 / -1;
+            }
+            
+            /* Table container - hidden on mobile */
+            .overflow-x-auto {
+                display: none;
             }
             
             /* Buttons - better mobile UX */
@@ -262,15 +306,29 @@
             }
         }
         
-        /* Small phones */
-        @media (max-width: 480px) {
-            table {
-                font-size: 0.65rem;
-                min-width: 650px;
+        /* Desktop - show table, hide cards */
+        @media (min-width: 769px) {
+            #owners-table-container table {
+                display: table;
             }
             
-            table th, table td {
-                padding: 0.4rem 0.25rem;
+            #owners-mobile-cards {
+                display: none;
+            }
+            
+            .overflow-x-auto {
+                display: block;
+            }
+        }
+        
+        /* Small phones */
+        @media (max-width: 480px) {
+            .owner-card {
+                padding: 0.875rem;
+            }
+            
+            .owner-card-title {
+                font-size: 0.95rem;
             }
             
             .text-3xl {
@@ -301,13 +359,13 @@
         
         /* Very small phones */
         @media (max-width: 360px) {
-            table {
-                font-size: 0.6rem;
-                min-width: 600px;
+            .owner-card {
+                padding: 0.75rem;
             }
             
-            table th, table td {
-                padding: 0.35rem 0.2rem;
+            .owner-card-body {
+                grid-template-columns: 1fr;
+                gap: 0.5rem;
             }
             
             .text-3xl {
@@ -683,11 +741,19 @@
                     container.classList.remove('hidden');
                     tbody.innerHTML = `
                         <tr>
-                            <td colspan="7" class="px-6 py-8 text-center text-red-500">
+                            <td colspan="8" class="px-6 py-8 text-center text-red-500">
                                 خطأ في تحميل البيانات: ${data.error || 'خطأ غير معروف'}
                             </td>
                         </tr>
                     `;
+                    const mobileCards = document.getElementById('owners-mobile-cards');
+                    if (mobileCards) {
+                        mobileCards.innerHTML = `
+                            <div class="text-center py-8 text-red-500 text-sm">
+                                خطأ في تحميل البيانات: ${data.error || 'خطأ غير معروف'}
+                            </div>
+                        `;
+                    }
                 }
             } catch (error) {
                 console.error('Error loading owners:', error);
@@ -695,11 +761,41 @@
                 container.classList.remove('hidden');
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="7" class="px-6 py-8 text-center text-red-500">
+                        <td colspan="8" class="px-6 py-8 text-center text-red-500">
                             خطأ في الاتصال بالسيرفر: ${error.message}
                         </td>
                     </tr>
                 `;
+                const mobileCards = document.getElementById('owners-mobile-cards');
+                if (mobileCards) {
+                    mobileCards.innerHTML = `
+                        <div class="text-center py-8 text-red-500 text-sm">
+                            خطأ في الاتصال بالسيرفر: ${error.message}
+                        </div>
+                    `;
+                }
+            }
+        }
+        
+        // Toggle owner password visibility (Mobile)
+        function toggleOwnerPasswordMobile(ownerId, password) {
+            const passwordElement = document.getElementById(`mobile-owner-password-${ownerId}`);
+            const toggleButton = document.getElementById(`mobile-owner-toggle-${ownerId}`);
+            
+            if (passwordElement && toggleButton) {
+                if (passwordElement.textContent.includes('*')) {
+                    // Show password
+                    passwordElement.textContent = password;
+                    toggleButton.textContent = 'إخفاء';
+                    passwordElement.classList.remove('bg-gray-100');
+                    passwordElement.classList.add('bg-yellow-100', 'text-yellow-900');
+                } else {
+                    // Hide password
+                    passwordElement.textContent = '*'.repeat(password.length || 8);
+                    toggleButton.textContent = 'إظهار';
+                    passwordElement.classList.remove('bg-yellow-100', 'text-yellow-900');
+                    passwordElement.classList.add('bg-gray-100');
+                }
             }
         }
 
