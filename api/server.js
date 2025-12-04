@@ -6795,6 +6795,26 @@ app.get('/api/admin/info', (req, res) => {
     });
 });
 
+// Direct redirect to admin login - Just visit this URL
+app.get('/admin', (req, res) => {
+    res.redirect('/admin-login.html');
+});
+
+// Get direct admin link endpoint - Returns the exact URL to use
+app.get('/api/admin/link', (req, res) => {
+    const protocol = req.protocol || 'http';
+    const host = req.get('host') || 'localhost:3000';
+    const loginUrl = `${protocol}://${host}/admin-login.html`;
+    
+    res.json({
+        success: true,
+        message: 'Copy and paste this URL in your browser',
+        loginUrl: loginUrl,
+        password: 'admin123',
+        directLink: loginUrl
+    });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error('Server error:', err);
