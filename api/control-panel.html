@@ -336,12 +336,18 @@
             box-shadow: var(--mdc-elevation-2);
             margin-top: 24px;
             min-height: 200px;
-            display: none;
-            animation: slideDown 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            opacity: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: opacity 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), max-height 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), margin-top 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            margin-top: 0;
         }
 
         .section-details-container.show {
-            display: block;
+            opacity: 1;
+            max-height: 2000px;
+            margin-top: 24px;
+            overflow: visible;
         }
 
         @keyframes slideDown {
