@@ -70,8 +70,20 @@
             }
             
             .container {
-                padding-left: 1rem;
-                padding-right: 1rem;
+                padding-left: 0.75rem !important;
+                padding-right: 0.75rem !important;
+                max-width: 100% !important;
+            }
+            
+            /* Remove extra margins */
+            body {
+                margin: 0;
+                padding: 0;
+            }
+            
+            .min-h-screen {
+                margin: 0;
+                padding: 0;
             }
             
             /* Header adjustments - sticky at top */
@@ -102,16 +114,21 @@
             
             /* Compact header on mobile */
             header {
-                padding: 0.75rem 1rem !important;
+                padding: 0.75rem 0.75rem !important;
+                margin: 0;
+                border-radius: 0;
             }
             
             header .container {
                 gap: 0.5rem !important;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
             }
             
             header h1 {
-                font-size: 1rem !important;
+                font-size: 0.95rem !important;
                 margin: 0;
+                font-weight: 700;
             }
             
             header p {
@@ -121,18 +138,30 @@
             }
             
             /* Better spacing for main content */
+            main {
+                padding-top: 0.5rem !important;
+                padding-bottom: 1rem !important;
+            }
+            
             main > div {
-                margin-bottom: 1rem;
+                margin-bottom: 0.75rem;
             }
             
             /* Improve card spacing */
             .owner-card {
-                margin-bottom: 0.875rem;
+                margin-bottom: 0.75rem;
             }
             
             /* Better section spacing */
             .bg-white.rounded-xl {
-                margin-bottom: 1rem;
+                margin-bottom: 0.75rem;
+                padding: 0.875rem !important;
+            }
+            
+            /* Remove extra padding from sections */
+            .bg-white.rounded-xl > div:first-child {
+                padding: 0 !important;
+                margin-bottom: 0.75rem !important;
             }
             
             header .container {
@@ -164,16 +193,17 @@
             /* Statistics cards - stack vertically on mobile */
             .grid {
                 grid-template-columns: 1fr !important;
-                gap: 0.875rem !important;
+                gap: 0.75rem !important;
+                margin-bottom: 0.75rem !important;
             }
             
             .stat-card {
                 margin-bottom: 0;
-                padding: 1rem !important;
-                border-radius: 0.875rem;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+                padding: 0.875rem !important;
+                border-radius: 0.75rem;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.08);
                 transition: all 0.3s ease;
-                border: 1px solid rgba(0,0,0,0.05);
+                border: 1px solid rgba(0,0,0,0.06);
             }
             
             .stat-card:active {
@@ -203,10 +233,10 @@
             .owner-card {
                 background: #ffffff;
                 border: 1px solid #e5e7eb;
-                border-radius: 0.875rem;
-                padding: 1rem;
-                margin-bottom: 0.875rem;
-                box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+                border-radius: 0.75rem;
+                padding: 0.875rem;
+                margin-bottom: 0.75rem;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.08);
                 transition: all 0.2s ease;
                 position: relative;
                 overflow: hidden;
@@ -343,15 +373,28 @@
             
             /* Cards section */
             .bg-white {
-                border-radius: 0.875rem;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-                border: 1px solid rgba(0,0,0,0.05);
+                border-radius: 0.75rem;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+                border: 1px solid rgba(0,0,0,0.06);
             }
             
             /* Better section headers */
             .bg-white.rounded-xl > div:first-child {
-                padding-bottom: 0.75rem;
-                margin-bottom: 0.75rem;
+                padding: 0.75rem 0 !important;
+                margin-bottom: 0.75rem !important;
+                border-bottom: 1px solid #f3f4f6;
+            }
+            
+            /* Section titles */
+            .bg-white.rounded-xl h2 {
+                font-size: 1.1rem !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            
+            .bg-white.rounded-xl p {
+                font-size: 0.8rem !important;
+                margin: 0.25rem 0 0 0 !important;
             }
             
             /* Improve text readability */
@@ -363,6 +406,35 @@
             /* Better button spacing */
             button + button {
                 margin-right: 0.5rem;
+            }
+            
+            /* Remove gaps from grid */
+            .grid.gap-3 {
+                gap: 0.75rem !important;
+            }
+            
+            /* Improve header appearance */
+            header {
+                background: linear-gradient(135deg, #26466D 0%, #1e3550 100%) !important;
+                border-bottom: 2px solid rgba(255,255,255,0.1);
+            }
+            
+            /* Better text contrast */
+            header h1 {
+                color: #ffffff !important;
+                text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            }
+            
+            header p {
+                color: rgba(255,255,255,0.9) !important;
+            }
+            
+            /* Remove extra margins from body */
+            html, body {
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                overflow-x: hidden;
             }
             
             /* Buttons - better mobile UX */
@@ -648,7 +720,7 @@
             </div>
         </header>
 
-        <main class="container mx-auto p-3 md:p-6">
+        <main class="container mx-auto p-2 md:p-6" style="padding-left: 0.75rem; padding-right: 0.75rem;">
             <!-- Statistics Cards -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-4 md:mb-8">
                 <div class="stat-card bg-white rounded-xl shadow-md md:shadow-lg p-4 md:p-6 border-l-4 border-blue-500 active:scale-[0.98] transition-transform">
@@ -709,11 +781,11 @@
             </div>
 
             <!-- Owners Table -->
-            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-                <div class="flex justify-between items-center mb-6">
+            <div class="bg-white rounded-xl shadow-lg p-3 md:p-6 mb-4 md:mb-6">
+                <div class="flex justify-between items-center mb-4 md:mb-6">
                     <div>
-                        <h2 class="text-2xl font-bold text-gray-800">جدول الوكيلين</h2>
-                        <p class="text-gray-600 text-sm mt-1">عرض جميع الوكيلين المسجلين في النظام</p>
+                        <h2 class="text-xl md:text-2xl font-bold text-gray-800">جدول الوكيلين</h2>
+                        <p class="text-gray-600 text-xs md:text-sm mt-1">عرض جميع الوكيلين المسجلين في النظام</p>
                     </div>
                     <button onclick="loadOwnersList()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -761,8 +833,8 @@
             </div>
 
             <!-- Manager Insights Section -->
-            <div class="bg-white rounded-xl shadow-lg p-3 md:p-6">
-                <div class="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
+            <div class="bg-white rounded-xl shadow-lg p-3 md:p-6 mb-4 md:mb-6">
+                <div class="flex items-center gap-2 md:gap-3 mb-3 md:mb-6">
                     <div class="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center flex-shrink-0">
                         <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
