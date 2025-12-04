@@ -1234,28 +1234,66 @@
             }
 
             .table-container {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
+                overflow-x: visible;
                 border-radius: 12px;
-                margin: 0 -12px;
-                padding: 0 12px;
+                margin: 0;
+                padding: 0;
             }
 
+            /* Hide tables on mobile, show card view instead */
             table {
-                min-width: 600px;
-                font-size: 13px;
+                display: none;
             }
 
-            table th,
-            table td {
-                padding: 14px 10px;
-                font-size: 13px;
-                white-space: nowrap;
+            /* Card view for mobile */
+            .mobile-card-view {
+                display: block;
             }
 
-            table th {
+            .mobile-card {
+                background: var(--mdc-surface);
+                border: 1px solid var(--mdc-divider);
+                border-radius: 12px;
+                padding: 16px;
+                margin-bottom: 12px;
+                box-shadow: var(--mdc-elevation-2);
+            }
+
+            .mobile-card-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                padding: 10px 0;
+                border-bottom: 1px solid var(--mdc-divider);
+            }
+
+            .mobile-card-row:last-child {
+                border-bottom: none;
+            }
+
+            .mobile-card-label {
                 font-size: 12px;
+                color: var(--mdc-on-surface-secondary);
                 font-weight: 500;
+                margin-bottom: 4px;
+                min-width: 100px;
+            }
+
+            .mobile-card-value {
+                font-size: 14px;
+                color: var(--mdc-on-surface);
+                text-align: left;
+                flex: 1;
+                word-break: break-word;
+            }
+
+            .mobile-card-header {
+                font-size: 16px;
+                font-weight: 500;
+                color: var(--mdc-primary);
+                margin-bottom: 12px;
+                padding-bottom: 12px;
+                border-bottom: 2px solid var(--mdc-primary);
             }
 
             .btn {
@@ -1272,21 +1310,37 @@
             }
 
             .modal-container {
-                width: 95%;
-                max-height: 95vh;
-                margin: 16px;
+                width: 100%;
+                max-width: 100%;
+                max-height: 100vh;
+                margin: 0;
+                border-radius: 0;
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
             }
 
             .modal-header {
                 padding: 16px;
+                flex-shrink: 0;
+                border-bottom: 1px solid var(--mdc-divider);
             }
 
             .modal-title {
-                font-size: 20px;
+                font-size: 18px;
             }
 
             .modal-body {
                 padding: 16px;
+                overflow-y: auto;
+                flex: 1;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .modal-close {
+                width: 36px;
+                height: 36px;
+                font-size: 24px;
             }
 
             .chat-container {
@@ -1317,16 +1371,18 @@
             }
 
             .section-details-container {
-                padding: 16px;
-                margin-top: 16px;
-                margin-left: -12px;
-                margin-right: -12px;
-                border-radius: 0;
+                padding: 12px;
+                margin-top: 12px;
+                margin-left: 0;
+                margin-right: 0;
+                border-radius: 12px;
             }
 
             .section-details-title {
                 font-size: 18px;
                 margin-bottom: 16px;
+                padding-bottom: 12px;
+                border-bottom: 2px solid var(--mdc-primary);
             }
 
             .section-details-grid {
@@ -1336,6 +1392,26 @@
 
             .section-details-item {
                 padding: 16px;
+                border-radius: 12px;
+            }
+
+            .section-title {
+                font-size: 20px;
+                margin-bottom: 16px;
+                padding: 12px 0;
+            }
+
+            .tabs {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .tab {
+                padding: 10px 16px;
+                font-size: 14px;
+                min-width: auto;
+                flex: 1;
+                min-width: 100px;
             }
 
             .sidebar-header {
@@ -1410,26 +1486,63 @@
             }
 
             .section-details-container {
-                padding: 12px;
-                margin-left: -10px;
-                margin-right: -10px;
+                padding: 10px;
+                margin-left: 0;
+                margin-right: 0;
             }
 
             .section-details-item {
                 padding: 14px;
             }
 
-            .modal-container {
-                width: 98%;
-                margin: 8px;
+            .section-details-item-label {
+                font-size: 11px;
             }
 
-            .modal-header {
+            .section-details-item-value {
+                font-size: 20px;
+            }
+
+            .agent-info-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .agent-info-item {
                 padding: 14px;
             }
 
-            .modal-body {
+            .alwatani-accounts-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .alwatani-account-card {
                 padding: 14px;
+            }
+
+            .form-group {
+                margin-bottom: 16px;
+            }
+
+            .form-label {
+                font-size: 14px;
+                margin-bottom: 8px;
+            }
+
+            .form-input {
+                font-size: 16px;
+                padding: 12px;
+                min-height: 44px;
+            }
+
+            .form-textarea {
+                min-height: 100px;
+            }
+
+            .badge {
+                font-size: 12px;
+                padding: 4px 8px;
             }
 
             .modal-container {
@@ -1823,6 +1936,14 @@
         window.addEventListener('resize', function() {
             if (window.innerWidth > 768) {
                 closeMobileMenu();
+            }
+            // Reload data to switch between table and card view
+            const activeSection = document.querySelector('.content-section:not(.hidden)');
+            if (activeSection) {
+                const sectionId = activeSection.id.replace('-section', '');
+                if (sectionId && typeof loadSectionData === 'function') {
+                    loadSectionData(sectionId);
+                }
             }
         });
 
@@ -2264,6 +2385,47 @@
             }
         }
 
+        // Helper function to render table data as cards on mobile
+        function renderTableAsCards(tableId, data, columns, isMobile) {
+            const container = document.querySelector(`#${tableId}`).closest('.table-container');
+            if (!container) return;
+            
+            // Remove existing mobile card view if any
+            const existingCards = container.querySelector('.mobile-card-view');
+            if (existingCards) existingCards.remove();
+            
+            if (isMobile && window.innerWidth <= 768) {
+                // Create mobile card view
+                const cardView = document.createElement('div');
+                cardView.className = 'mobile-card-view';
+                
+                if (data.length === 0) {
+                    cardView.innerHTML = '<div class="loading">لا توجد بيانات</div>';
+                } else {
+                    cardView.innerHTML = data.map((item, index) => {
+                        let cardHtml = '<div class="mobile-card">';
+                        cardHtml += `<div class="mobile-card-header">${item.header || `#${index + 1}`}</div>`;
+                        
+                        columns.forEach(col => {
+                            if (col.key && item[col.key] !== undefined) {
+                                cardHtml += `
+                                    <div class="mobile-card-row">
+                                        <div class="mobile-card-label">${col.label}</div>
+                                        <div class="mobile-card-value">${col.render ? col.render(item[col.key], item, index) : item[col.key]}</div>
+                                    </div>
+                                `;
+                            }
+                        });
+                        
+                        cardHtml += '</div>';
+                        return cardHtml;
+                    }).join('');
+                }
+                
+                container.appendChild(cardView);
+            }
+        }
+
         // Load owners (agents)
         async function loadOwners() {
             try {
@@ -2272,7 +2434,10 @@
                 const data = await response.json();
                 
                 const tbody = document.getElementById('ownersTableBody');
+                const isMobile = window.innerWidth <= 768;
+                
                 if (data.success && data.owners && data.owners.length > 0) {
+                    // Desktop table view
                     tbody.innerHTML = data.owners.map((agent, index) => {
                         const agentData = JSON.stringify(agent).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                         return `
@@ -2301,10 +2466,75 @@
                     `;
                     }).join('');
                     
+                    // Mobile card view
+                    if (isMobile) {
+                        const container = document.querySelector('#ownersTable').closest('.table-container');
+                        if (container) {
+                            const existingCards = container.querySelector('.mobile-card-view');
+                            if (existingCards) existingCards.remove();
+                            
+                            const cardView = document.createElement('div');
+                            cardView.className = 'mobile-card-view';
+                            cardView.innerHTML = data.owners.map((agent, index) => {
+                                return `
+                                    <div class="mobile-card">
+                                        <div class="mobile-card-header">${agent.owner_username || 'N/A'}</div>
+                                        <div class="mobile-card-row">
+                                            <div class="mobile-card-label">الاسم الكامل</div>
+                                            <div class="mobile-card-value">${agent.user?.name || agent.owner_username || 'غير محدد'}</div>
+                                        </div>
+                                        <div class="mobile-card-row">
+                                            <div class="mobile-card-label">البريد الإلكتروني</div>
+                                            <div class="mobile-card-value">${agent.user?.email || 'غير محدد'}</div>
+                                        </div>
+                                        <div class="mobile-card-row">
+                                            <div class="mobile-card-label">الهاتف</div>
+                                            <div class="mobile-card-value">${agent.user?.phone || 'غير محدد'}</div>
+                                        </div>
+                                        <div class="mobile-card-row">
+                                            <div class="mobile-card-label">حساب الوطني</div>
+                                            <div class="mobile-card-value">
+                                                <span class="badge badge-info" style="cursor: pointer;" onclick="showAlwataniAccounts(${index})" title="اضغط لعرض حسابات الوطني">
+                                                    ${agent.alwatani_accounts_count || 0} حساب
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="mobile-card-row">
+                                            <div class="mobile-card-label">عدد المشتركين</div>
+                                            <div class="mobile-card-value">
+                                                <span class="badge badge-success">${agent.subscribers_count || 0}</span>
+                                            </div>
+                                        </div>
+                                        <div class="mobile-card-row">
+                                            <div class="mobile-card-label">المنصب</div>
+                                            <div class="mobile-card-value">${(agent.user?.position && (agent.user.position.toLowerCase() === 'owner' || agent.user.position === 'المالك')) ? 'وكيل' : (agent.user?.position || 'غير محدد')}</div>
+                                        </div>
+                                        <div class="mobile-card-row">
+                                            <div class="mobile-card-label">الإجراءات</div>
+                                            <div class="mobile-card-value">
+                                                <button class="btn btn-primary btn-sm" onclick="viewAgentDetails(${index})" style="width: 100%;">عرض التفاصيل</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('');
+                            container.appendChild(cardView);
+                        }
+                    }
+                    
                     // Store agents data globally for access in viewAgentDetails
                     window.agentsData = data.owners;
                 } else {
                     tbody.innerHTML = '<tr><td colspan="8" class="loading">لا توجد بيانات</td></tr>';
+                    if (isMobile) {
+                        const container = document.querySelector('#ownersTable').closest('.table-container');
+                        if (container) {
+                            const cardView = document.createElement('div');
+                            cardView.className = 'mobile-card-view';
+                            cardView.innerHTML = '<div class="loading">لا توجد بيانات</div>';
+                            container.appendChild(cardView);
+                        }
+                    }
                 }
             } catch (error) {
                 console.error('Error loading owners:', error);
