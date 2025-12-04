@@ -105,14 +105,14 @@
                 padding: 0 !important;
             }
             
-            /* Header adjustments - sticky at top */
+            /* Header adjustments - sticky at top, no background on mobile */
             header {
                 position: sticky;
                 top: 0;
                 z-index: 50;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-                backdrop-filter: blur(10px);
-                transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+                box-shadow: none;
+                backdrop-filter: none;
+                transition: transform 0.3s ease-in-out;
                 transform: translateY(0);
             }
             
@@ -131,14 +131,16 @@
                 margin-top: 0;
             }
             
-            /* Simple header on mobile - just title and logout */
+            /* Simple header on mobile - just title and logout, no background */
             header {
-                padding: 0.625rem 0.5rem !important;
+                padding: 0.5rem 0.5rem !important;
                 margin: 0 !important;
                 border-radius: 0;
                 width: 100%;
-                background: #26466D !important;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+                background: transparent !important;
+                box-shadow: none !important;
+                backdrop-filter: none !important;
+                border-bottom: 1px solid rgba(0,0,0,0.05);
             }
             
             header .container {
@@ -163,10 +165,11 @@
             
             /* Simple title */
             header h1 {
-                font-size: 0.95rem !important;
+                font-size: 0.9rem !important;
                 margin: 0 !important;
                 font-weight: 600 !important;
                 line-height: 1.2;
+                color: #1f2937 !important;
             }
             
             /* Hide server status on mobile */
@@ -174,17 +177,20 @@
                 display: none !important;
             }
             
-            /* Simplify logout button - just text */
+            /* Simplify logout button - just text, no background */
             header button {
-                padding: 0.5rem 0.75rem !important;
+                padding: 0.4rem 0.75rem !important;
                 font-size: 0.8rem !important;
                 min-height: auto !important;
-                background: rgba(255,255,255,0.15) !important;
-                border: 1px solid rgba(255,255,255,0.2) !important;
+                background: transparent !important;
+                border: 1px solid #e5e7eb !important;
+                color: #dc2626 !important;
+                border-radius: 0.375rem;
             }
             
             header button:hover {
-                background: rgba(255,255,255,0.25) !important;
+                background: #fee2e2 !important;
+                border-color: #dc2626 !important;
             }
             
             /* Hide SVG icon in logout button on mobile */
@@ -766,7 +772,7 @@
 <body class="bg-gray-50">
     <div class="min-h-screen">
         <!-- Header -->
-        <header class="bg-gradient-to-r from-[#26466D] to-[#1e3550] text-white p-3 md:p-4 shadow-lg">
+        <header class="bg-white md:bg-gradient-to-r md:from-[#26466D] md:to-[#1e3550] text-gray-800 md:text-white p-3 md:p-4 md:shadow-lg">
             <div class="container mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-0">
                 <div class="flex items-center gap-2 md:gap-3">
                     <div class="w-8 h-8 md:w-10 md:h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center flex-shrink-0">
