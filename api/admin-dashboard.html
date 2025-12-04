@@ -131,12 +131,14 @@
                 margin-top: 0;
             }
             
-            /* Compact header on mobile */
+            /* Simple header on mobile - just title and logout */
             header {
-                padding: 0.75rem 0.5rem !important;
+                padding: 0.625rem 0.5rem !important;
                 margin: 0 !important;
                 border-radius: 0;
                 width: 100%;
+                background: #26466D !important;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
             }
             
             header .container {
@@ -144,18 +146,59 @@
                 padding-left: 0.5rem !important;
                 padding-right: 0.5rem !important;
                 margin: 0 !important;
+                flex-direction: row !important;
+                justify-content: space-between !important;
+                align-items: center !important;
             }
             
+            /* Hide icon on mobile */
+            header .flex.items-center.gap-2 > div:first-child {
+                display: none !important;
+            }
+            
+            /* Hide description on mobile */
+            header p {
+                display: none !important;
+            }
+            
+            /* Simple title */
             header h1 {
                 font-size: 0.95rem !important;
-                margin: 0;
-                font-weight: 700;
+                margin: 0 !important;
+                font-weight: 600 !important;
+                line-height: 1.2;
             }
             
-            header p {
-                font-size: 0.65rem !important;
-                margin: 0;
-                line-height: 1.2;
+            /* Hide server status on mobile */
+            header #server-status {
+                display: none !important;
+            }
+            
+            /* Simplify logout button - just text */
+            header button {
+                padding: 0.5rem 0.75rem !important;
+                font-size: 0.8rem !important;
+                min-height: auto !important;
+                background: rgba(255,255,255,0.15) !important;
+                border: 1px solid rgba(255,255,255,0.2) !important;
+            }
+            
+            header button:hover {
+                background: rgba(255,255,255,0.25) !important;
+            }
+            
+            /* Hide SVG icon in logout button on mobile */
+            header button svg {
+                display: none !important;
+            }
+            
+            /* Show only "خروج" text */
+            header button span.md\\:hidden {
+                display: inline !important;
+            }
+            
+            header button span.hidden.md\\:inline {
+                display: none !important;
             }
             
             /* Better spacing for main content */
@@ -1081,13 +1124,13 @@
                                         <div class="owner-card-label">كلمة مرور الحساب</div>
                                         <div class="flex items-center gap-2 mt-1">
                                             <div id="${passwordId}" class="flex-1 px-3 py-2 bg-gray-100 rounded-lg font-mono text-sm text-center">
-                                                ${'*'.repeat(owner.password ? owner.password.length : 8)}
+                                                ${owner.password ? '*'.repeat(owner.password.length) : '*'.repeat(8)}
                                             </div>
-                                            <button id="${toggleId}" onclick="toggleOwnerPasswordMobile(${owner.id}, ${JSON.stringify(owner.password || '')})" 
+                                            <button id="${toggleId}" onclick="toggleOwnerPasswordMobile(${owner.id}, ${owner.password ? JSON.stringify(owner.password).replace(/"/g, '&quot;') : 'null'})" 
                                                     class="px-3 py-2 bg-blue-500 text-white rounded-lg text-xs font-semibold">
                                                 إظهار
                                             </button>
-                                            <button onclick="copyOwnerPasswordMobile(${JSON.stringify(owner.password || '')})" 
+                                            <button onclick="copyOwnerPasswordMobile(${owner.password ? JSON.stringify(owner.password).replace(/"/g, '&quot;') : 'null'}, this)" 
                                                     class="px-3 py-2 bg-green-500 text-white rounded-lg text-xs font-semibold">
                                                 نسخ
                                             </button>
@@ -1145,43 +1188,75 @@
             const passwordElement = document.getElementById(`mobile-owner-password-${ownerId}`);
             const toggleButton = document.getElementById(`mobile-owner-toggle-${ownerId}`);
             
-            if (passwordElement && toggleButton) {
-                if (passwordElement.textContent.includes('*')) {
-                    // Show password
-                    passwordElement.textContent = password;
-                    toggleButton.textContent = 'إخفاء';
-                    passwordElement.classList.remove('bg-gray-100');
-                    passwordElement.classList.add('bg-yellow-100', 'text-yellow-900');
-                } else {
-                    // Hide password
-                    passwordElement.textContent = '*'.repeat(password.length || 8);
-                    toggleButton.textContent = 'إظهار';
-                    passwordElement.classList.remove('bg-yellow-100', 'text-yellow-900');
-                    passwordElement.classList.add('bg-gray-100');
-                }
+            if (!passwordElement || !toggleButton) {
+                console.error('Password element or toggle button not found', { ownerId, passwordElement, toggleButton });
+                return;
+            }
+            
+            // Handle null, undefined, or empty password
+            if (!password || password === 'null' || password === 'undefined' || password === '' || password === null) {
+                alert('لا توجد كلمة مرور متاحة');
+                return;
+            }
+            
+            // Decode HTML entities if needed
+            if (password.includes('&quot;')) {
+                password = password.replace(/&quot;/g, '"');
+            }
+            
+            const currentText = passwordElement.textContent.trim();
+            const isHidden = currentText.includes('*') || currentText === '';
+            
+            if (isHidden) {
+                // Show password
+                passwordElement.textContent = password;
+                toggleButton.textContent = 'إخفاء';
+                passwordElement.classList.remove('bg-gray-100');
+                passwordElement.classList.add('bg-yellow-100', 'text-yellow-900');
+            } else {
+                // Hide password
+                passwordElement.textContent = '*'.repeat(password.length || 8);
+                toggleButton.textContent = 'إظهار';
+                passwordElement.classList.remove('bg-yellow-100', 'text-yellow-900');
+                passwordElement.classList.add('bg-gray-100');
             }
         }
         
         // Copy owner password (Mobile)
-        function copyOwnerPasswordMobile(password) {
-            if (!password) {
+        function copyOwnerPasswordMobile(password, buttonElement) {
+            // Handle null, undefined, or empty password
+            if (!password || password === 'null' || password === 'undefined' || password === '' || password === null) {
                 alert('لا توجد كلمة مرور للنسخ');
                 return;
             }
             
+            // Decode HTML entities if needed
+            if (password.includes('&quot;')) {
+                password = password.replace(/&quot;/g, '"');
+            }
+            
             navigator.clipboard.writeText(password).then(() => {
                 // Show temporary success message
-                const button = event.target;
-                const originalText = button.textContent;
-                button.textContent = 'تم النسخ!';
-                button.classList.remove('bg-green-500');
-                button.classList.add('bg-green-600');
-                
-                setTimeout(() => {
-                    button.textContent = originalText;
-                    button.classList.remove('bg-green-600');
-                    button.classList.add('bg-green-500');
-                }, 2000);
+                const button = buttonElement || window.event?.target;
+                if (button) {
+                    const originalText = button.textContent;
+                    button.textContent = 'تم النسخ!';
+                    button.classList.remove('bg-green-500');
+                    button.classList.add('bg-green-600');
+                    
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.classList.remove('bg-green-600');
+                        button.classList.add('bg-green-500');
+                    }, 2000);
+                } else {
+                    // Fallback: show toast message
+                    const toast = document.createElement('div');
+                    toast.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+                    toast.textContent = 'تم نسخ كلمة المرور بنجاح!';
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 2000);
+                }
             }).catch(err => {
                 console.error('Failed to copy password:', err);
                 alert('فشل نسخ كلمة المرور');
