@@ -1826,6 +1826,48 @@
             }
 
         }
+
+        /* Flowchart Container Animations */
+        #flowchartContainer {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
+            background-size: 200% 200%;
+            animation: gradientShift 15s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        #flowchartNetwork {
+            position: relative;
+        }
+
+        /* Floating nodes effect - applied via vis-network options */
+        #flowchartZoomControls button,
+        #flowchartToolbar button {
+            transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            transform: translateY(0);
+        }
+
+        #flowchartZoomControls button:hover,
+        #flowchartToolbar button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(144, 202, 249, 0.4);
+        }
+
+        #flowchartZoomControls button:active,
+        #flowchartToolbar button:active {
+            transform: translateY(0);
+        }
+
+        /* Enhanced node shadows for floating effect */
+        .vis-network canvas {
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+        }
     </style>
 </head>
 <body>
@@ -2169,13 +2211,23 @@
                     </select>
                 </div>
 
-                <div id="flowchartContainer" style="width: 100%; height: calc(100vh - 300px); min-height: 600px; background: var(--mdc-surface); border: 1px solid var(--mdc-divider); border-radius: 8px; position: relative; overflow: hidden;">
+                <div id="flowchartContainer" style="width: 100%; height: calc(100vh - 300px); min-height: 600px; background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); border: 1px solid var(--mdc-divider); border-radius: 8px; position: relative; overflow: hidden; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);">
                     <div id="flowchartNetwork" style="width: 100%; height: 100%;"></div>
-                    <div id="flowchartToolbar" style="position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 100; flex-wrap: wrap;">
-                        <button class="btn btn-secondary btn-sm" onclick="addFlowchartNode()" title="إضافة عقدة">➕ عقدة</button>
-                        <button class="btn btn-secondary btn-sm" onclick="deleteSelectedNode()" title="حذف المحدد">🗑️ حذف</button>
-                        <button class="btn btn-secondary btn-sm" onclick="saveFlowchart()" title="حفظ المخطط">💾 حفظ</button>
-                        <button class="btn btn-secondary btn-sm" onclick="clearFlowchart()" title="مسح الكل">🗑️ مسح</button>
+                    
+                    <!-- Zoom Controls -->
+                    <div id="flowchartZoomControls" style="position: absolute; bottom: 20px; left: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 100; background: rgba(30, 30, 30, 0.9); padding: 12px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3); backdrop-filter: blur(10px);">
+                        <button class="btn btn-secondary btn-sm" onclick="zoomInFlowchart()" title="تكبير" style="min-width: 40px; padding: 8px; font-size: 18px;">➕</button>
+                        <button class="btn btn-secondary btn-sm" onclick="zoomOutFlowchart()" title="تصغير" style="min-width: 40px; padding: 8px; font-size: 18px;">➖</button>
+                        <button class="btn btn-secondary btn-sm" onclick="resetZoomFlowchart()" title="إعادة تعيين" style="min-width: 40px; padding: 8px; font-size: 16px;">🔍</button>
+                        <button class="btn btn-secondary btn-sm" onclick="fitFlowchart()" title="توسيط الكل" style="min-width: 40px; padding: 8px; font-size: 16px;">⛶</button>
+                    </div>
+                    
+                    <!-- Main Toolbar -->
+                    <div id="flowchartToolbar" style="position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 100; flex-wrap: wrap; background: rgba(30, 30, 30, 0.9); padding: 12px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3); backdrop-filter: blur(10px);">
+                        <button class="btn btn-secondary btn-sm" onclick="addFlowchartNode()" title="إضافة عقدة" style="transition: all 0.3s ease;">➕ عقدة</button>
+                        <button class="btn btn-secondary btn-sm" onclick="deleteSelectedNode()" title="حذف المحدد" style="transition: all 0.3s ease;">🗑️ حذف</button>
+                        <button class="btn btn-secondary btn-sm" onclick="saveFlowchart()" title="حفظ المخطط" style="transition: all 0.3s ease;">💾 حفظ</button>
+                        <button class="btn btn-secondary btn-sm" onclick="clearFlowchart()" title="مسح الكل" style="transition: all 0.3s ease;">🗑️ مسح</button>
                     </div>
                 </div>
             </div>
@@ -2391,6 +2443,15 @@
                 loadTeams();
             } else if (section === 'chat') {
                 loadChatRooms();
+            } else if (section === 'flowchart') {
+                // Initialize flowchart if not already initialized
+                setTimeout(() => {
+                    if (!flowchartNetwork) {
+                        console.log('🔄 Initializing flowchart on section load...');
+                        initFlowchart();
+                    }
+                    loadFlowchartList();
+                }, 200);
             }
         }
 
@@ -3746,53 +3807,108 @@
             const options = {
                 nodes: {
                     shape: 'box',
-                    size: 30,
+                    size: 40,
                     font: {
-                        size: 14,
-                        color: '#FFFFFF'
+                        size: 15,
+                        color: '#FFFFFF',
+                        face: 'Roboto',
+                        bold: true
                     },
-                    borderWidth: 2,
-                    shadow: true,
+                    borderWidth: 3,
+                    shadow: {
+                        enabled: true,
+                        color: 'rgba(144, 202, 249, 0.6)',
+                        size: 20,
+                        x: 0,
+                        y: 0
+                    },
                     color: {
-                        border: '#90CAF9',
-                        background: '#2196F3',
+                        border: '#64B5F6',
+                        background: 'linear-gradient(135deg, #42A5F5 0%, #1E88E5 100%)',
                         highlight: {
                             border: '#FFB74D',
-                            background: '#FF9800'
+                            background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)'
+                        },
+                        hover: {
+                            border: '#90CAF9',
+                            background: 'linear-gradient(135deg, #64B5F6 0%, #42A5F5 100%)'
                         }
-                    }
+                    },
+                    margin: 15,
+                    chosen: {
+                        node: function(values, id, selected, hovering) {
+                            if (hovering || selected) {
+                                values.shadow = true;
+                                values.shadowColor = 'rgba(255, 183, 77, 0.8)';
+                                values.shadowSize = 25;
+                                values.shadowX = 0;
+                                values.shadowY = 0;
+                            }
+                        }
+                    },
+                    physics: true
                 },
                 edges: {
-                    width: 2,
+                    width: 3,
                     color: {
-                        color: '#90CAF9',
-                        highlight: '#FFB74D'
+                        color: 'rgba(144, 202, 249, 0.8)',
+                        highlight: '#FFB74D',
+                        hover: '#90CAF9'
                     },
                     arrows: {
                         to: {
                             enabled: true,
-                            scaleFactor: 1.2
+                            scaleFactor: 1.3,
+                            type: 'arrow'
+                        },
+                        middle: {
+                            enabled: false
+                        },
+                        from: {
+                            enabled: false
                         }
                     },
                     smooth: {
                         type: 'dynamic',
-                        roundness: 0.5
+                        roundness: 0.7,
+                        forceDirection: 'none'
                     },
-                    shadow: true
+                    shadow: {
+                        enabled: true,
+                        color: 'rgba(144, 202, 249, 0.3)',
+                        size: 8,
+                        x: 2,
+                        y: 2
+                    },
+                    chosen: {
+                        edge: function(values, id, selected, hovering) {
+                            if (hovering || selected) {
+                                values.width = 4;
+                                values.shadow = true;
+                                values.shadowColor = 'rgba(255, 183, 77, 0.6)';
+                                values.shadowSize = 12;
+                            }
+                        }
+                    }
                 },
                 physics: {
                     enabled: true,
                     stabilization: {
                         enabled: true,
-                        iterations: 200
+                        iterations: 300,
+                        fit: true
                     },
                     barnesHut: {
-                        gravitationalConstant: -2000,
-                        centralGravity: 0.3,
-                        springLength: 95,
-                        springConstant: 0.04,
-                        damping: 0.09
-                    }
+                        gravitationalConstant: -3000,
+                        centralGravity: 0.2,
+                        springLength: 120,
+                        springConstant: 0.03,
+                        damping: 0.12,
+                        avoidOverlap: 1
+                    },
+                    solver: 'barnesHut',
+                    timestep: 0.35,
+                    adaptiveTimestep: true
                 },
                 interaction: {
                     dragNodes: isFlowchartEditMode,
@@ -3800,11 +3916,41 @@
                     zoomView: true,
                     selectConnectedEdges: true,
                     hover: true,
-                    tooltipDelay: 100
+                    tooltipDelay: 150,
+                    hoverConnectedEdges: true,
+                    keyboard: {
+                        enabled: true,
+                        speed: { x: 10, y: 10, zoom: 0.02 },
+                        bindToWindow: true
+                    },
+                    navigationButtons: false,
+                    multiselect: true
+                },
+                layout: {
+                    improvedLayout: true,
+                    hierarchical: {
+                        enabled: false
+                    }
+                },
+                configure: {
+                    enabled: false
                 }
             };
 
             flowchartNetwork = new vis.Network(container, data, options);
+            
+            console.log('✅ Flowchart network initialized successfully');
+
+            // Enable smooth animations
+            flowchartNetwork.setOptions({
+                physics: {
+                    enabled: true,
+                    stabilization: {
+                        enabled: true,
+                        iterations: 300
+                    }
+                }
+            });
 
             // Event listeners
             flowchartNetwork.on('click', function(params) {
@@ -3826,8 +3972,37 @@
             flowchartNetwork.on('doubleClick', function(params) {
                 if (params.nodes.length === 0 && isFlowchartEditMode) {
                     // Double click on empty space to add node
-                    const pos = params.pointer;
-                    addNodeAtPosition(pos.x, pos.y);
+                    const canvasPos = params.pointer;
+                    // Convert canvas coordinates to network coordinates
+                    const networkPos = flowchartNetwork.canvasToDOM(canvasPos);
+                    addNodeAtPosition(networkPos.x, networkPos.y);
+                }
+            });
+
+            // Hover effects for better interactivity
+            flowchartNetwork.on('hoverNode', function(params) {
+                if (flowchartNetwork) {
+                    flowchartNetwork.setOptions({
+                        nodes: {
+                            color: {
+                                border: '#FFB74D',
+                                background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)'
+                            }
+                        }
+                    });
+                }
+            });
+
+            flowchartNetwork.on('blurNode', function(params) {
+                if (flowchartNetwork) {
+                    flowchartNetwork.setOptions({
+                        nodes: {
+                            color: {
+                                border: '#64B5F6',
+                                background: 'linear-gradient(135deg, #42A5F5 0%, #1E88E5 100%)'
+                            }
+                        }
+                    });
                 }
             });
 
@@ -3840,62 +4015,244 @@
                     }
                 });
             }
+
+            // Stabilization complete event
+            flowchartNetwork.once('stabilizationEnd', function() {
+                console.log('✅ Network stabilized');
+                if (flowchartNetwork) {
+                    flowchartNetwork.fit({
+                        animation: {
+                            duration: 500,
+                            easingFunction: 'easeInOutQuad'
+                        }
+                    });
+                }
+            });
+        }
+
+        // Zoom functions
+        function zoomInFlowchart() {
+            if (!flowchartNetwork) return;
+            const currentScale = flowchartNetwork.getScale();
+            const newScale = Math.min(currentScale * 1.2, 2.0); // Max zoom 2x
+            flowchartNetwork.moveTo({
+                scale: newScale,
+                animation: {
+                    duration: 300,
+                    easingFunction: 'easeInOutQuad'
+                }
+            });
+        }
+
+        function zoomOutFlowchart() {
+            if (!flowchartNetwork) return;
+            const currentScale = flowchartNetwork.getScale();
+            const newScale = Math.max(currentScale * 0.8, 0.3); // Min zoom 0.3x
+            flowchartNetwork.moveTo({
+                scale: newScale,
+                animation: {
+                    duration: 300,
+                    easingFunction: 'easeInOutQuad'
+                }
+            });
+        }
+
+        function resetZoomFlowchart() {
+            if (!flowchartNetwork) return;
+            flowchartNetwork.moveTo({
+                scale: 1.0,
+                animation: {
+                    duration: 400,
+                    easingFunction: 'easeInOutQuad'
+                }
+            });
+        }
+
+        function fitFlowchart() {
+            if (!flowchartNetwork) return;
+            flowchartNetwork.fit({
+                animation: {
+                    duration: 500,
+                    easingFunction: 'easeInOutQuad'
+                }
+            });
         }
 
         function addFlowchartNode() {
-            if (!isFlowchartEditMode) return;
+            console.log('🔵 addFlowchartNode called');
+            console.log('isFlowchartEditMode:', isFlowchartEditMode);
+            console.log('flowchartNetwork:', flowchartNetwork);
+            console.log('flowchartNodes:', flowchartNodes);
+            
+            if (!isFlowchartEditMode) {
+                alert('ليس لديك صلاحية للتعديل');
+                return;
+            }
+            
+            // Initialize if not already initialized
+            if (!flowchartNetwork) {
+                console.log('⚠️ Flowchart network not initialized, initializing...');
+                initFlowchart();
+                if (!flowchartNetwork) {
+                    console.error('❌ Failed to initialize flowchart network');
+                    alert('فشل تهيئة المخطط. يرجى تحديث الصفحة.');
+                    return;
+                }
+                console.log('✅ Flowchart network initialized');
+            }
+            
+            if (!flowchartNodes) {
+                console.error('❌ Flowchart nodes dataset not initialized');
+                alert('خطأ في تهيئة البيانات');
+                return;
+            }
+            
             const container = document.getElementById('flowchartNetwork');
-            if (!container) return;
+            if (!container) {
+                console.error('❌ Flowchart container not found');
+                return;
+            }
             
-            const rect = container.getBoundingClientRect();
-            const centerX = rect.width / 2;
-            const centerY = rect.height / 2;
-            
-            addNodeAtPosition(centerX, centerY);
+            // Get the center position of the visible viewport
+            try {
+                const rect = container.getBoundingClientRect();
+                const view = flowchartNetwork.getViewPosition();
+                const scale = flowchartNetwork.getScale();
+                
+                console.log('📐 Container rect:', rect);
+                console.log('👁️ View position:', view);
+                console.log('🔍 Scale:', scale);
+                
+                // Calculate center position in network coordinates
+                const centerX = (rect.width / 2 - view.x) / scale;
+                const centerY = (rect.height / 2 - view.y) / scale;
+                
+                console.log('📍 Adding node at:', centerX, centerY);
+                addNodeAtPosition(centerX, centerY);
+            } catch (error) {
+                console.error('❌ Error getting view position:', error);
+                // Fallback: add at origin (0, 0)
+                console.log('🔄 Using fallback position (0, 0)');
+                addNodeAtPosition(0, 0);
+            }
         }
 
         function addNodeAtPosition(x, y) {
             if (!isFlowchartEditMode) return;
-            const nodeId = Date.now().toString();
+            if (!flowchartNodes) {
+                console.error('Flowchart nodes dataset not initialized');
+                return;
+            }
+            
+            const nodeId = 'node_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             const newNode = {
                 id: nodeId,
                 label: 'عقدة جديدة',
-                x: x,
-                y: y,
+                x: x || 0,
+                y: y || 0,
+                size: 40,
+                shape: 'box',
+                borderWidth: 3,
+                shadow: {
+                    enabled: true,
+                    color: 'rgba(144, 202, 249, 0.6)',
+                    size: 20,
+                    x: 0,
+                    y: 0
+                },
                 color: {
-                    border: '#90CAF9',
-                    background: '#2196F3',
+                    border: '#64B5F6',
+                    background: 'linear-gradient(135deg, #42A5F5 0%, #1E88E5 100%)',
                     highlight: {
                         border: '#FFB74D',
-                        background: '#FF9800'
+                        background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)'
+                    },
+                    hover: {
+                        border: '#90CAF9',
+                        background: 'linear-gradient(135deg, #64B5F6 0%, #42A5F5 100%)'
                     }
                 },
                 font: {
                     color: '#FFFFFF',
-                    size: 14
-                }
+                    size: 15,
+                    face: 'Roboto',
+                    bold: true
+                },
+                margin: 15,
+                physics: true
             };
-            flowchartNodes.add(newNode);
+            
+            try {
+                flowchartNodes.add(newNode);
+                console.log('✅ Node added successfully:', nodeId, 'at position', x || 0, y || 0);
+                
+                // Fit to show all nodes after adding (optional)
+                setTimeout(() => {
+                    if (flowchartNetwork) {
+                        flowchartNetwork.fit({
+                            animation: {
+                                duration: 300,
+                                easingFunction: 'easeInOutQuad'
+                            }
+                        });
+                    }
+                }, 100);
+            } catch (error) {
+                console.error('Error adding node:', error);
+                alert('حدث خطأ في إضافة العقدة');
+            }
         }
 
         function deleteSelectedNode() {
-            if (!isFlowchartEditMode) return;
-            const selectedNodes = flowchartNetwork.getSelectedNodes();
-            const selectedEdges = flowchartNetwork.getSelectedEdges();
-            
-            if (selectedNodes.length > 0) {
-                // Delete connected edges first
-                selectedNodes.forEach(nodeId => {
-                    const connectedEdges = flowchartNetwork.getConnectedEdges(nodeId);
-                    connectedEdges.forEach(edgeId => {
-                        flowchartEdges.remove(edgeId);
-                    });
-                });
-                flowchartNodes.remove(selectedNodes);
+            if (!isFlowchartEditMode) {
+                alert('ليس لديك صلاحية للتعديل');
+                return;
             }
             
-            if (selectedEdges.length > 0) {
-                flowchartEdges.remove(selectedEdges);
+            // Initialize if not already initialized
+            if (!flowchartNetwork) {
+                console.warn('⚠️ Flowchart network not initialized, initializing...');
+                initFlowchart();
+                if (!flowchartNetwork) {
+                    console.error('❌ Failed to initialize flowchart network');
+                    alert('فشل تهيئة المخطط. يرجى تحديث الصفحة.');
+                    return;
+                }
+            }
+            
+            if (!flowchartNodes || !flowchartEdges) {
+                console.error('❌ Flowchart datasets not initialized');
+                alert('خطأ في تهيئة البيانات');
+                return;
+            }
+            
+            try {
+                const selectedNodes = flowchartNetwork.getSelectedNodes();
+                const selectedEdges = flowchartNetwork.getSelectedEdges();
+                
+                if (selectedNodes.length > 0) {
+                    // Delete connected edges first
+                    selectedNodes.forEach(nodeId => {
+                        const connectedEdges = flowchartNetwork.getConnectedEdges(nodeId);
+                        connectedEdges.forEach(edgeId => {
+                            flowchartEdges.remove(edgeId);
+                        });
+                    });
+                    flowchartNodes.remove(selectedNodes);
+                    console.log('✅ Deleted nodes:', selectedNodes);
+                }
+                
+                if (selectedEdges.length > 0) {
+                    flowchartEdges.remove(selectedEdges);
+                    console.log('✅ Deleted edges:', selectedEdges);
+                }
+                
+                if (selectedNodes.length === 0 && selectedEdges.length === 0) {
+                    alert('لم يتم تحديد أي عنصر للحذف');
+                }
+            } catch (error) {
+                console.error('❌ Error deleting selected nodes/edges:', error);
+                alert('حدث خطأ في حذف العناصر: ' + (error.message || error));
             }
         }
 
@@ -3930,6 +4287,10 @@
 
         function clearFlowchart() {
             if (!isFlowchartEditMode) return;
+            if (!flowchartNetwork) {
+                console.warn('Flowchart network not initialized');
+                return;
+            }
             if (confirm('هل أنت متأكد من مسح المخطط بالكامل؟')) {
                 flowchartNodes.clear();
                 flowchartEdges.clear();

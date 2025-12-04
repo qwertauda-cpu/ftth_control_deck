@@ -8312,13 +8312,12 @@ app.get('/api/control/flowchart', requireControlAuth, async (req, res) => {
     try {
         const masterPool = await dbManager.initMasterPool();
         const [flowcharts] = await masterPool.query(`
-            SELECT id, name, description, created_by, updated_by, is_active, created_at, updated_at
+            SELECT id, name, created_by, created_at, updated_at
             FROM flowchart_data
-            WHERE is_active = TRUE
             ORDER BY updated_at DESC
         `);
         
-        res.json({ success: true, flowcharts });
+        res.json({ success: true, flowcharts: flowcharts || [] });
     } catch (error) {
         console.error('[CONTROL FLOWCHART LIST] Error:', error);
         res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
@@ -8331,7 +8330,7 @@ app.get('/api/control/flowchart/:id', requireControlAuth, async (req, res) => {
         const { id } = req.params;
         const masterPool = await dbManager.initMasterPool();
         const [flowcharts] = await masterPool.query(
-            'SELECT * FROM flowchart_data WHERE id = ? AND is_active = TRUE',
+            'SELECT * FROM flowchart_data WHERE id = ?',
             [id]
         );
         
@@ -8391,7 +8390,7 @@ app.put('/api/control/flowchart/:id', requireControlAuth, async (req, res) => {
         
         // Check if flowchart exists
         const [existing] = await masterPool.query(
-            'SELECT id FROM flowchart_data WHERE id = ? AND is_active = TRUE',
+            'SELECT id FROM flowchart_data WHERE id = ?',
             [id]
         );
         
