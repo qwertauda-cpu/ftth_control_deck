@@ -2402,8 +2402,9 @@
                 selectedRoom.classList.add('active');
             }
             
-            // Load messages
-            await loadChatMessages(roomId);
+            // Reset last message ID and load messages
+            lastMessageId = 0;
+            await loadChatMessages(roomId, true);
             
             // Load members and requests
             await loadChatMembers(roomId);
@@ -2417,7 +2418,9 @@
             chatPollInterval = setInterval(() => loadChatMessages(roomId), 3000);
         }
 
-        async function loadChatMessages(roomId) {
+        let lastMessageId = 0; // Track last loaded message ID
+        
+        async function loadChatMessages(roomId, forceReload = false) {
             try {
                 const response = await fetchWithAuth(`${API_BASE}/api/control/chat/rooms/${roomId}/messages?limit=100`);
                 if (!response) return;
@@ -2425,45 +2428,88 @@
                 
                 const container = document.getElementById('chatMessagesArea');
                 if (data.success && data.messages && data.messages.length > 0) {
-                    container.innerHTML = data.messages.map(msg => {
-                        const date = new Date(msg.created_at);
-                        const timeStr = date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
-                        const dateStr = date.toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' });
-                        const isDeleted = msg.message_type === 'deleted' || msg.message === 'تم حذف هذه الرسالة';
-                        const isAdmin = true; // Control panel user is always admin
-                        const canDelete = isAdmin || msg.sender_username === 'admin';
-                        return `
-                        <div class="chat-message" id="message-${msg.id}" style="position: relative;">
-                            <div class="chat-message-header">
-                                <span class="chat-message-sender">${msg.sender_username || 'مجهول'}</span>
-                                <span class="chat-message-time">${dateStr} ${timeStr}</span>
-                                ${canDelete && !isDeleted ? `
-                                    <button onclick="deleteChatMessage(${msg.id}, ${currentChatRoomId})" class="chat-message-delete-btn" title="حذف الرسالة" style="background: none; border: none; color: var(--mdc-on-surface-secondary); cursor: pointer; padding: 4px 8px; font-size: 16px; opacity: 0.6; transition: opacity 0.2s;">🗑️</button>
-                                ` : ''}
-                            </div>
-                            ${isDeleted ? `
-                                <div class="chat-message-text" style="font-style: italic; opacity: 0.6; color: var(--mdc-on-surface-secondary);">${escapeHtml(msg.message || 'تم حذف هذه الرسالة')}</div>
-                            ` : `
-                                ${msg.message_type === 'image' && msg.file_url ? `
-                                    <div style="margin-bottom: 8px;">
-                                        <img src="${API_BASE}${msg.file_url}" alt="صورة" style="max-width: 100%; max-height: 400px; border-radius: 8px; cursor: pointer;" onclick="window.open('${API_BASE}${msg.file_url}', '_blank')">
-                                    </div>
-                                ` : ''}
-                                ${msg.message ? `<div class="chat-message-text">${escapeHtml(msg.message)}</div>` : ''}
-                            `}
-                        </div>
-                    `;
-                    }).join('');
-                    // Scroll to bottom
-                    setTimeout(() => {
-                        container.scrollTop = container.scrollHeight;
-                    }, 100);
+                    // If force reload or no messages exist, rebuild all
+                    if (forceReload || container.children.length === 0 || lastMessageId === 0) {
+                        container.innerHTML = data.messages.map(msg => renderMessage(msg)).join('');
+                        lastMessageId = data.messages[data.messages.length - 1].id;
+                        // Scroll to bottom on initial load
+                        setTimeout(() => {
+                            container.scrollTop = container.scrollHeight;
+                        }, 100);
+                    } else {
+                        // Only add new messages
+                        const existingIds = new Set(Array.from(container.querySelectorAll('.chat-message')).map(el => el.id.replace('message-', '')));
+                        const newMessages = data.messages.filter(msg => !existingIds.has(msg.id.toString()));
+                        const updatedMessages = data.messages.filter(msg => {
+                            const existingEl = container.querySelector(`#message-${msg.id}`);
+                            if (!existingEl) return false;
+                            const isDeleted = msg.message_type === 'deleted' || msg.message === 'تم حذف هذه الرسالة';
+                            const existingIsDeleted = existingEl.querySelector('.chat-message-text[style*="italic"]');
+                            return (isDeleted && !existingIsDeleted) || (!isDeleted && existingIsDeleted);
+                        });
+                        
+                        // Update changed messages
+                        updatedMessages.forEach(msg => {
+                            const existingEl = container.querySelector(`#message-${msg.id}`);
+                            if (existingEl) {
+                                existingEl.outerHTML = renderMessage(msg);
+                            }
+                        });
+                        
+                        // Add new messages
+                        if (newMessages.length > 0) {
+                            const wasAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
+                            newMessages.forEach(msg => {
+                                container.insertAdjacentHTML('beforeend', renderMessage(msg));
+                            });
+                            lastMessageId = Math.max(...data.messages.map(m => m.id));
+                            
+                            // Auto-scroll only if user was at bottom
+                            if (wasAtBottom) {
+                                setTimeout(() => {
+                                    container.scrollTop = container.scrollHeight;
+                                }, 50);
+                            }
+                        }
+                    }
                 } else {
-                    container.innerHTML = '<div style="text-align: center; color: var(--mdc-on-surface-secondary); padding: 40px;">لا توجد رسائل</div>';
+                    if (container.children.length === 0) {
+                        container.innerHTML = '<div style="text-align: center; color: var(--mdc-on-surface-secondary); padding: 40px;">لا توجد رسائل</div>';
+                    }
                 }
             } catch (error) {
                 console.error('Error loading messages:', error);
             }
+        }
+        
+        function renderMessage(msg) {
+            const date = new Date(msg.created_at);
+            const timeStr = date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+            const dateStr = date.toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' });
+            const isDeleted = msg.message_type === 'deleted' || msg.message === 'تم حذف هذه الرسالة';
+            const isAdmin = true; // Control panel user is always admin
+            const canDelete = isAdmin || msg.sender_username === 'admin';
+            return `
+            <div class="chat-message" id="message-${msg.id}" style="position: relative;">
+                <div class="chat-message-header">
+                    <span class="chat-message-sender">${msg.sender_username || 'مجهول'}</span>
+                    <span class="chat-message-time">${dateStr} ${timeStr}</span>
+                    ${canDelete && !isDeleted ? `
+                        <button onclick="deleteChatMessage(${msg.id}, ${currentChatRoomId})" class="chat-message-delete-btn" title="حذف الرسالة" style="background: none; border: none; color: var(--mdc-on-surface-secondary); cursor: pointer; padding: 4px 8px; font-size: 16px; opacity: 0.6; transition: opacity 0.2s;">🗑️</button>
+                    ` : ''}
+                </div>
+                ${isDeleted ? `
+                    <div class="chat-message-text" style="font-style: italic; opacity: 0.6; color: var(--mdc-on-surface-secondary);">${escapeHtml(msg.message || 'تم حذف هذه الرسالة')}</div>
+                ` : `
+                    ${msg.message_type === 'image' && msg.file_url ? `
+                        <div style="margin-bottom: 8px;">
+                            <img src="${API_BASE}${msg.file_url}" alt="صورة" style="max-width: 100%; max-height: 400px; border-radius: 8px; cursor: pointer;" onclick="window.open('${API_BASE}${msg.file_url}', '_blank')">
+                        </div>
+                    ` : ''}
+                    ${msg.message ? `<div class="chat-message-text">${escapeHtml(msg.message)}</div>` : ''}
+                `}
+            </div>
+        `;
         }
 
         async function loadChatMembers(roomId) {
