@@ -988,8 +988,12 @@
                 ]);
 
                 document.getElementById('dbCount').textContent = stats.databases || 0;
-                document.getElementById('ownersCount').textContent = owners.length || 0;
-                document.getElementById('usersCount').textContent = Array.isArray(users) ? users.length : 0;
+                // owners comes as { success: true, owners: [...], total: ... }
+                const ownersCount = owners.success ? (owners.owners?.length || owners.total || 0) : 0;
+                // users contains the actual owners/agents, so use it for owners count
+                const usersCount = Array.isArray(users) ? users.length : 0;
+                document.getElementById('ownersCount').textContent = usersCount || ownersCount;
+                document.getElementById('usersCount').textContent = 0; // Users section is not used, set to 0
                 document.getElementById('subscribersCount').textContent = Array.isArray(subscribers) ? subscribers.length : (subscribers.total || 0);
 
                 // Update chart
