@@ -1682,8 +1682,8 @@
                                 <div class="alwatani-account-info-item">
                                     <span class="alwatani-account-info-label">كلمة المرور</span>
                                     <span class="alwatani-account-info-value" style="display: flex; align-items: center; gap: 8px;">
-                                        <span id="password-display-${account.id}" style="font-family: monospace;">${'*'.repeat(account.password ? account.password.length : 0)}</span>
-                                        <button class="btn btn-sm" onclick="togglePassword(${account.id}, '${(account.password || '').replace(/'/g, "\\'")}')" style="padding: 4px 8px; font-size: 12px;">عرض</button>
+                                        <span id="password-display-${account.id}" style="font-family: monospace;">${'*'.repeat(account.password ? account.password.length : 8)}</span>
+                                        <button class="btn btn-sm" id="password-btn-${account.id}" onclick="togglePassword(${account.id}, ${JSON.stringify(account.password || '')})" style="padding: 4px 8px; font-size: 12px;">عرض</button>
                                     </span>
                                 </div>
                                 <div class="alwatani-account-info-item">
@@ -1730,16 +1730,17 @@
         // Toggle password visibility
         function togglePassword(accountId, password) {
             const displayElement = document.getElementById(`password-display-${accountId}`);
-            const button = event.target;
+            const button = document.getElementById(`password-btn-${accountId}`);
             
             if (displayElement && button) {
                 if (displayElement.textContent.includes('*')) {
                     // Show password
-                    displayElement.textContent = password;
+                    displayElement.textContent = password || 'غير محدد';
                     button.textContent = 'إخفاء';
                 } else {
                     // Hide password
-                    displayElement.textContent = '*'.repeat(password.length);
+                    const pwdLength = password ? password.length : 8;
+                    displayElement.textContent = '*'.repeat(pwdLength);
                     button.textContent = 'عرض';
                 }
             }
