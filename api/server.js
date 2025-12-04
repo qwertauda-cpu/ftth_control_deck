@@ -110,19 +110,17 @@ async function getOwnerUsernameFromAlwataniLoginId(alwataniLoginId) {
 const app = express();
 const path = require('path');
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
 // ============================================
-// ADMIN ROUTES - MUST BE FIRST!
+// ADMIN ROUTES - MUST BE ABSOLUTE FIRST!
 // ============================================
 
-// Admin Login Page
+// Admin Login Page - ABSOLUTE FIRST ROUTE
 app.get('/admin-login.html', (req, res) => {
     const filePath = path.resolve(__dirname, 'admin-login.html');
-    console.log('[ADMIN LOGIN] Request received');
+    console.log('========================================');
+    console.log('[ADMIN LOGIN] ✅ ROUTE MATCHED!');
+    console.log('[ADMIN LOGIN] Request path:', req.path);
+    console.log('[ADMIN LOGIN] Request URL:', req.url);
     console.log('[ADMIN LOGIN] __dirname:', __dirname);
     console.log('[ADMIN LOGIN] File path:', filePath);
     console.log('[ADMIN LOGIN] File exists:', fs.existsSync(filePath));
@@ -140,14 +138,18 @@ app.get('/admin-login.html', (req, res) => {
             }
         } else {
             console.log('[ADMIN LOGIN] ✅ File sent successfully');
+            console.log('========================================');
         }
     });
 });
 
-// Admin Dashboard Page
+// Admin Dashboard Page - ABSOLUTE FIRST ROUTE
 app.get('/admin-dashboard.html', (req, res) => {
     const filePath = path.resolve(__dirname, 'admin-dashboard.html');
-    console.log('[ADMIN DASHBOARD] Request received');
+    console.log('========================================');
+    console.log('[ADMIN DASHBOARD] ✅ ROUTE MATCHED!');
+    console.log('[ADMIN DASHBOARD] Request path:', req.path);
+    console.log('[ADMIN DASHBOARD] Request URL:', req.url);
     console.log('[ADMIN DASHBOARD] __dirname:', __dirname);
     console.log('[ADMIN DASHBOARD] File path:', filePath);
     console.log('[ADMIN DASHBOARD] File exists:', fs.existsSync(filePath));
@@ -165,8 +167,22 @@ app.get('/admin-dashboard.html', (req, res) => {
             }
         } else {
             console.log('[ADMIN DASHBOARD] ✅ File sent successfully');
+            console.log('========================================');
         }
     });
+});
+
+// Middleware - AFTER admin routes
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Log all requests for debugging
+app.use((req, res, next) => {
+    if (req.path.includes('admin')) {
+        console.log(`[REQUEST LOG] ${req.method} ${req.path} - URL: ${req.url}`);
+    }
+    next();
 });
 
 // Also serve at root paths
