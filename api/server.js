@@ -116,6 +116,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve admin HTML files directly with explicit routes - MUST be before static middleware
+// Add middleware to log ALL requests for debugging
+app.use((req, res, next) => {
+    if (req.path.includes('admin')) {
+        console.log(`[REQUEST] ${req.method} ${req.path} - Headers:`, JSON.stringify(req.headers, null, 2));
+    }
+    next();
+});
+
 app.get('/admin-login.html', (req, res) => {
     const filePath = path.join(__dirname, 'admin-login.html');
     console.log('[ADMIN] ✅ Serving admin-login.html from:', filePath);
@@ -139,10 +147,13 @@ app.get('/admin-login.html', (req, res) => {
     });
 });
 
-app.get('/admin-dashboard.html', (req, res, next) => {
+app.get('/admin-dashboard.html', (req, res) => {
+    console.log('[ADMIN] ========================================');
     console.log('[ADMIN] 🎯 ROUTE HANDLER CALLED: /admin-dashboard.html');
     console.log('[ADMIN] Request path:', req.path);
     console.log('[ADMIN] Request method:', req.method);
+    console.log('[ADMIN] Request URL:', req.url);
+    console.log('[ADMIN] Request originalUrl:', req.originalUrl);
     
     const filePath = path.join(__dirname, 'admin-dashboard.html');
     console.log('[ADMIN] File path:', filePath);
@@ -166,7 +177,7 @@ app.get('/admin-dashboard.html', (req, res, next) => {
     
     console.log('[ADMIN] ✅ File exists, sending...');
     
-    // Send file
+    // Send file - use absolute path
     res.sendFile(filePath, (err) => {
         if (err) {
             console.error('[ADMIN] ❌ Error serving admin-dashboard.html:', err);
@@ -185,6 +196,7 @@ app.get('/admin-dashboard.html', (req, res, next) => {
             }
         } else {
             console.log('[ADMIN] ✅ Successfully served admin-dashboard.html');
+            console.log('[ADMIN] ========================================');
         }
     });
 });
