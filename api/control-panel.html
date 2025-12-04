@@ -1442,12 +1442,19 @@
                 border-radius: 12px;
                 background: var(--mdc-surface);
                 border: 1px solid var(--mdc-divider);
+                cursor: pointer;
+                -webkit-tap-highlight-color: rgba(33, 150, 243, 0.2);
+                user-select: none;
             }
 
             .chat-room-name {
                 font-size: 16px;
                 font-weight: 500;
                 margin-bottom: 6px;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+                white-space: normal;
+                line-height: 1.4;
             }
 
             .chat-room-description {
@@ -3199,6 +3206,7 @@
         }
 
         async function selectChatRoom(roomId) {
+            console.log('selectChatRoom called with roomId:', roomId);
             currentChatRoomId = roomId;
             
             // Highlight selected room
@@ -3212,24 +3220,27 @@
             
             // Mobile: Switch to messages view
             if (window.innerWidth <= 768) {
+                console.log('Mobile view detected, switching to messages');
                 const sidebar = document.getElementById('chatRoomsSidebar');
                 const messagesContainer = document.getElementById('chatMessagesContainer');
                 const messagesHeader = document.getElementById('chatMessagesHeader');
-                const messagesTitle = document.getElementById('chatMessagesTitle');
+                const currentChatRoomNameEl = document.getElementById('currentChatRoomName');
                 
                 if (sidebar && messagesContainer) {
-                    sidebar.classList.add('mobile-hidden');
-                    messagesContainer.classList.add('mobile-visible');
+                    sidebar.style.display = 'none';
+                    messagesContainer.style.display = 'flex';
                     
                     // Set chat room name in header
-                    if (selectedRoom && messagesTitle) {
+                    if (selectedRoom && currentChatRoomNameEl) {
                         const roomName = selectedRoom.querySelector('.chat-room-name')?.textContent || 'المحادثة';
-                        messagesTitle.textContent = roomName;
+                        currentChatRoomNameEl.textContent = roomName;
                     }
                     
                     if (messagesHeader) {
                         messagesHeader.style.display = 'flex';
                     }
+                } else {
+                    console.error('Sidebar or messages container not found:', { sidebar, messagesContainer });
                 }
             }
             
