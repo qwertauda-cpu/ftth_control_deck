@@ -2692,6 +2692,38 @@
             document.getElementById('chatImagePreview').style.display = 'none';
         }
 
+        // Delete chat message
+        async function deleteChatMessage(messageId, roomId) {
+            if (!confirm('هل أنت متأكد من حذف هذه الرسالة؟')) {
+                return;
+            }
+            
+            try {
+                const response = await fetchWithAuth(`${API_BASE}/api/control/chat/rooms/${roomId}/messages/${messageId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sender_username: 'admin'
+                    })
+                });
+                
+                if (!response) return;
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Reload messages (force reload to show deleted state)
+                    await loadChatMessages(roomId, true);
+                } else {
+                    alert(data.message || 'فشل حذف الرسالة');
+                }
+            } catch (error) {
+                console.error('Error deleting message:', error);
+                alert('حدث خطأ في حذف الرسالة');
+            }
+        }
+
         // Logout
         function logout() {
             if (chatPollInterval) clearInterval(chatPollInterval);
