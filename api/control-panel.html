@@ -594,20 +594,6 @@
             font-weight: 500;
         }
 
-        .qr-code-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 16px;
-            background: white;
-            border-radius: 8px;
-            margin-top: 16px;
-        }
-
-        .qr-code-container canvas {
-            max-width: 100%;
-            height: auto;
-        }
 
         .content-section {
             background: rgba(255, 255, 255, 0.15);
@@ -1690,14 +1676,22 @@
                                     <span class="alwatani-account-info-value">#${account.id || 'N/A'}</span>
                                 </div>
                                 <div class="alwatani-account-info-item">
+                                    <span class="alwatani-account-info-label">اسم الحساب</span>
+                                    <span class="alwatani-account-info-value">${account.username || 'N/A'}</span>
+                                </div>
+                                <div class="alwatani-account-info-item">
+                                    <span class="alwatani-account-info-label">كلمة المرور</span>
+                                    <span class="alwatani-account-info-value" style="display: flex; align-items: center; gap: 8px;">
+                                        <span id="password-display-${account.id}" style="font-family: monospace;">${'*'.repeat(account.password ? account.password.length : 0)}</span>
+                                        <button class="btn btn-sm" onclick="togglePassword(${account.id}, '${(account.password || '').replace(/'/g, "\\'")}')" style="padding: 4px 8px; font-size: 12px;">عرض</button>
+                                    </span>
+                                </div>
+                                <div class="alwatani-account-info-item">
                                     <span class="alwatani-account-info-label">عدد المشتركين</span>
                                     <span class="alwatani-account-info-value">
                                         <span class="badge badge-success">${account.subscribers_count || 0}</span>
                                     </span>
                                 </div>
-                            </div>
-                            <div class="qr-code-container" id="qr-${account.id}">
-                                <canvas id="qr-canvas-${account.id}"></canvas>
                             </div>
                         </div>
                     `;
@@ -1733,40 +1727,6 @@
             document.getElementById('agentDetailsModal').style.display = 'none';
         }
 
-        // Generate QR code
-        function generateQRCode(accountId, username) {
-            // Use a simple QR code library or API
-            const canvas = document.getElementById(`qr-canvas-${accountId}`);
-            if (!canvas) return;
-            
-            // Create QR code data
-            const qrData = `Alwatani Account: ${username}\nID: ${accountId}\nOwner: ${document.querySelector('.modal-title')?.textContent || 'Agent'}`;
-            
-            // Use QRCode.js library (we'll add it to the head)
-            if (typeof QRCode !== 'undefined') {
-                QRCode.toCanvas(canvas, qrData, {
-                    width: 200,
-                    margin: 2,
-                    color: {
-                        dark: '#000000',
-                        light: '#FFFFFF'
-                    }
-                }, function (error) {
-                    if (error) {
-                        console.error('QR Code generation error:', error);
-                        canvas.parentElement.innerHTML = '<div style="text-align: center; color: var(--mdc-on-surface-secondary);">فشل إنشاء الرمز</div>';
-                    }
-                });
-            } else {
-                // Fallback: show text if QRCode library is not loaded
-                canvas.parentElement.innerHTML = `
-                    <div style="text-align: center; padding: 20px;">
-                        <div style="color: var(--mdc-on-surface); font-weight: 500; margin-bottom: 8px;">${username}</div>
-                        <div style="color: var(--mdc-on-surface-secondary); font-size: 12px;">ID: ${accountId}</div>
-                    </div>
-                `;
-            }
-        }
 
         // Close modal when clicking outside
         document.addEventListener('click', function(e) {

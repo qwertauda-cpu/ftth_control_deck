@@ -7051,12 +7051,13 @@ app.get('/api/control/owners', requireControlAuth, async (req, res) => {
                         SELECT 
                             al.id,
                             al.username as alwatani_username,
+                            al.password as alwatani_password,
                             al.role,
                             al.created_at as account_created_at,
                             COUNT(DISTINCT s.id) as subscribers_count
                         FROM alwatani_login al
                         LEFT JOIN subscribers s ON s.alwatani_login_id = al.id
-                        GROUP BY al.id, al.username, al.role, al.created_at
+                        GROUP BY al.id, al.username, al.password, al.role, al.created_at
                         ORDER BY al.created_at DESC
                     `);
                     
