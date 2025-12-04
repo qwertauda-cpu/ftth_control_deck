@@ -913,57 +913,87 @@
                 </div>
             </div>
 
-            <!-- Manager Insights Section -->
+            <!-- Manager Chat Section -->
             <div class="bg-white rounded-xl shadow-lg p-3 md:p-6 mb-4 md:mb-6">
-                <div class="flex items-center gap-2 md:gap-3 mb-3 md:mb-6">
-                    <div class="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                <div class="flex items-center justify-between gap-2 md:gap-3 mb-3 md:mb-6">
+                    <div class="flex items-center gap-2 md:gap-3">
+                        <div class="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 class="text-lg md:text-2xl font-bold text-gray-800">شات المدير</h2>
+                            <p class="text-gray-600 text-xs md:text-sm">تواصل مع المدير والاقتراحات</p>
+                        </div>
+                    </div>
+                    <button onclick="showManageParticipants()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
                         </svg>
-                    </div>
-                    <div>
-                        <h2 class="text-lg md:text-2xl font-bold text-gray-800">قسم المدير</h2>
-                        <p class="text-gray-600 text-xs md:text-sm">تحسينات وملاحظات واقتراحات</p>
-                    </div>
+                        <span class="hidden md:inline">إدارة المشاركين</span>
+                    </button>
                 </div>
 
-                <div id="insights-loading" class="text-center py-8">
-                    <div class="loading-spinner mx-auto mb-4"></div>
-                    <p class="text-gray-600">جاري تحميل التحليلات...</p>
-                </div>
-
-                <div id="insights-container" class="hidden space-y-4">
-                    <!-- Recommendations -->
-                    <div id="recommendations-section" class="hidden">
-                        <h3 class="text-lg font-bold text-blue-800 mb-3 flex items-center gap-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            التوصيات
-                        </h3>
-                        <div id="recommendations-list" class="space-y-2"></div>
+                <!-- Chat Container -->
+                <div class="flex flex-col md:flex-row gap-4" style="height: 500px;">
+                    <!-- Chat Messages Area -->
+                    <div class="flex-1 flex flex-col border border-gray-200 rounded-lg overflow-hidden">
+                        <!-- Messages Header -->
+                        <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span class="text-sm font-semibold text-gray-700">المحادثة</span>
+                            </div>
+                            <button onclick="refreshChat()" class="text-gray-500 hover:text-gray-700 transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <!-- Messages List -->
+                        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+                            <div class="text-center py-8 text-gray-500 text-sm">
+                                جاري تحميل الرسائل...
+                            </div>
+                        </div>
+                        
+                        <!-- Message Input -->
+                        <div class="border-t border-gray-200 bg-white p-3">
+                            <div class="flex items-end gap-2">
+                                <label class="cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                                    <input type="file" id="chat-image-input" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                                    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                </label>
+                                <textarea id="chat-message-input" placeholder="اكتب رسالتك هنا..." 
+                                    class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    rows="1" onkeydown="handleChatKeyDown(event)"></textarea>
+                                <button onclick="sendChatMessage()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold">
+                                    إرسال
+                                </button>
+                            </div>
+                            <div id="chat-image-preview" class="hidden mt-2">
+                                <div class="relative inline-block">
+                                    <img id="chat-preview-img" src="" alt="Preview" class="max-w-xs rounded-lg border border-gray-300">
+                                    <button onclick="cancelImageUpload()" class="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600">
+                                        ×
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-
-                    <!-- Warnings -->
-                    <div id="warnings-section" class="hidden">
-                        <h3 class="text-lg font-bold text-red-800 mb-3 flex items-center gap-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                            </svg>
-                            تحذيرات
-                        </h3>
-                        <div id="warnings-list" class="space-y-2"></div>
-                    </div>
-
-                    <!-- Improvements -->
-                    <div id="improvements-section" class="hidden">
-                        <h3 class="text-lg font-bold text-green-800 mb-3 flex items-center gap-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            التحسينات المقترحة
-                        </h3>
-                        <div id="improvements-list" class="space-y-3"></div>
+                    
+                    <!-- Participants Sidebar -->
+                    <div class="w-full md:w-64 border border-gray-200 rounded-lg overflow-hidden flex flex-col">
+                        <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                            <h3 class="text-sm font-semibold text-gray-700">المشاركون</h3>
+                        </div>
+                        <div id="chat-participants" class="flex-1 overflow-y-auto p-3 space-y-2">
+                            <div class="text-center py-4 text-gray-500 text-xs">جاري التحميل...</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1282,120 +1312,189 @@
             document.getElementById('stat-avg-days').textContent = avgDays;
         }
 
-        // Load insights
-        async function loadInsights() {
-            const loadingDiv = document.getElementById('insights-loading');
-            const container = document.getElementById('insights-container');
-            
-            loadingDiv.classList.remove('hidden');
-            container.classList.add('hidden');
+        // Chat Functions
+        let currentUserId = 1; // Admin user ID
+        let chatRefreshInterval = null;
+        let selectedImageFile = null;
+        
+        // Load chat messages
+        async function loadChatMessages() {
+            const messagesContainer = document.getElementById('chat-messages');
             
             try {
-                const response = await fetch(`${API_URL}/api/admin/insights`, {
+                const response = await fetch(`${API_URL}/api/admin/chat/messages`, {
                     headers: {
                         'Authorization': `Bearer ${authToken}`
                     }
                 });
                 const data = await response.json();
                 
-                if (data.success && data.insights) {
-                    loadingDiv.classList.add('hidden');
-                    container.classList.remove('hidden');
+                if (data.success && data.messages) {
+                    messagesContainer.innerHTML = '';
                     
-                    const insights = data.insights;
-                    
-                    // Recommendations
-                    if (insights.recommendations && insights.recommendations.length > 0) {
-                        const section = document.getElementById('recommendations-section');
-                        const list = document.getElementById('recommendations-list');
-                        section.classList.remove('hidden');
-                        list.innerHTML = '';
-                        
-                        insights.recommendations.forEach(rec => {
-                            const card = document.createElement('div');
-                            card.className = 'insight-card bg-blue-50 border-r-4 border-blue-500 p-4 rounded-lg';
-                            card.innerHTML = `
-                                <div class="flex items-start gap-3">
-                                    <svg class="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                    <div>
-                                        <p class="text-blue-800 font-semibold">${rec.owner}</p>
-                                        <p class="text-blue-700 text-sm mt-1">${rec.message}</p>
-                                    </div>
-                                </div>
-                            `;
-                            list.appendChild(card);
-                        });
+                    if (data.messages.length === 0) {
+                        messagesContainer.innerHTML = `
+                            <div class="text-center py-8 text-gray-500 text-sm">
+                                لا توجد رسائل بعد. ابدأ المحادثة!
+                            </div>
+                        `;
+                        return;
                     }
                     
-                    // Warnings
-                    if (insights.warnings && insights.warnings.length > 0) {
-                        const section = document.getElementById('warnings-section');
-                        const list = document.getElementById('warnings-list');
-                        section.classList.remove('hidden');
-                        list.innerHTML = '';
+                    data.messages.forEach(msg => {
+                        const isOwnMessage = msg.sender_id === currentUserId;
+                        const messageDiv = document.createElement('div');
+                        messageDiv.className = `flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`;
                         
-                        insights.warnings.forEach(warn => {
-                            const card = document.createElement('div');
-                            card.className = 'insight-card bg-red-50 border-r-4 border-red-500 p-4 rounded-lg';
-                            card.innerHTML = `
-                                <div class="flex items-start gap-3">
-                                    <svg class="w-5 h-5 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                                    </svg>
-                                    <div>
-                                        <p class="text-red-800 font-semibold">${warn.owner}</p>
-                                        <p class="text-red-700 text-sm mt-1">${warn.message}</p>
-                                    </div>
+                        messageDiv.innerHTML = `
+                            <div class="max-w-xs md:max-w-md ${isOwnMessage ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200'} rounded-lg p-3 shadow-sm">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="text-xs font-semibold ${isOwnMessage ? 'text-blue-100' : 'text-gray-600'}">${msg.sender_name}</span>
+                                    <span class="text-xs ${isOwnMessage ? 'text-blue-200' : 'text-gray-400'}">${new Date(msg.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
                                 </div>
-                            `;
-                            list.appendChild(card);
-                        });
-                    }
+                                ${msg.message_type === 'image' ? `
+                                    <img src="${msg.file_url}" alt="Image" class="rounded-lg mb-2 max-w-full">
+                                ` : ''}
+                                <p class="text-sm ${isOwnMessage ? 'text-white' : 'text-gray-800'}">${msg.message}</p>
+                            </div>
+                        `;
+                        messagesContainer.appendChild(messageDiv);
+                    });
                     
-                    // Improvements
-                    if (insights.improvements && insights.improvements.length > 0) {
-                        const section = document.getElementById('improvements-section');
-                        const list = document.getElementById('improvements-list');
-                        section.classList.remove('hidden');
-                        list.innerHTML = '';
-                        
-                        insights.improvements.forEach(improvement => {
-                            const iconColor = improvement.type === 'performance' ? 'text-yellow-600' : 
-                                            improvement.type === 'security' ? 'text-red-600' : 'text-green-600';
-                            const bgColor = improvement.type === 'performance' ? 'bg-yellow-50 border-yellow-500' : 
-                                           improvement.type === 'security' ? 'bg-red-50 border-red-500' : 'bg-green-50 border-green-500';
-                            const textColor = improvement.type === 'performance' ? 'text-yellow-800' : 
-                                            improvement.type === 'security' ? 'text-red-800' : 'text-green-800';
-                            
-                            const card = document.createElement('div');
-                            card.className = `insight-card ${bgColor} border-r-4 p-4 rounded-lg`;
-                            card.innerHTML = `
-                                <div class="flex items-start gap-3">
-                                    <svg class="w-5 h-5 ${iconColor} mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                    <div>
-                                        <p class="${textColor} font-bold text-lg">${improvement.title}</p>
-                                        <p class="${textColor.replace('800', '700')} text-sm mt-1">${improvement.description}</p>
-                                    </div>
-                                </div>
-                            `;
-                            list.appendChild(card);
-                        });
-                    }
+                    // Scroll to bottom
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
                 }
             } catch (error) {
-                console.error('Error loading insights:', error);
-                loadingDiv.classList.add('hidden');
-                container.classList.remove('hidden');
-                container.innerHTML = `
-                    <div class="bg-red-50 border-r-4 border-red-500 p-4 rounded-lg">
-                        <p class="text-red-800">خطأ في تحميل التحليلات: ${error.message}</p>
+                console.error('Error loading chat messages:', error);
+                messagesContainer.innerHTML = `
+                    <div class="text-center py-8 text-red-500 text-sm">
+                        خطأ في تحميل الرسائل: ${error.message}
                     </div>
                 `;
             }
+        }
+        
+        // Load chat participants
+        async function loadChatParticipants() {
+            const participantsContainer = document.getElementById('chat-participants');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/admin/chat/participants`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success && data.participants) {
+                    participantsContainer.innerHTML = '';
+                    
+                    data.participants.forEach(participant => {
+                        const participantDiv = document.createElement('div');
+                        participantDiv.className = 'flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors';
+                        participantDiv.innerHTML = `
+                            <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                                ${participant.display_name ? participant.display_name.charAt(0) : participant.username.charAt(0)}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-semibold text-gray-800 truncate">${participant.display_name || participant.username}</p>
+                                <p class="text-xs text-gray-500">${participant.role === 'admin' ? 'مدير' : participant.role === 'manager' ? 'مدير' : 'مستخدم'}</p>
+                            </div>
+                            ${participant.is_active ? '<div class="w-2 h-2 bg-green-500 rounded-full"></div>' : ''}
+                        `;
+                        participantsContainer.appendChild(participantDiv);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading participants:', error);
+            }
+        }
+        
+        // Send chat message
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-message-input');
+            const message = input.value.trim();
+            
+            if (!message && !selectedImageFile) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('message', message || '');
+            if (selectedImageFile) {
+                formData.append('image', selectedImageFile);
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/admin/chat/send`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    input.value = '';
+                    cancelImageUpload();
+                    await loadChatMessages();
+                } else {
+                    alert('فشل إرسال الرسالة: ' + (data.error || 'خطأ غير معروف'));
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                alert('فشل إرسال الرسالة');
+            }
+        }
+        
+        // Handle image upload
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (!file.type.startsWith('image/')) {
+                alert('الرجاء اختيار صورة فقط');
+                return;
+            }
+            
+            if (file.size > 5 * 1024 * 1024) {
+                alert('حجم الصورة يجب أن يكون أقل من 5 ميجابايت');
+                return;
+            }
+            
+            selectedImageFile = file;
+            const preview = document.getElementById('chat-image-preview');
+            const previewImg = document.getElementById('chat-preview-img');
+            preview.classList.remove('hidden');
+            previewImg.src = URL.createObjectURL(file);
+        }
+        
+        // Cancel image upload
+        function cancelImageUpload() {
+            selectedImageFile = null;
+            document.getElementById('chat-image-input').value = '';
+            document.getElementById('chat-image-preview').classList.add('hidden');
+        }
+        
+        // Handle chat key down
+        function handleChatKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendChatMessage();
+            }
+        }
+        
+        // Refresh chat
+        function refreshChat() {
+            loadChatMessages();
+            loadChatParticipants();
+        }
+        
+        // Show manage participants modal
+        function showManageParticipants() {
+            alert('قريباً: إدارة المشاركين');
         }
 
         // Show Alwatani Pages Modal
@@ -1685,12 +1784,17 @@
             
             // Initial load
             loadOwnersList();
-            loadInsights();
+            loadChatMessages();
+            loadChatParticipants();
             
-            // Auto-refresh every 60 seconds
+            // Auto-refresh chat every 5 seconds
+            chatRefreshInterval = setInterval(() => {
+                loadChatMessages();
+            }, 5000);
+            
+            // Auto-refresh owners every 60 seconds
             setInterval(() => {
                 loadOwnersList();
-                loadInsights();
             }, 60000);
         });
     </script>

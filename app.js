@@ -2944,10 +2944,10 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
                 subscriberPagination.totalPages = 1;
                 updatePaginationControls(total, 1);
             } else {
-                const totalPages = Math.ceil(total / pageSize);
-                subscriberPagination.currentPage = pageNumber;
-                subscriberPagination.totalPages = totalPages;
-                updatePaginationControls(total, totalPages);
+            const totalPages = Math.ceil(total / pageSize);
+            subscriberPagination.currentPage = pageNumber;
+            subscriberPagination.totalPages = totalPages;
+            updatePaginationControls(total, totalPages);
             }
             
             return;
@@ -3798,7 +3798,7 @@ async function syncCustomers() {
                     setTimeout(() => {
                         showSubscribersLoading(false);
                     }, 500);
-                } else {
+            } else {
                     // إذا لم تكن البيانات في cache، جلب من API مباشرة
                     console.log('[SYNC] No data in cache, fetching from API...');
                     await loadRemoteSubscribers(1, 10000); // جلب جميع البيانات
@@ -4830,19 +4830,19 @@ function renderSubscribersTable(list, offset = 0, animate = true) {
     
     console.log('[RENDER TABLE] Rendering', list?.length || 0, 'subscribers');
     
-    tbody.innerHTML = '';
+        tbody.innerHTML = '';
         
     if (!list || list.length === 0) {
-        tbody.innerHTML = `
-            <tr>
+            tbody.innerHTML = `
+                <tr>
                 <td colspan="11" class="p-8 text-center text-gray-400">
-                    <div class="flex flex-col items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
-                        <p>لا توجد بيانات</p>
-                    </div>
-                </td>
-            </tr>
-        `;
+                        <div class="flex flex-col items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+                            <p>لا توجد بيانات</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
         return;
     }
     
@@ -4900,35 +4900,35 @@ function renderSubscribersTable(list, offset = 0, animate = true) {
         animateNext();
     } else {
         // عرض بدون animation (للحالات العادية)
-        list.forEach((sub, index) => {
-            const meta = sub._meta || buildSubscriberMeta(sub);
-            sub._meta = meta;
-            const row = document.createElement('tr');
-            row.className = 'hover:bg-gray-50 transition-colors';
-            row.dataset.status = meta.statusKey || '';
-            row.dataset.tags = Array.from(meta.tags || []).join(',');
-            row.innerHTML = `
-                <td class="p-4 font-mono text-gray-400">${offset + index + 1}</td>
-                <td class="p-4 font-medium text-gray-800">${sub.name || '--'}</td>
-                <td class="p-4 text-gray-600 font-mono" dir="ltr">${sub.account_id || sub.accountId || '--'}</td>
-                <td class="p-4 text-gray-600 font-mono" dir="ltr">${sub.deviceName || sub.username || '--'}</td>
-                <td class="p-4 text-gray-600 font-mono" dir="ltr">${sub.phone || '--'}</td>
-                <td class="p-4 text-gray-600">${sub.zone || '--'}</td>
-                <td class="p-4"><a href="${sub.page_url || '#'}" target="_blank" class="text-blue-600 hover:underline text-xs">عرض الصفحة</a></td>
-                <td class="p-4 text-gray-600">${formatDate(sub.start_date || sub.startDate)}</td>
-                <td class="p-4 text-gray-600">${formatDate(sub.end_date || sub.endDate)}</td>
-                <td class="p-4">
-                    <span class="px-2 py-1 rounded-full text-xs font-bold ${getStatusBadgeClass(meta.statusKey)}">${getStatusLabel(meta.statusKey)}</span>
-                </td>
-                <td class="p-4 text-center">
-                    <button class="text-gray-400 hover:text-[#26466D]">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(row);
-        });
-        console.log('[RENDER TABLE] Successfully rendered', list.length, 'rows in table');
+    list.forEach((sub, index) => {
+        const meta = sub._meta || buildSubscriberMeta(sub);
+        sub._meta = meta;
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 transition-colors';
+        row.dataset.status = meta.statusKey || '';
+        row.dataset.tags = Array.from(meta.tags || []).join(',');
+                row.innerHTML = `
+            <td class="p-4 font-mono text-gray-400">${offset + index + 1}</td>
+            <td class="p-4 font-medium text-gray-800">${sub.name || '--'}</td>
+            <td class="p-4 text-gray-600 font-mono" dir="ltr">${sub.account_id || sub.accountId || '--'}</td>
+            <td class="p-4 text-gray-600 font-mono" dir="ltr">${sub.deviceName || sub.username || '--'}</td>
+            <td class="p-4 text-gray-600 font-mono" dir="ltr">${sub.phone || '--'}</td>
+            <td class="p-4 text-gray-600">${sub.zone || '--'}</td>
+            <td class="p-4"><a href="${sub.page_url || '#'}" target="_blank" class="text-blue-600 hover:underline text-xs">عرض الصفحة</a></td>
+                    <td class="p-4 text-gray-600">${formatDate(sub.start_date || sub.startDate)}</td>
+                    <td class="p-4 text-gray-600">${formatDate(sub.end_date || sub.endDate)}</td>
+            <td class="p-4">
+                <span class="px-2 py-1 rounded-full text-xs font-bold ${getStatusBadgeClass(meta.statusKey)}">${getStatusLabel(meta.statusKey)}</span>
+            </td>
+                    <td class="p-4 text-center">
+                        <button class="text-gray-400 hover:text-[#26466D]">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+    console.log('[RENDER TABLE] Successfully rendered', list.length, 'rows in table');
     }
 }
 

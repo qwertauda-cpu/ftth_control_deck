@@ -7,6 +7,36 @@ const https = require('https');
 const querystring = require('querystring');
 const zlib = require('zlib');
 const dbManager = require('./db-manager');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Configure multer for image uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const uploadDir = path.join(__dirname, 'uploads', 'chat');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'chat-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: function (req, file, cb) {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed'));
+        }
+    }
+});
 
 /**
  * Helper: الحصول على owner username من alwatani_login id
@@ -7690,6 +7720,120 @@ async function performAutoSync(accountId, ownerUsername, ownerDomain, isFullSync
         autoSyncRunning.set(accountId, false);
     }
 }
+
+// ==================== Chat API Endpoints ====================
+
+// Get chat messages
+app.get('/api/admin/chat/messages', requireAdminAuth, async (req, res) => {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        const [messages] = await masterPool.query(
+            'SELECT * FROM chat_messages ORDER BY created_at ASC LIMIT 100'
+        );
+        
+        res.json({
+            success: true,
+            messages: messages
+        });
+    } catch (error) {
+        console.error('[CHAT] Error loading messages:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Send chat message
+app.post('/api/admin/chat/send', requireAdminAuth, upload.single('image'), async (req, res) => {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        const { message } = req.body;
+        const senderId = 1; // Admin user ID
+        const senderName = 'المدير';
+        const senderRole = 'admin';
+        
+        let fileUrl = null;
+        let fileName = null;
+        let fileSize = null;
+        let messageType = 'text';
+        
+        if (req.file) {
+            fileUrl = `/uploads/chat/${req.file.filename}`;
+            fileName = req.file.originalname;
+            fileSize = req.file.size;
+            messageType = 'image';
+        }
+        
+        const [result] = await masterPool.query(
+            `INSERT INTO chat_messages (sender_id, sender_name, sender_role, message, message_type, file_url, file_name, file_size, is_read)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [senderId, senderName, senderRole, message || '', messageType, fileUrl, fileName, fileSize, false]
+        );
+        
+        res.json({
+            success: true,
+            messageId: result.insertId
+        });
+    } catch (error) {
+        console.error('[CHAT] Error sending message:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get chat participants
+app.get('/api/admin/chat/participants', requireAdminAuth, async (req, res) => {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        const [participants] = await masterPool.query(
+            'SELECT * FROM chat_participants WHERE is_active = TRUE ORDER BY created_at DESC'
+        );
+        
+        res.json({
+            success: true,
+            participants: participants
+        });
+    } catch (error) {
+        console.error('[CHAT] Error loading participants:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Add chat participant
+app.post('/api/admin/chat/participants', requireAdminAuth, async (req, res) => {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        const { username, display_name, email, phone, role } = req.body;
+        
+        if (!username) {
+            return res.status(400).json({ success: false, error: 'اسم المستخدم مطلوب' });
+        }
+        
+        // Check if user already exists
+        const [existing] = await masterPool.query(
+            'SELECT * FROM chat_participants WHERE username = ?',
+            [username]
+        );
+        
+        if (existing.length > 0) {
+            return res.status(400).json({ success: false, error: 'المستخدم موجود بالفعل' });
+        }
+        
+        const [result] = await masterPool.query(
+            `INSERT INTO chat_participants (user_id, username, display_name, email, phone, role, is_active)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [Date.now(), username, display_name || username, email || null, phone || null, role || 'user', true]
+        );
+        
+        res.json({
+            success: true,
+            participantId: result.insertId
+        });
+    } catch (error) {
+        console.error('[CHAT] Error adding participant:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
 // Handle shutdown gracefully
