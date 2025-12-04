@@ -1309,50 +1309,6 @@
             }
         }
 
-        // Update chart
-        function updateChart(stats) {
-            const ctx = document.getElementById('statsChart').getContext('2d');
-            
-            if (statsChart) {
-                statsChart.destroy();
-            }
-
-            statsChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['قواعد البيانات', 'الوكلاء', 'المستخدمين', 'المشتركين'],
-                    datasets: [{
-                        label: 'الإحصائيات',
-                        data: [
-                            stats.databases || 0,
-                            stats.owners || 0,
-                            stats.users || 0,
-                            stats.subscribers || 0
-                        ],
-                        backgroundColor: [
-                            'rgba(102, 126, 234, 0.8)',
-                            'rgba(72, 187, 120, 0.8)',
-                            'rgba(237, 137, 54, 0.8)',
-                            'rgba(66, 153, 225, 0.8)'
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-        }
 
         // Load databases
         async function loadDatabases() {
