@@ -6816,6 +6816,11 @@ async function startServer() {
         console.log(`🌐 Network Access: http://${localIP}:${PORT}`);
         console.log(`📊 API Status: http://${localIP}:${PORT}/api/health`);
         console.log(`📱 Mobile Access: http://${localIP}:${PORT}`);
+        console.log('');
+        console.log('🔐 Admin Dashboard Links:');
+        console.log(`   Login:    http://${localIP}:${PORT}/admin-login.html`);
+        console.log(`   Dashboard: http://${localIP}:${PORT}/admin-dashboard.html`);
+        console.log(`   (Password: admin123)`);
         console.log('═══════════════════════════════════════════════════════════');
         console.log('');
         console.log('📝 Available Endpoints:');
