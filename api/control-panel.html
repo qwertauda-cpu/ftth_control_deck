@@ -914,24 +914,26 @@
         }
 
         .chat-messages-container {
+            flex: 1;
             display: flex;
             flex-direction: column;
             background: var(--mdc-surface);
             border: 1px solid var(--mdc-divider);
             border-radius: 8px;
-            padding: 20px;
             box-shadow: var(--mdc-elevation-2);
+            min-width: 0;
         }
 
         .chat-messages-area {
             flex: 1;
             overflow-y: auto;
-            margin-bottom: 16px;
-            padding: 16px;
+            padding: 20px;
             background: rgba(0, 0, 0, 0.2);
-            border-radius: 8px;
             min-height: 400px;
-            max-height: calc(100vh - 400px);
+        }
+
+        .chat-input-area {
+            flex-shrink: 0;
         }
 
         .chat-message {
@@ -2049,44 +2051,88 @@
 
             <!-- Chat Section - Mobile Only -->
             <div id="chat-section" class="content-section hidden">
-                <!-- Chat Rooms List View (Default on Mobile) -->
-                <div id="chatRoomsView" class="mobile-chat-view">
-                    <div class="mobile-chat-header">
-                        <h2 style="margin: 0; color: var(--mdc-on-surface); font-size: 20px; font-weight: 500;">المحادثات</h2>
-                        <button class="mobile-chat-create-btn" onclick="showCreateChatModal()" title="إنشاء محادثة جديدة">
-                            ➕
-                        </button>
+                <div class="section-title">المحادثات</div>
+                
+                <!-- Desktop Chat Layout -->
+                <div class="chat-container desktop-chat-container">
+                    <div class="chat-rooms-sidebar">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h3 style="margin: 0; color: var(--mdc-on-surface); font-size: 18px; font-weight: 500;">المحادثات</h3>
+                            <button class="btn btn-primary btn-sm" onclick="showCreateChatModal()" style="padding: 8px 16px; font-size: 14px;">➕ جديد</button>
+                        </div>
+                        <div id="chatRoomsList" style="overflow-y: auto; max-height: calc(100vh - 200px);">
+                            <div class="loading">جاري التحميل...</div>
+                        </div>
                     </div>
-                    <div id="chatRoomsList" class="mobile-chat-rooms-list">
-                        <div class="loading">جاري التحميل...</div>
+                    
+                    <div class="chat-messages-container">
+                        <div id="chatMessagesHeader" style="display: none; padding: 16px; border-bottom: 1px solid var(--mdc-divider); background: var(--mdc-surface); border-radius: 8px 8px 0 0;">
+                            <h3 id="chatMessagesTitle" style="margin: 0; color: var(--mdc-on-surface); font-size: 18px; font-weight: 500;">المحادثة</h3>
+                        </div>
+                        <div id="chatMessagesArea" class="chat-messages-area" style="display: none;">
+                            <div style="text-align: center; color: var(--mdc-on-surface-secondary); padding: 40px;">اختر محادثة لعرض الرسائل</div>
+                        </div>
+                        <div id="chatInputArea" class="chat-input-area" style="display: none; padding: 16px; border-top: 1px solid var(--mdc-divider); background: var(--mdc-surface); border-radius: 0 0 8px 8px;">
+                            <div id="chatImagePreview" style="display: none; margin-bottom: 10px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <img id="chatImagePreviewImg" src="" alt="Preview" style="max-width: 100px; max-height: 100px; border-radius: 4px;">
+                                    <span id="chatImagePreviewName" style="color: var(--mdc-on-surface); flex: 1; font-size: 12px;"></span>
+                                    <button class="btn btn-sm" onclick="removeChatImage()" style="background: var(--mdc-error); color: white; padding: 4px 8px; min-width: 32px;">✕</button>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <label for="chatImageInput" class="btn btn-secondary btn-sm" style="cursor: pointer; padding: 8px 12px;" title="إرسال صورة">
+                                    📷
+                                </label>
+                                <input type="file" id="chatImageInput" accept="image/*" style="display: none;" onchange="handleChatImageSelect(event)">
+                                <input type="text" id="chatMessageInput" class="form-input" placeholder="اكتب رسالتك..." autocomplete="off" style="flex: 1; padding: 12px;">
+                                <button class="btn btn-primary" onclick="sendChatMessage()" style="padding: 12px 24px;">إرسال</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Chat Messages View (Shown when room is selected) -->
-                <div id="chatMessagesView" class="mobile-chat-view" style="display: none;">
-                    <div class="mobile-chat-header">
-                        <button class="mobile-chat-back-btn" onclick="backToChatList()" title="رجوع">←</button>
-                        <div class="mobile-chat-room-title" id="chatMessagesTitle">المحادثة</div>
-                        <div style="width: 40px;"></div> <!-- Spacer for alignment -->
-                    </div>
-                    <div id="chatMessagesArea" class="mobile-chat-messages-area">
-                        <div style="text-align: center; color: var(--mdc-on-surface-secondary); padding: 40px;">جاري التحميل...</div>
-                    </div>
-                    <div id="chatInputArea" class="mobile-chat-input-area" style="display: none;">
-                        <div id="chatImagePreview" style="display: none; margin-bottom: 10px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <img id="chatImagePreviewImg" src="" alt="Preview" style="max-width: 100px; max-height: 100px; border-radius: 4px;">
-                                <span id="chatImagePreviewName" style="color: var(--mdc-on-surface); flex: 1; font-size: 12px;"></span>
-                                <button class="btn btn-sm" onclick="removeChatImage()" style="background: var(--mdc-error); color: white; padding: 4px 8px; min-width: 32px;">✕</button>
-                            </div>
+                <!-- Mobile Chat Layout -->
+                <div class="mobile-chat-container">
+                    <!-- Chat Rooms List View (Default on Mobile) -->
+                    <div id="chatRoomsView" class="mobile-chat-view">
+                        <div class="mobile-chat-header">
+                            <h2 style="margin: 0; color: var(--mdc-on-surface); font-size: 20px; font-weight: 500;">المحادثات</h2>
+                            <button class="mobile-chat-create-btn" onclick="showCreateChatModal()" title="إنشاء محادثة جديدة">
+                                ➕
+                            </button>
                         </div>
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <label for="chatImageInput" class="mobile-chat-image-btn" title="إرسال صورة">
-                                📷
-                            </label>
-                            <input type="file" id="chatImageInput" accept="image/*" style="display: none;" onchange="handleChatImageSelect(event)">
-                            <input type="text" id="chatMessageInput" class="mobile-chat-input" placeholder="اكتب رسالتك..." autocomplete="off">
-                            <button class="mobile-chat-send-btn" onclick="sendChatMessage()" title="إرسال">➤</button>
+                        <div id="chatRoomsListMobile" class="mobile-chat-rooms-list">
+                            <div class="loading">جاري التحميل...</div>
+                        </div>
+                    </div>
+
+                    <!-- Chat Messages View (Shown when room is selected) -->
+                    <div id="chatMessagesView" class="mobile-chat-view" style="display: none;">
+                        <div class="mobile-chat-header">
+                            <button class="mobile-chat-back-btn" onclick="backToChatList()" title="رجوع">←</button>
+                            <div class="mobile-chat-room-title" id="chatMessagesTitleMobile">المحادثة</div>
+                            <div style="width: 40px;"></div> <!-- Spacer for alignment -->
+                        </div>
+                        <div id="chatMessagesAreaMobile" class="mobile-chat-messages-area">
+                            <div style="text-align: center; color: var(--mdc-on-surface-secondary); padding: 40px;">جاري التحميل...</div>
+                        </div>
+                        <div id="chatInputAreaMobile" class="mobile-chat-input-area" style="display: none;">
+                            <div id="chatImagePreviewMobile" style="display: none; margin-bottom: 10px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <img id="chatImagePreviewImgMobile" src="" alt="Preview" style="max-width: 100px; max-height: 100px; border-radius: 4px;">
+                                    <span id="chatImagePreviewNameMobile" style="color: var(--mdc-on-surface); flex: 1; font-size: 12px;"></span>
+                                    <button class="btn btn-sm" onclick="removeChatImage()" style="background: var(--mdc-error); color: white; padding: 4px 8px; min-width: 32px;">✕</button>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <label for="chatImageInputMobile" class="mobile-chat-image-btn" title="إرسال صورة">
+                                    📷
+                                </label>
+                                <input type="file" id="chatImageInputMobile" accept="image/*" style="display: none;" onchange="handleChatImageSelect(event)">
+                                <input type="text" id="chatMessageInputMobile" class="mobile-chat-input" placeholder="اكتب رسالتك..." autocomplete="off">
+                                <button class="mobile-chat-send-btn" onclick="sendChatMessage()" title="إرسال">➤</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -3234,9 +3280,13 @@
                 if (!response) return;
                 const data = await response.json();
                 
+                // Desktop container
                 const container = document.getElementById('chatRoomsList');
+                // Mobile container
+                const mobileContainer = document.getElementById('chatRoomsListMobile');
+                
                 if (data.success && data.rooms && data.rooms.length > 0) {
-                    container.innerHTML = data.rooms.map(room => `
+                    const roomsHTML = data.rooms.map(room => `
                         <div class="chat-room-item" id="chatRoom-${room.id}" data-room-id="${room.id}">
                             <div class="chat-room-name">${escapeHtml(room.name || 'بدون اسم')}</div>
                             ${room.description ? `<div class="chat-room-description">${escapeHtml(room.description)}</div>` : ''}
@@ -3246,6 +3296,9 @@
                             </div>
                         </div>
                     `).join('');
+                    
+                    if (container) container.innerHTML = roomsHTML;
+                    if (mobileContainer) mobileContainer.innerHTML = roomsHTML;
                     
                     // Add click event listeners
                     data.rooms.forEach(room => {
@@ -3259,11 +3312,17 @@
                         }
                     });
                 } else {
-                    container.innerHTML = '<div style="text-align: center; color: var(--mdc-on-surface-secondary); padding: 40px;">لا توجد محادثات</div>';
+                    const emptyHTML = '<div style="text-align: center; color: var(--mdc-on-surface-secondary); padding: 40px;">لا توجد محادثات</div>';
+                    if (container) container.innerHTML = emptyHTML;
+                    if (mobileContainer) mobileContainer.innerHTML = emptyHTML;
                 }
             } catch (error) {
                 console.error('Error loading chat rooms:', error);
-                document.getElementById('chatRoomsList').innerHTML = '<div style="text-align: center; color: #f56565; padding: 20px;">حدث خطأ في التحميل</div>';
+                const errorHTML = '<div style="text-align: center; color: #f56565; padding: 20px;">حدث خطأ في التحميل</div>';
+                const container = document.getElementById('chatRoomsList');
+                const mobileContainer = document.getElementById('chatRoomsListMobile');
+                if (container) container.innerHTML = errorHTML;
+                if (mobileContainer) mobileContainer.innerHTML = errorHTML;
             }
         }
 
@@ -3279,19 +3338,34 @@
                 selectedRoom.classList.add('active');
             }
             
-            // Switch to messages view (mobile only)
-            const roomsView = document.getElementById('chatRoomsView');
-            const messagesView = document.getElementById('chatMessagesView');
-            const chatMessagesTitle = document.getElementById('chatMessagesTitle');
+            const isMobile = window.innerWidth <= 768;
             
-            if (roomsView && messagesView) {
-                // Hide rooms list
-                roomsView.style.display = 'none';
+            if (isMobile) {
+                // Mobile: Switch to messages view
+                const roomsView = document.getElementById('chatRoomsView');
+                const messagesView = document.getElementById('chatMessagesView');
+                const chatMessagesTitle = document.getElementById('chatMessagesTitleMobile');
                 
-                // Show messages view
-                messagesView.style.display = 'flex';
+                if (roomsView && messagesView) {
+                    roomsView.style.display = 'none';
+                    messagesView.style.display = 'flex';
+                    
+                    if (selectedRoom && chatMessagesTitle) {
+                        const roomName = selectedRoom.querySelector('.chat-room-name')?.textContent || 'المحادثة';
+                        chatMessagesTitle.textContent = roomName;
+                    }
+                }
+            } else {
+                // Desktop: Show messages in main area
+                const chatMessagesHeader = document.getElementById('chatMessagesHeader');
+                const chatMessagesArea = document.getElementById('chatMessagesArea');
+                const chatInputArea = document.getElementById('chatInputArea');
+                const chatMessagesTitle = document.getElementById('chatMessagesTitle');
                 
-                // Set chat room name in header
+                if (chatMessagesHeader) chatMessagesHeader.style.display = 'block';
+                if (chatMessagesArea) chatMessagesArea.style.display = 'block';
+                if (chatInputArea) chatInputArea.style.display = 'block';
+                
                 if (selectedRoom && chatMessagesTitle) {
                     const roomName = selectedRoom.querySelector('.chat-room-name')?.textContent || 'المحادثة';
                     chatMessagesTitle.textContent = roomName;
@@ -3306,12 +3380,6 @@
             await loadChatMembers(roomId);
             await loadChatRequests(roomId);
             
-            // Show input area
-            const chatInputArea = document.getElementById('chatInputArea');
-            if (chatInputArea) {
-                chatInputArea.style.display = 'block';
-            }
-            
             // Start polling for new messages
             if (chatPollInterval) clearInterval(chatPollInterval);
             chatPollInterval = setInterval(() => loadChatMessages(roomId), 3000);
@@ -3323,16 +3391,13 @@
             const messagesView = document.getElementById('chatMessagesView');
             
             if (roomsView && messagesView) {
-                // Show rooms list
                 roomsView.style.display = 'flex';
-                
-                // Hide messages view
                 messagesView.style.display = 'none';
             }
             
             // Clear current room
             currentChatRoomId = null;
-            const chatInputArea = document.getElementById('chatInputArea');
+            const chatInputArea = document.getElementById('chatInputAreaMobile');
             if (chatInputArea) {
                 chatInputArea.style.display = 'none';
             }
@@ -3463,8 +3528,9 @@
                 return;
             }
             
-            const messageInput = document.getElementById('chatMessageInput');
-            const message = messageInput.value.trim();
+            const isMobile = window.innerWidth <= 768;
+            const messageInput = isMobile ? document.getElementById('chatMessageInputMobile') : document.getElementById('chatMessageInput');
+            const message = messageInput ? messageInput.value.trim() : '';
             
             // Check if there's a message or image
             if (!message && !selectedChatImage) {
