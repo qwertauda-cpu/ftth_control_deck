@@ -259,8 +259,9 @@
             cursor: pointer;
         }
 
-        .stat-card.expandable {
-            padding-bottom: 0;
+        .stat-card.active {
+            border: 2px solid var(--mdc-primary);
+            box-shadow: var(--mdc-elevation-4);
         }
 
         .stat-card::before {
@@ -329,63 +330,71 @@
             font-weight: 400;
         }
 
-        .stat-card-expand-icon {
-            position: absolute;
-            left: 24px;
-            top: 24px;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--mdc-on-surface-secondary);
-            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        .section-details-container {
+            background: var(--mdc-surface);
+            padding: 24px;
+            border-radius: 4px;
+            box-shadow: var(--mdc-elevation-2);
+            margin-top: 24px;
+            min-height: 200px;
+            display: none;
+            animation: slideDown 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+
+        .section-details-container.show {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .section-details-title {
             font-size: 20px;
+            font-weight: 500;
+            color: var(--mdc-on-surface);
+            margin-bottom: 20px;
+            letter-spacing: 0.15px;
         }
 
-        .stat-card.expanded .stat-card-expand-icon {
-            transform: rotate(180deg);
+        .section-details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
         }
 
-        .stat-card-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
-            margin-top: 0;
+        .section-details-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 16px;
+            border-radius: 4px;
+            border: 1px solid var(--mdc-divider);
         }
 
-        .stat-card.expanded .stat-card-content {
-            max-height: 500px;
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid var(--mdc-divider);
-        }
-
-        .stat-card-details {
-            font-size: 14px;
-            color: var(--mdc-on-surface-secondary);
-            line-height: 1.6;
-        }
-
-        .stat-card-details-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--mdc-divider);
-        }
-
-        .stat-card-details-item:last-child {
-            border-bottom: none;
-        }
-
-        .stat-card-details-label {
+        .section-details-item-label {
+            font-size: 12px;
             color: var(--mdc-on-surface-secondary);
             font-weight: 400;
+            margin-bottom: 8px;
+            letter-spacing: 0.25px;
         }
 
-        .stat-card-details-value {
+        .section-details-item-value {
+            font-size: 24px;
             color: var(--mdc-on-surface);
             font-weight: 500;
+            letter-spacing: 0.25px;
+        }
+
+        .section-details-table {
+            margin-top: 24px;
         }
 
         .content-section {
@@ -655,112 +664,47 @@
                 </div>
 
                 <div class="stats-grid" id="statsGrid">
-                    <div class="stat-card expandable" data-section="database" onclick="toggleStatCard(this)">
-                        <div class="stat-card-expand-icon">▼</div>
+                    <div class="stat-card" data-section="database" onclick="showSectionDetails('database', this)">
                         <div class="stat-card-header">
                             <span class="stat-card-title">قواعد البيانات</span>
                             <div class="stat-card-icon primary">🗄️</div>
                         </div>
                         <div class="stat-card-value" id="dbCount">-</div>
                         <div class="stat-card-change">قاعدة بيانات نشطة</div>
-                        <div class="stat-card-content" id="dbCardContent">
-                            <div class="stat-card-details">
-                                <div class="stat-card-details-item">
-                                    <span class="stat-card-details-label">قاعدة البيانات الرئيسية</span>
-                                    <span class="stat-card-details-value" id="dbMainValue">-</span>
-                                </div>
-                                <div class="stat-card-details-item">
-                                    <span class="stat-card-details-label">قواعد البيانات النشطة</span>
-                                    <span class="stat-card-details-value" id="dbActiveValue">-</span>
-                                </div>
-                                <div class="stat-card-details-item">
-                                    <span class="stat-card-details-label">إجمالي الجداول</span>
-                                    <span class="stat-card-details-value" id="dbTablesValue">-</span>
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
-                    <div class="stat-card expandable" data-section="owners" onclick="toggleStatCard(this)">
-                        <div class="stat-card-expand-icon">▼</div>
+                    <div class="stat-card" data-section="owners" onclick="showSectionDetails('owners', this)">
                         <div class="stat-card-header">
                             <span class="stat-card-title">الوكلاء</span>
                             <div class="stat-card-icon success">👥</div>
                         </div>
                         <div class="stat-card-value" id="ownersCount">-</div>
                         <div class="stat-card-change">وكيل نشط</div>
-                        <div class="stat-card-content" id="ownersCardContent">
-                            <div class="stat-card-details">
-                                <div class="stat-card-details-item">
-                                    <span class="stat-card-details-label">إجمالي الوكلاء</span>
-                                    <span class="stat-card-details-value" id="ownersTotalValue">-</span>
-                                </div>
-                                <div class="stat-card-details-item">
-                                    <span class="stat-card-details-label">الوكلاء النشطين</span>
-                                    <span class="stat-card-details-value" id="ownersActiveValue">-</span>
-                                </div>
-                                <div class="stat-card-details-item">
-                                    <span class="stat-card-details-label">إجمالي حسابات الوطني</span>
-                                    <span class="stat-card-details-value" id="ownersAlwataniValue">-</span>
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
-                    <div class="stat-card expandable" data-section="users" onclick="toggleStatCard(this)">
-                        <div class="stat-card-expand-icon">▼</div>
+                    <div class="stat-card" data-section="users" onclick="showSectionDetails('users', this)">
                         <div class="stat-card-header">
                             <span class="stat-card-title">المستخدمين</span>
                             <div class="stat-card-icon warning">👤</div>
                         </div>
                         <div class="stat-card-value" id="usersCount">-</div>
                         <div class="stat-card-change">مستخدم نشط</div>
-                        <div class="stat-card-content" id="usersCardContent">
-                            <div class="stat-card-details">
-                                <div class="stat-card-details-item">
-                                    <span class="stat-card-details-label">إجمالي المستخدمين</span>
-                                    <span class="stat-card-details-value" id="usersTotalValue">-</span>
-                                </div>
-                                <div class="stat-card-details-item">
-                                    <span class="stat-card-details-label">المستخدمين النشطين</span>
-                                    <span class="stat-card-details-value" id="usersActiveValue">-</span>
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
-                    <div class="stat-card expandable" data-section="subscribers" onclick="toggleStatCard(this)">
-                        <div class="stat-card-expand-icon">▼</div>
+                    <div class="stat-card" data-section="subscribers" onclick="showSectionDetails('subscribers', this)">
                         <div class="stat-card-header">
                             <span class="stat-card-title">المشتركين</span>
                             <div class="stat-card-icon info">📱</div>
                         </div>
                         <div class="stat-card-value" id="subscribersCount">-</div>
                         <div class="stat-card-change">مشترك نشط</div>
-                        <div class="stat-card-content" id="subscribersCardContent">
-                            <div class="stat-card-details">
-                                <div class="stat-card-details-item">
-                                    <span class="stat-card-details-label">إجمالي المشتركين</span>
-                                    <span class="stat-card-details-value" id="subscribersTotalValue">-</span>
-                                </div>
-                                <div class="stat-card-details-item">
-                                    <span class="stat-card-details-label">المشتركين النشطين</span>
-                                    <span class="stat-card-details-value" id="subscribersActiveValue">-</span>
-                                </div>
-                                <div class="stat-card-details-item">
-                                    <span class="stat-card-details-label">المشتركين غير النشطين</span>
-                                    <span class="stat-card-details-value" id="subscribersInactiveValue">-</span>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
-                <div class="content-section">
-                    <div class="section-title">إحصائيات سريعة</div>
-                    <div class="chart-container">
-                        <canvas id="statsChart"></canvas>
-                    </div>
+                <!-- Section Details Container -->
+                <div class="section-details-container" id="sectionDetailsContainer">
+                    <div class="section-details-title" id="sectionDetailsTitle"></div>
+                    <div id="sectionDetailsContent"></div>
                 </div>
             </div>
 
@@ -973,7 +917,6 @@
 
     <script>
         const API_BASE = window.location.origin;
-        let statsChart = null;
 
         // Check authentication
         if (!localStorage.getItem('control_token')) {
@@ -1110,52 +1053,266 @@
                 document.getElementById('usersCount').textContent = 0; // Users section is not used, set to 0
                 document.getElementById('subscribersCount').textContent = Array.isArray(subscribers) ? subscribers.length : (subscribers.total || 0);
 
-                // Update accordion details
-                updateStatCardDetails(stats, owners, users, subscribers);
-
-                // Update chart
-                updateChart(stats);
+                // Store data for section details
+                sectionData = { stats, owners, users, subscribers };
             } catch (error) {
                 console.error('Error loading dashboard:', error);
             }
         }
 
-        // Toggle stat card accordion
-        function toggleStatCard(card) {
-            card.classList.toggle('expanded');
-        }
+        // Show section details
+        let currentSection = null;
+        let sectionData = {};
 
-        // Update stat card details
-        function updateStatCardDetails(stats, owners, users, subscribers) {
-            // Database details
-            document.getElementById('dbMainValue').textContent = 'ftth_master';
-            document.getElementById('dbActiveValue').textContent = stats.databases || 0;
-            document.getElementById('dbTablesValue').textContent = stats.totalTables || 0;
+        async function showSectionDetails(section, card) {
+            // Remove active class from all cards
+            document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
+            // Add active class to clicked card
+            card.classList.add('active');
 
-            // Owners details
-            const ownersCount = owners.success ? (owners.owners?.length || owners.total || 0) : 0;
-            const usersCount = Array.isArray(users) ? users.length : 0;
-            const finalOwnersCount = usersCount || ownersCount;
-            document.getElementById('ownersTotalValue').textContent = finalOwnersCount;
-            document.getElementById('ownersActiveValue').textContent = finalOwnersCount;
-            if (owners.success && owners.owners) {
-                const totalAlwatani = owners.owners.reduce((sum, owner) => sum + (owner.alwatani_accounts_count || 0), 0);
-                document.getElementById('ownersAlwataniValue').textContent = totalAlwatani;
-            } else {
-                document.getElementById('ownersAlwataniValue').textContent = 0;
+            const container = document.getElementById('sectionDetailsContainer');
+            const title = document.getElementById('sectionDetailsTitle');
+            const content = document.getElementById('sectionDetailsContent');
+
+            // If same section clicked, hide it
+            if (currentSection === section && container.classList.contains('show')) {
+                container.classList.remove('show');
+                currentSection = null;
+                return;
             }
 
-            // Users details
-            document.getElementById('usersTotalValue').textContent = usersCount;
-            document.getElementById('usersActiveValue').textContent = usersCount;
+            currentSection = section;
+            container.classList.add('show');
 
-            // Subscribers details
-            const subsCount = Array.isArray(subscribers) ? subscribers.length : (subscribers.total || 0);
-            const subsActive = subscribers.active || subsCount;
-            const subsInactive = subscribers.inactive || 0;
-            document.getElementById('subscribersTotalValue').textContent = subsCount;
-            document.getElementById('subscribersActiveValue').textContent = subsActive;
-            document.getElementById('subscribersInactiveValue').textContent = subsInactive;
+            // Show loading
+            content.innerHTML = '<div class="loading">جاري التحميل...</div>';
+
+            try {
+                if (section === 'database') {
+                    title.textContent = 'تفاصيل قواعد البيانات';
+                    await loadDatabaseDetails(content);
+                } else if (section === 'owners') {
+                    title.textContent = 'تفاصيل الوكلاء';
+                    await loadOwnersDetails(content);
+                } else if (section === 'users') {
+                    title.textContent = 'تفاصيل المستخدمين';
+                    await loadUsersDetails(content);
+                } else if (section === 'subscribers') {
+                    title.textContent = 'تفاصيل المشتركين';
+                    await loadSubscribersDetails(content);
+                }
+            } catch (error) {
+                console.error('Error loading section details:', error);
+                content.innerHTML = '<div class="loading">حدث خطأ في التحميل</div>';
+            }
+        }
+
+        async function loadDatabaseDetails(container) {
+            try {
+                const response = await fetchWithAuth(`${API_BASE}/api/control/database/stats`);
+                if (!response) return;
+                const data = await response.json();
+
+                if (data.success && data.stats) {
+                    container.innerHTML = `
+                        <div class="section-details-grid">
+                            <div class="section-details-item">
+                                <div class="section-details-item-label">قاعدة البيانات الرئيسية</div>
+                                <div class="section-details-item-value">ftth_master</div>
+                            </div>
+                            <div class="section-details-item">
+                                <div class="section-details-item-label">قواعد البيانات النشطة</div>
+                                <div class="section-details-item-value">${data.stats.totalDatabases || 0}</div>
+                            </div>
+                            <div class="section-details-item">
+                                <div class="section-details-item-label">إجمالي الجداول</div>
+                                <div class="section-details-item-value">${data.stats.totalTables || 0}</div>
+                            </div>
+                            <div class="section-details-item">
+                                <div class="section-details-item-label">إجمالي الصفوف</div>
+                                <div class="section-details-item-value">${data.stats.totalRows || 0}</div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = '<div class="loading">لا توجد بيانات</div>';
+                }
+            } catch (error) {
+                container.innerHTML = '<div class="loading">حدث خطأ في التحميل</div>';
+            }
+        }
+
+        async function loadOwnersDetails(container) {
+            try {
+                const response = await fetchWithAuth(`${API_BASE}/api/control/owners`);
+                if (!response) return;
+                const data = await response.json();
+
+                if (data.success && data.owners && data.owners.length > 0) {
+                    const totalAlwatani = data.owners.reduce((sum, owner) => sum + (owner.alwatani_accounts_count || 0), 0);
+                    const totalSubscribers = data.owners.reduce((sum, owner) => sum + (owner.subscribers_count || 0), 0);
+
+                    container.innerHTML = `
+                        <div class="section-details-grid">
+                            <div class="section-details-item">
+                                <div class="section-details-item-label">إجمالي الوكلاء</div>
+                                <div class="section-details-item-value">${data.owners.length}</div>
+                            </div>
+                            <div class="section-details-item">
+                                <div class="section-details-item-label">الوكلاء النشطين</div>
+                                <div class="section-details-item-value">${data.owners.filter(o => o.is_active).length}</div>
+                            </div>
+                            <div class="section-details-item">
+                                <div class="section-details-item-label">إجمالي حسابات الوطني</div>
+                                <div class="section-details-item-value">${totalAlwatani}</div>
+                            </div>
+                            <div class="section-details-item">
+                                <div class="section-details-item-label">إجمالي المشتركين</div>
+                                <div class="section-details-item-value">${totalSubscribers}</div>
+                            </div>
+                        </div>
+                        <div class="section-details-table">
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>اسم الوكيل</th>
+                                            <th>حسابات الوطني</th>
+                                            <th>المشتركين</th>
+                                            <th>الحالة</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${data.owners.slice(0, 10).map(owner => `
+                                            <tr>
+                                                <td>${owner.owner_username || 'N/A'}</td>
+                                                <td>${owner.alwatani_accounts_count || 0}</td>
+                                                <td>${owner.subscribers_count || 0}</td>
+                                                <td><span class="badge ${owner.is_active ? 'badge-success' : 'badge-danger'}">${owner.is_active ? 'نشط' : 'غير نشط'}</span></td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = '<div class="loading">لا توجد بيانات</div>';
+                }
+            } catch (error) {
+                container.innerHTML = '<div class="loading">حدث خطأ في التحميل</div>';
+            }
+        }
+
+        async function loadUsersDetails(container) {
+            try {
+                const response = await fetchWithAuth(`${API_BASE}/api/control/users`);
+                if (!response) return;
+                const data = await response.json();
+
+                if (Array.isArray(data) && data.length > 0) {
+                    container.innerHTML = `
+                        <div class="section-details-grid">
+                            <div class="section-details-item">
+                                <div class="section-details-item-label">إجمالي المستخدمين</div>
+                                <div class="section-details-item-value">${data.length}</div>
+                            </div>
+                            <div class="section-details-item">
+                                <div class="section-details-item-label">المستخدمين النشطين</div>
+                                <div class="section-details-item-value">${data.length}</div>
+                            </div>
+                        </div>
+                        <div class="section-details-table">
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>اسم المستخدم</th>
+                                            <th>البريد الإلكتروني</th>
+                                            <th>الهاتف</th>
+                                            <th>الوكيل</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${data.slice(0, 10).map(user => `
+                                            <tr>
+                                                <td>${user.username || 'N/A'}</td>
+                                                <td>${user.email || 'N/A'}</td>
+                                                <td>${user.phone || 'N/A'}</td>
+                                                <td>${user.owner_username || 'N/A'}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = '<div class="loading">لا توجد بيانات</div>';
+                }
+            } catch (error) {
+                container.innerHTML = '<div class="loading">حدث خطأ في التحميل</div>';
+            }
+        }
+
+        async function loadSubscribersDetails(container) {
+            try {
+                const response = await fetchWithAuth(`${API_BASE}/api/control/subscribers?limit=100`);
+                if (!response) return;
+                const data = await response.json();
+
+                if (Array.isArray(data) && data.length > 0) {
+                    const active = data.filter(s => s.status === 'active').length;
+                    const inactive = data.length - active;
+
+                    container.innerHTML = `
+                        <div class="section-details-grid">
+                            <div class="section-details-item">
+                                <div class="section-details-item-label">إجمالي المشتركين</div>
+                                <div class="section-details-item-value">${data.length}</div>
+                            </div>
+                            <div class="section-details-item">
+                                <div class="section-details-item-label">المشتركين النشطين</div>
+                                <div class="section-details-item-value">${active}</div>
+                            </div>
+                            <div class="section-details-item">
+                                <div class="section-details-item-label">المشتركين غير النشطين</div>
+                                <div class="section-details-item-value">${inactive}</div>
+                            </div>
+                        </div>
+                        <div class="section-details-table">
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>الاسم</th>
+                                            <th>الهاتف</th>
+                                            <th>المنطقة</th>
+                                            <th>الحالة</th>
+                                            <th>الوكيل</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${data.slice(0, 10).map(sub => `
+                                            <tr>
+                                                <td>${sub.name || 'N/A'}</td>
+                                                <td>${sub.phone || 'N/A'}</td>
+                                                <td>${sub.zone || 'N/A'}</td>
+                                                <td><span class="badge ${sub.status === 'active' ? 'badge-success' : 'badge-danger'}">${sub.status === 'active' ? 'نشط' : 'غير نشط'}</span></td>
+                                                <td>${sub.owner_username || 'N/A'}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = '<div class="loading">لا توجد بيانات</div>';
+                }
+            } catch (error) {
+                container.innerHTML = '<div class="loading">حدث خطأ في التحميل</div>';
+            }
         }
 
         // Update chart
