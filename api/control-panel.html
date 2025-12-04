@@ -1399,17 +1399,66 @@
             /* WhatsApp-like mobile chat design */
             #chat-section {
                 position: relative;
+                padding: 0;
+                margin: 0;
+            }
+
+            #chatMainContainer {
+                display: block !important;
+                grid-template-columns: 1fr !important;
+                height: calc(100vh - 80px) !important;
+                gap: 0 !important;
             }
 
             .chat-rooms-sidebar {
-                width: 100%;
-                height: calc(100vh - 150px);
+                width: 100% !important;
+                height: 100% !important;
                 border-bottom: none;
                 border-left: none;
                 border-radius: 0;
-                padding: 12px;
+                padding: 0;
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
+                background: var(--mdc-background);
+            }
+
+            .chat-rooms-sidebar > div:first-child {
+                padding: 16px;
+                background: var(--mdc-surface);
+                border-bottom: 1px solid var(--mdc-divider);
+                position: sticky;
+                top: 0;
+                z-index: 5;
+            }
+
+            #chatRoomsList {
+                padding: 8px;
+            }
+
+            .chat-room-item {
+                width: 100%;
+                margin-bottom: 8px;
+                padding: 16px;
+                border-radius: 12px;
+                background: var(--mdc-surface);
+                border: 1px solid var(--mdc-divider);
+            }
+
+            .chat-room-name {
+                font-size: 16px;
+                font-weight: 500;
+                margin-bottom: 6px;
+            }
+
+            .chat-room-description {
+                font-size: 13px;
+                margin-bottom: 8px;
+                line-height: 1.4;
+            }
+
+            .chat-room-meta {
+                font-size: 12px;
+                gap: 12px;
             }
 
             .chat-rooms-sidebar.mobile-hidden {
@@ -1417,8 +1466,8 @@
             }
 
             .chat-messages-container {
-                width: 100%;
-                height: calc(100vh - 150px);
+                width: 100% !important;
+                height: 100% !important;
                 display: none;
                 position: absolute;
                 top: 0;
@@ -1428,6 +1477,7 @@
                 flex-direction: column;
                 border-radius: 0;
                 padding: 0;
+                background: var(--mdc-background);
             }
 
             .chat-messages-container.mobile-visible {
