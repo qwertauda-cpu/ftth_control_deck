@@ -7642,6 +7642,55 @@ app.post('/api/control/chat/rooms/:roomId/messages', requireControlAuth, async (
     }
 });
 
+// Delete chat message
+app.delete('/api/control/chat/rooms/:roomId/messages/:messageId', requireControlAuth, async (req, res) => {
+    try {
+        const { roomId, messageId } = req.params;
+        const senderUsername = req.body.sender_username || req.headers['x-owner-username'] || 'admin';
+        
+        if (!senderUsername) {
+            return res.status(400).json({ success: false, message: 'اسم المرسل مطلوب' });
+        }
+        
+        // Verify sender is a member
+        const masterPool = await dbManager.initMasterPool();
+        const [member] = await masterPool.query(
+            'SELECT id FROM chat_members WHERE chat_room_id = ? AND owner_username = ? AND status = "active"',
+            [roomId, senderUsername]
+        );
+        
+        if (member.length === 0) {
+            return res.status(403).json({ success: false, message: 'أنت لست عضواً في هذه المحادثة' });
+        }
+        
+        // Get message to verify ownership
+        const [messages] = await masterPool.query(
+            'SELECT sender_username FROM chat_messages WHERE id = ? AND chat_room_id = ?',
+            [messageId, roomId]
+        );
+        
+        if (messages.length === 0) {
+            return res.status(404).json({ success: false, message: 'الرسالة غير موجودة' });
+        }
+        
+        // Only allow deletion if user is the sender (or admin)
+        if (messages[0].sender_username !== senderUsername && senderUsername !== 'admin') {
+            return res.status(403).json({ success: false, message: 'لا يمكنك حذف رسالة لم ترسلها' });
+        }
+        
+        // Soft delete: set message to empty and mark as deleted
+        await masterPool.query(
+            'UPDATE chat_messages SET message = ?, message_type = ?, file_url = NULL WHERE id = ?',
+            ['تم حذف هذه الرسالة', 'deleted', messageId]
+        );
+        
+        res.json({ success: true, message: 'تم حذف الرسالة بنجاح' });
+    } catch (error) {
+        console.error('[CONTROL CHAT DELETE MESSAGE] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
 // ================= Health Check =================
 
 app.get('/api/health', async (req, res) => {

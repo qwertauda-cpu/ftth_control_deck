@@ -854,6 +854,12 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 8px;
+            gap: 8px;
+        }
+
+        .chat-message-delete-btn:hover {
+            opacity: 1 !important;
+            color: var(--mdc-error) !important;
         }
 
         .chat-message-sender {
@@ -2423,18 +2429,28 @@
                         const date = new Date(msg.created_at);
                         const timeStr = date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
                         const dateStr = date.toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' });
+                        const isDeleted = msg.message_type === 'deleted' || msg.message === 'تم حذف هذه الرسالة';
+                        const isAdmin = true; // Control panel user is always admin
+                        const canDelete = isAdmin || msg.sender_username === 'admin';
                         return `
-                        <div class="chat-message">
+                        <div class="chat-message" id="message-${msg.id}" style="position: relative;">
                             <div class="chat-message-header">
                                 <span class="chat-message-sender">${msg.sender_username || 'مجهول'}</span>
                                 <span class="chat-message-time">${dateStr} ${timeStr}</span>
+                                ${canDelete && !isDeleted ? `
+                                    <button onclick="deleteChatMessage(${msg.id}, ${currentChatRoomId})" class="chat-message-delete-btn" title="حذف الرسالة" style="background: none; border: none; color: var(--mdc-on-surface-secondary); cursor: pointer; padding: 4px 8px; font-size: 16px; opacity: 0.6; transition: opacity 0.2s;">🗑️</button>
+                                ` : ''}
                             </div>
-                            ${msg.message_type === 'image' && msg.file_url ? `
-                                <div style="margin-bottom: 8px;">
-                                    <img src="${API_BASE}${msg.file_url}" alt="صورة" style="max-width: 100%; max-height: 400px; border-radius: 8px; cursor: pointer;" onclick="window.open('${API_BASE}${msg.file_url}', '_blank')">
-                                </div>
-                            ` : ''}
-                            ${msg.message ? `<div class="chat-message-text">${escapeHtml(msg.message)}</div>` : ''}
+                            ${isDeleted ? `
+                                <div class="chat-message-text" style="font-style: italic; opacity: 0.6; color: var(--mdc-on-surface-secondary);">${escapeHtml(msg.message || 'تم حذف هذه الرسالة')}</div>
+                            ` : `
+                                ${msg.message_type === 'image' && msg.file_url ? `
+                                    <div style="margin-bottom: 8px;">
+                                        <img src="${API_BASE}${msg.file_url}" alt="صورة" style="max-width: 100%; max-height: 400px; border-radius: 8px; cursor: pointer;" onclick="window.open('${API_BASE}${msg.file_url}', '_blank')">
+                                    </div>
+                                ` : ''}
+                                ${msg.message ? `<div class="chat-message-text">${escapeHtml(msg.message)}</div>` : ''}
+                            `}
                         </div>
                     `;
                     }).join('');
