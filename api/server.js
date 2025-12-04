@@ -6826,259 +6826,8 @@ app.get('/api/admin/link', (req, res) => {
     });
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-    console.error('Server error:', err);
-    res.status(500).json({ 
-        success: false, 
-        message: 'خطأ في الخادم',
-        error: err.message 
-    });
-});
-
-// 404 handler (only for API routes, not for static files)
-app.use((req, res) => {
-    // إذا كان الطلب لملف HTML أو static file، أرسل 404 HTML
-    if (req.path.endsWith('.html') || req.path.includes('.')) {
-        res.status(404).send(`
-            <!DOCTYPE html>
-            <html lang="ar" dir="rtl">
-            <head>
-                <meta charset="UTF-8">
-                <title>404 - الصفحة غير موجودة</title>
-                <style>
-                    body { font-family: Arial; text-align: center; padding: 50px; }
-                    h1 { color: #e74c3c; }
-                </style>
-            </head>
-            <body>
-                <h1>404 - الصفحة غير موجودة</h1>
-                <p>الصفحة التي تبحث عنها غير موجودة.</p>
-                <a href="/admin-login.html">العودة إلى تسجيل الدخول</a>
-            </body>
-            </html>
-        `);
-    } else {
-        // للـ API routes، أرسل JSON
-        res.status(404).json({ 
-            success: false, 
-            message: 'الصفحة غير موجودة' 
-        });
-    }
-});
-
-// Start server
-async function startServer() {
-    await initializePool();
-    
-    const PORT = config.server.port;
-    app.listen(PORT, '0.0.0.0', () => {
-        const os = require('os');
-        const networkInterfaces = os.networkInterfaces();
-        let localIP = 'localhost';
-        
-        // الحصول على IP المحلي
-        for (const interfaceName in networkInterfaces) {
-            const interfaces = networkInterfaces[interfaceName];
-            for (const iface of interfaces) {
-                if (iface.family === 'IPv4' && !iface.internal) {
-                    localIP = iface.address;
-                    break;
-                }
-            }
-            if (localIP !== 'localhost') break;
-        }
-        
-        console.log('');
-        console.log('═══════════════════════════════════════════════════════════');
-        console.log(`🚀 FTTH Control Deck API Server`);
-        console.log('═══════════════════════════════════════════════════════════');
-        console.log(`✅ Server running on: http://localhost:${PORT}`);
-        console.log(`🌐 Network Access: http://${localIP}:${PORT}`);
-        console.log(`📊 API Status: http://${localIP}:${PORT}/api/health`);
-        console.log(`📱 Mobile Access: http://${localIP}:${PORT}`);
-        console.log('');
-        console.log('🔐 Admin Dashboard Links (Accessible from anywhere):');
-        console.log(`   Local:    http://localhost:${PORT}/admin-login.html`);
-        console.log(`   Network:  http://${localIP}:${PORT}/admin-login.html`);
-        console.log(`   External: http://YOUR_SERVER_IP:${PORT}/admin-login.html`);
-        console.log(`   Password: admin123`);
-        console.log('');
-        console.log('📋 Get server info:');
-        console.log(`   curl http://${localIP}:${PORT}/api/admin/info`);
-        console.log('═══════════════════════════════════════════════════════════');
-        console.log('');
-        console.log('📝 Available Endpoints:');
-        console.log(`   POST   /api/auth/login       - Login`);
-        console.log(`   GET    /api/users            - Get all users`);
-        console.log(`   POST   /api/users            - Add new user`);
-        console.log(`   DELETE /api/users/:id        - Delete user`);
-        console.log(`   GET    /api/subscribers      - Get all subscribers`);
-        console.log(`   GET    /api/subscribers/stats - Statistics`);
-        console.log(`   POST   /api/subscribers      - Add subscriber`);
-        console.log(`   PUT    /api/subscribers/:id  - Update subscriber`);
-        console.log(`   DELETE /api/subscribers/:id  - Delete subscriber`);
-        console.log(`   GET    /api/tickets          - Get tickets`);
-        console.log(`   POST   /api/tickets          - Add ticket`);
-        console.log(`   GET    /api/teams            - Get teams`);
-        console.log(`   POST   /api/teams            - Add team`);
-        console.log('');
-        console.log('💡 Tip: You can stop the server by pressing Ctrl+C');
-        console.log('═══════════════════════════════════════════════════════════');
-        
-        // تم إلغاء نظام التحديث التلقائي - المزامنة تتم يدوياً فقط
-        // startAutoSyncService();
-    });
-}
-
-// ================= Auto Sync Service =================
-// نظام التحديث التلقائي للبيانات
-let autoSyncIntervals = new Map(); // userId -> interval
-let autoSyncRunning = new Map(); // userId -> boolean
-
-async function startAutoSyncService() {
-    console.log('');
-    console.log('🔄 Starting Auto-Sync Service...');
-    
-    // انتظار 30 ثانية بعد تشغيل السيرفر قبل بدء المزامنة
-    await delay(30000);
-    
-    // بدء المزامنة التلقائية لجميع الحسابات
-    await syncAllAccounts();
-    
-    // بدء التحديث التلقائي كل 30 ثانية
-    setInterval(async () => {
-        await syncAllAccounts(false); // incremental sync (سريع)
-    }, 30000); // 30 ثانية
-    
-    console.log('✅ Auto-Sync Service started - Updates every 30 seconds');
-}
-
-async function syncAllAccounts(isFirstSync = true) {
-    try {
-        const masterPool = await dbManager.initMasterPool();
-        const [owners] = await masterPool.query(
-            'SELECT username, domain FROM owners_databases WHERE is_active = TRUE'
-        );
-        
-        for (const owner of owners) {
-            try {
-                const ownerPool = await dbManager.getOwnerPool(owner.domain);
-                const [accounts] = await ownerPool.query(
-                    'SELECT id, username, user_id FROM alwatani_login WHERE id IS NOT NULL'
-                );
-                
-                for (const account of accounts) {
-                    if (autoSyncRunning.get(account.id)) {
-                        console.log(`[AUTO-SYNC] Skipping ${account.username} - sync already running`);
-                        continue;
-                    }
-                    
-                    // في المرة الأولى: sync كامل بطيء
-                    // في التحديثات: sync سريع (incremental)
-                    await performAutoSync(account.id, owner.username, owner.domain, isFirstSync);
-                }
-            } catch (error) {
-                console.error(`[AUTO-SYNC] Error syncing owner ${owner.username}:`, error.message);
-            }
-        }
-    } catch (error) {
-        console.error('[AUTO-SYNC] Error in syncAllAccounts:', error.message);
-    }
-}
-
-async function performAutoSync(accountId, ownerUsername, ownerDomain, isFullSync = false) {
-    autoSyncRunning.set(accountId, true);
-    
-    try {
-        console.log(`[AUTO-SYNC] ${isFullSync ? 'Full' : 'Incremental'} sync for account ${accountId}...`);
-        
-        // استخدام إعدادات مختلفة حسب نوع المزامنة
-        const originalPageDelay = PAGE_FETCH_BATCH_DELAY;
-        const originalDetailDelay = DETAIL_FETCH_BATCH_DELAY;
-        const originalConcurrency = DETAIL_FETCH_CONCURRENCY;
-        
-        if (isFullSync) {
-            // في المرة الأولى: إعدادات بطيئة لتجنب الحظر
-            PAGE_FETCH_BATCH_DELAY = 2000; // 2 ثانية بين الصفحات
-            DETAIL_FETCH_BATCH_DELAY = 2000; // 2 ثانية بين التفاصيل
-            DETAIL_FETCH_CONCURRENCY = 2; // 2 مشترك في كل مرة
-            console.log('[AUTO-SYNC] Using slow settings for first sync to avoid rate limiting');
-        } else {
-            // في التحديثات: إعدادات سريعة
-            PAGE_FETCH_BATCH_DELAY = 500; // 0.5 ثانية
-            DETAIL_FETCH_BATCH_DELAY = 500; // 0.5 ثانية
-            DETAIL_FETCH_CONCURRENCY = 5; // 5 مشتركين في كل مرة
-            console.log('[AUTO-SYNC] Using fast settings for incremental sync');
-        }
-        
-        // تنفيذ المزامنة باستخدام http module
-        const http = require('http');
-        const syncPath = `/api/alwatani-login/${accountId}/customers/sync`;
-        const postData = JSON.stringify({
-            forceFullSync: isFullSync,
-            owner_username: ownerUsername
-        });
-        
-        const result = await new Promise((resolve) => {
-            const options = {
-                hostname: 'localhost',
-                port: config.server.port,
-                path: syncPath,
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Content-Length': Buffer.byteLength(postData),
-                    'X-Owner-Username': ownerUsername
-                },
-                timeout: 300000 // 5 دقائق timeout
-            };
-            
-            const req = http.request(options, (res) => {
-                let data = '';
-                res.on('data', (chunk) => { data += chunk; });
-                res.on('end', () => {
-                    try {
-                        const jsonData = JSON.parse(data);
-                        resolve({ ok: res.statusCode === 200, status: res.statusCode, data: jsonData });
-                    } catch (e) {
-                        resolve({ ok: false, status: res.statusCode, data: { success: false, message: data } });
-                    }
-                });
-            });
-            
-            req.on('error', (error) => {
-                resolve({ ok: false, status: 0, data: { success: false, message: error.message } });
-            });
-            
-            req.on('timeout', () => {
-                req.destroy();
-                resolve({ ok: false, status: 0, data: { success: false, message: 'Request timeout' } });
-            });
-            
-            req.write(postData);
-            req.end();
-        });
-        
-        if (result.ok && result.data.success) {
-            console.log(`[AUTO-SYNC] ✅ Sync completed for account ${accountId}`);
-        } else {
-            console.warn(`[AUTO-SYNC] ⚠️ Sync ${result.ok ? 'completed with warnings' : 'failed'} for account ${accountId}:`, result.data.message || `Status: ${result.status}`);
-        }
-        
-        // استعادة الإعدادات الأصلية
-        PAGE_FETCH_BATCH_DELAY = originalPageDelay;
-        DETAIL_FETCH_BATCH_DELAY = originalDetailDelay;
-        DETAIL_FETCH_CONCURRENCY = originalConcurrency;
-        
-    } catch (error) {
-        console.error(`[AUTO-SYNC] Error syncing account ${accountId}:`, error.message);
-    } finally {
-        autoSyncRunning.set(accountId, false);
-    }
-}
-
 // ================= Admin Dashboard Routes =================
+// NOTE: These routes MUST be before the 404 handler!
 
 // Admin Password (from environment or default)
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
@@ -7394,6 +7143,259 @@ app.get('/api/admin/database/tables', requireAdminAuth, async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error('Server error:', err);
+    res.status(500).json({ 
+        success: false, 
+        message: 'خطأ في الخادم',
+        error: err.message 
+    });
+});
+
+// 404 handler (only for API routes, not for static files)
+app.use((req, res) => {
+    // إذا كان الطلب لملف HTML أو static file، أرسل 404 HTML
+    if (req.path.endsWith('.html') || req.path.includes('.')) {
+        res.status(404).send(`
+            <!DOCTYPE html>
+            <html lang="ar" dir="rtl">
+            <head>
+                <meta charset="UTF-8">
+                <title>404 - الصفحة غير موجودة</title>
+                <style>
+                    body { font-family: Arial; text-align: center; padding: 50px; }
+                    h1 { color: #e74c3c; }
+                </style>
+            </head>
+            <body>
+                <h1>404 - الصفحة غير موجودة</h1>
+                <p>الصفحة التي تبحث عنها غير موجودة.</p>
+                <a href="/admin-login.html">العودة إلى تسجيل الدخول</a>
+            </body>
+            </html>
+        `);
+    } else {
+        // للـ API routes، أرسل JSON
+        res.status(404).json({ 
+            success: false, 
+            message: 'الصفحة غير موجودة' 
+        });
+    }
+});
+
+// Start server
+async function startServer() {
+    await initializePool();
+    
+    const PORT = config.server.port;
+    app.listen(PORT, '0.0.0.0', () => {
+        const os = require('os');
+        const networkInterfaces = os.networkInterfaces();
+        let localIP = 'localhost';
+        
+        // الحصول على IP المحلي
+        for (const interfaceName in networkInterfaces) {
+            const interfaces = networkInterfaces[interfaceName];
+            for (const iface of interfaces) {
+                if (iface.family === 'IPv4' && !iface.internal) {
+                    localIP = iface.address;
+                    break;
+                }
+            }
+            if (localIP !== 'localhost') break;
+        }
+        
+        console.log('');
+        console.log('═══════════════════════════════════════════════════════════');
+        console.log(`🚀 FTTH Control Deck API Server`);
+        console.log('═══════════════════════════════════════════════════════════');
+        console.log(`✅ Server running on: http://localhost:${PORT}`);
+        console.log(`🌐 Network Access: http://${localIP}:${PORT}`);
+        console.log(`📊 API Status: http://${localIP}:${PORT}/api/health`);
+        console.log(`📱 Mobile Access: http://${localIP}:${PORT}`);
+        console.log('');
+        console.log('🔐 Admin Dashboard Links (Accessible from anywhere):');
+        console.log(`   Local:    http://localhost:${PORT}/admin-login.html`);
+        console.log(`   Network:  http://${localIP}:${PORT}/admin-login.html`);
+        console.log(`   External: http://YOUR_SERVER_IP:${PORT}/admin-login.html`);
+        console.log(`   Password: admin123`);
+        console.log('');
+        console.log('📋 Get server info:');
+        console.log(`   curl http://${localIP}:${PORT}/api/admin/info`);
+        console.log('═══════════════════════════════════════════════════════════');
+        console.log('');
+        console.log('📝 Available Endpoints:');
+        console.log(`   POST   /api/auth/login       - Login`);
+        console.log(`   GET    /api/users            - Get all users`);
+        console.log(`   POST   /api/users            - Add new user`);
+        console.log(`   DELETE /api/users/:id        - Delete user`);
+        console.log(`   GET    /api/subscribers      - Get all subscribers`);
+        console.log(`   GET    /api/subscribers/stats - Statistics`);
+        console.log(`   POST   /api/subscribers      - Add subscriber`);
+        console.log(`   PUT    /api/subscribers/:id  - Update subscriber`);
+        console.log(`   DELETE /api/subscribers/:id  - Delete subscriber`);
+        console.log(`   GET    /api/tickets          - Get tickets`);
+        console.log(`   POST   /api/tickets          - Add ticket`);
+        console.log(`   GET    /api/teams            - Get teams`);
+        console.log(`   POST   /api/teams            - Add team`);
+        console.log('');
+        console.log('💡 Tip: You can stop the server by pressing Ctrl+C');
+        console.log('═══════════════════════════════════════════════════════════');
+        
+        // تم إلغاء نظام التحديث التلقائي - المزامنة تتم يدوياً فقط
+        // startAutoSyncService();
+    });
+}
+
+// ================= Auto Sync Service =================
+// نظام التحديث التلقائي للبيانات
+let autoSyncIntervals = new Map(); // userId -> interval
+let autoSyncRunning = new Map(); // userId -> boolean
+
+async function startAutoSyncService() {
+    console.log('');
+    console.log('🔄 Starting Auto-Sync Service...');
+    
+    // انتظار 30 ثانية بعد تشغيل السيرفر قبل بدء المزامنة
+    await delay(30000);
+    
+    // بدء المزامنة التلقائية لجميع الحسابات
+    await syncAllAccounts();
+    
+    // بدء التحديث التلقائي كل 30 ثانية
+    setInterval(async () => {
+        await syncAllAccounts(false); // incremental sync (سريع)
+    }, 30000); // 30 ثانية
+    
+    console.log('✅ Auto-Sync Service started - Updates every 30 seconds');
+}
+
+async function syncAllAccounts(isFirstSync = true) {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        const [owners] = await masterPool.query(
+            'SELECT username, domain FROM owners_databases WHERE is_active = TRUE'
+        );
+        
+        for (const owner of owners) {
+            try {
+                const ownerPool = await dbManager.getOwnerPool(owner.domain);
+                const [accounts] = await ownerPool.query(
+                    'SELECT id, username, user_id FROM alwatani_login WHERE id IS NOT NULL'
+                );
+                
+                for (const account of accounts) {
+                    if (autoSyncRunning.get(account.id)) {
+                        console.log(`[AUTO-SYNC] Skipping ${account.username} - sync already running`);
+                        continue;
+                    }
+                    
+                    // في المرة الأولى: sync كامل بطيء
+                    // في التحديثات: sync سريع (incremental)
+                    await performAutoSync(account.id, owner.username, owner.domain, isFirstSync);
+                }
+            } catch (error) {
+                console.error(`[AUTO-SYNC] Error syncing owner ${owner.username}:`, error.message);
+            }
+        }
+    } catch (error) {
+        console.error('[AUTO-SYNC] Error in syncAllAccounts:', error.message);
+    }
+}
+
+async function performAutoSync(accountId, ownerUsername, ownerDomain, isFullSync = false) {
+    autoSyncRunning.set(accountId, true);
+    
+    try {
+        console.log(`[AUTO-SYNC] ${isFullSync ? 'Full' : 'Incremental'} sync for account ${accountId}...`);
+        
+        // استخدام إعدادات مختلفة حسب نوع المزامنة
+        const originalPageDelay = PAGE_FETCH_BATCH_DELAY;
+        const originalDetailDelay = DETAIL_FETCH_BATCH_DELAY;
+        const originalConcurrency = DETAIL_FETCH_CONCURRENCY;
+        
+        if (isFullSync) {
+            // في المرة الأولى: إعدادات بطيئة لتجنب الحظر
+            PAGE_FETCH_BATCH_DELAY = 2000; // 2 ثانية بين الصفحات
+            DETAIL_FETCH_BATCH_DELAY = 2000; // 2 ثانية بين التفاصيل
+            DETAIL_FETCH_CONCURRENCY = 2; // 2 مشترك في كل مرة
+            console.log('[AUTO-SYNC] Using slow settings for first sync to avoid rate limiting');
+        } else {
+            // في التحديثات: إعدادات سريعة
+            PAGE_FETCH_BATCH_DELAY = 500; // 0.5 ثانية
+            DETAIL_FETCH_BATCH_DELAY = 500; // 0.5 ثانية
+            DETAIL_FETCH_CONCURRENCY = 5; // 5 مشتركين في كل مرة
+            console.log('[AUTO-SYNC] Using fast settings for incremental sync');
+        }
+        
+        // تنفيذ المزامنة باستخدام http module
+        const http = require('http');
+        const syncPath = `/api/alwatani-login/${accountId}/customers/sync`;
+        const postData = JSON.stringify({
+            forceFullSync: isFullSync,
+            owner_username: ownerUsername
+        });
+        
+        const result = await new Promise((resolve) => {
+            const options = {
+                hostname: 'localhost',
+                port: config.server.port,
+                path: syncPath,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(postData),
+                    'X-Owner-Username': ownerUsername
+                },
+                timeout: 300000 // 5 دقائق timeout
+            };
+            
+            const req = http.request(options, (res) => {
+                let data = '';
+                res.on('data', (chunk) => { data += chunk; });
+                res.on('end', () => {
+                    try {
+                        const jsonData = JSON.parse(data);
+                        resolve({ ok: res.statusCode === 200, status: res.statusCode, data: jsonData });
+                    } catch (e) {
+                        resolve({ ok: false, status: res.statusCode, data: { success: false, message: data } });
+                    }
+                });
+            });
+            
+            req.on('error', (error) => {
+                resolve({ ok: false, status: 0, data: { success: false, message: error.message } });
+            });
+            
+            req.on('timeout', () => {
+                req.destroy();
+                resolve({ ok: false, status: 0, data: { success: false, message: 'Request timeout' } });
+            });
+            
+            req.write(postData);
+            req.end();
+        });
+        
+        if (result.ok && result.data.success) {
+            console.log(`[AUTO-SYNC] ✅ Sync completed for account ${accountId}`);
+        } else {
+            console.warn(`[AUTO-SYNC] ⚠️ Sync ${result.ok ? 'completed with warnings' : 'failed'} for account ${accountId}:`, result.data.message || `Status: ${result.status}`);
+        }
+        
+        // استعادة الإعدادات الأصلية
+        PAGE_FETCH_BATCH_DELAY = originalPageDelay;
+        DETAIL_FETCH_BATCH_DELAY = originalDetailDelay;
+        DETAIL_FETCH_CONCURRENCY = originalConcurrency;
+        
+    } catch (error) {
+        console.error(`[AUTO-SYNC] Error syncing account ${accountId}:`, error.message);
+    } finally {
+        autoSyncRunning.set(accountId, false);
+    }
+}
+
 
 // Handle shutdown gracefully
 process.on('SIGINT', async () => {
