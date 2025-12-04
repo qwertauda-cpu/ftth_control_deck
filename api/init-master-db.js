@@ -55,6 +55,77 @@ async function initMasterDatabase() {
         `);
         console.log('✅ تم إنشاء جدول: owners_databases');
         
+        // ==================== جدول chat_rooms (المحادثات) ====================
+        await connection.query(`
+            CREATE TABLE IF NOT EXISTS chat_rooms (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                name VARCHAR(255) NOT NULL COMMENT 'اسم المحادثة',
+                description TEXT COMMENT 'وصف المحادثة',
+                created_by VARCHAR(255) NOT NULL COMMENT 'منشئ المحادثة (owner_username)',
+                status VARCHAR(50) DEFAULT 'active' COMMENT 'حالة المحادثة (active, archived)',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_created_by (created_by),
+                INDEX idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        console.log('✅ تم إنشاء جدول: chat_rooms (المحادثات)');
+        
+        // ==================== جدول chat_members (أعضاء المحادثة) ====================
+        await connection.query(`
+            CREATE TABLE IF NOT EXISTS chat_members (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                chat_room_id INT NOT NULL,
+                owner_username VARCHAR(255) NOT NULL COMMENT 'اسم المالك (مثل: admin@tec)',
+                status VARCHAR(50) DEFAULT 'active' COMMENT 'حالة العضوية (active, left)',
+                joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_chat_member (chat_room_id, owner_username),
+                INDEX idx_chat_room_id (chat_room_id),
+                INDEX idx_owner_username (owner_username),
+                FOREIGN KEY (chat_room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        console.log('✅ تم إنشاء جدول: chat_members (أعضاء المحادثة)');
+        
+        // ==================== جدول chat_membership_requests (طلبات الانضمام للمحادثة) ====================
+        await connection.query(`
+            CREATE TABLE IF NOT EXISTS chat_membership_requests (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                chat_room_id INT NOT NULL,
+                owner_username VARCHAR(255) NOT NULL COMMENT 'اسم المالك الذي يطلب الانضمام',
+                status VARCHAR(50) DEFAULT 'pending' COMMENT 'حالة الطلب (pending, approved, rejected)',
+                requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                approved_at TIMESTAMP NULL,
+                approved_by VARCHAR(255) COMMENT 'من وافق على الطلب',
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_pending_request (chat_room_id, owner_username, status),
+                INDEX idx_chat_room_id (chat_room_id),
+                INDEX idx_owner_username (owner_username),
+                INDEX idx_status (status),
+                FOREIGN KEY (chat_room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        console.log('✅ تم إنشاء جدول: chat_membership_requests (طلبات الانضمام)');
+        
+        // ==================== جدول chat_messages (رسائل المحادثة) ====================
+        await connection.query(`
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                chat_room_id INT NOT NULL,
+                sender_username VARCHAR(255) NOT NULL COMMENT 'مرسل الرسالة (owner_username)',
+                message TEXT NOT NULL COMMENT 'نص الرسالة',
+                message_type VARCHAR(50) DEFAULT 'text' COMMENT 'نوع الرسالة (text, file, image)',
+                file_url TEXT COMMENT 'رابط الملف إذا كانت الرسالة ملف',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_chat_room_id (chat_room_id),
+                INDEX idx_sender_username (sender_username),
+                INDEX idx_created_at (created_at),
+                FOREIGN KEY (chat_room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        console.log('✅ تم إنشاء جدول: chat_messages (رسائل المحادثة)');
+        
         console.log('\n🎉 تم إعداد قاعدة البيانات الرئيسية بنجاح!');
         console.log('📝 الآن يمكنك إنشاء قواعد البيانات للعملاء');
         

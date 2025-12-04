@@ -7126,6 +7126,300 @@ app.get('/api/control/owners', requireControlAuth, async (req, res) => {
     }
 });
 
+// ================= Control Panel Chat Routes =================
+
+// Get all chat rooms
+app.get('/api/control/chat/rooms', requireControlAuth, async (req, res) => {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        const [rooms] = await masterPool.query(`
+            SELECT 
+                cr.id,
+                cr.name,
+                cr.description,
+                cr.created_by,
+                cr.status,
+                cr.created_at,
+                COUNT(DISTINCT cm.id) as members_count,
+                COUNT(DISTINCT cmr.id) as pending_requests_count
+            FROM chat_rooms cr
+            LEFT JOIN chat_members cm ON cm.chat_room_id = cr.id AND cm.status = 'active'
+            LEFT JOIN chat_membership_requests cmr ON cmr.chat_room_id = cr.id AND cmr.status = 'pending'
+            WHERE cr.status = 'active'
+            GROUP BY cr.id, cr.name, cr.description, cr.created_by, cr.status, cr.created_at
+            ORDER BY cr.created_at DESC
+        `);
+        
+        res.json({ success: true, rooms });
+    } catch (error) {
+        console.error('[CONTROL CHAT ROOMS] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Create new chat room
+app.post('/api/control/chat/rooms', requireControlAuth, async (req, res) => {
+    try {
+        const { name, description } = req.body;
+        const createdBy = req.headers['x-control-user'] || 'admin'; // Get from token in future
+        
+        if (!name || name.trim().length === 0) {
+            return res.status(400).json({ success: false, message: 'اسم المحادثة مطلوب' });
+        }
+        
+        const masterPool = await dbManager.initMasterPool();
+        const [result] = await masterPool.query(
+            'INSERT INTO chat_rooms (name, description, created_by) VALUES (?, ?, ?)',
+            [name.trim(), description || null, createdBy]
+        );
+        
+        // Add creator as member automatically
+        await masterPool.query(
+            'INSERT INTO chat_members (chat_room_id, owner_username) VALUES (?, ?)',
+            [result.insertId, createdBy]
+        );
+        
+        res.json({ success: true, room_id: result.insertId, message: 'تم إنشاء المحادثة بنجاح' });
+    } catch (error) {
+        console.error('[CONTROL CREATE CHAT ROOM] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Get chat room members
+app.get('/api/control/chat/rooms/:roomId/members', requireControlAuth, async (req, res) => {
+    try {
+        const { roomId } = req.params;
+        const masterPool = await dbManager.initMasterPool();
+        
+        const [members] = await masterPool.query(`
+            SELECT 
+                cm.id,
+                cm.owner_username,
+                cm.status,
+                cm.joined_at,
+                od.agent_name,
+                od.company_name,
+                od.governorate,
+                od.region
+            FROM chat_members cm
+            LEFT JOIN owners_databases od ON cm.owner_username = od.username
+            WHERE cm.chat_room_id = ? AND cm.status = 'active'
+            ORDER BY cm.joined_at ASC
+        `, [roomId]);
+        
+        res.json({ success: true, members });
+    } catch (error) {
+        console.error('[CONTROL CHAT MEMBERS] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Get chat room membership requests
+app.get('/api/control/chat/rooms/:roomId/requests', requireControlAuth, async (req, res) => {
+    try {
+        const { roomId } = req.params;
+        const masterPool = await dbManager.initMasterPool();
+        
+        const [requests] = await masterPool.query(`
+            SELECT 
+                cmr.id,
+                cmr.owner_username,
+                cmr.status,
+                cmr.requested_at,
+                cmr.approved_at,
+                cmr.approved_by,
+                od.agent_name,
+                od.company_name
+            FROM chat_membership_requests cmr
+            LEFT JOIN owners_databases od ON cmr.owner_username = od.username
+            WHERE cmr.chat_room_id = ? AND cmr.status = 'pending'
+            ORDER BY cmr.requested_at DESC
+        `, [roomId]);
+        
+        res.json({ success: true, requests });
+    } catch (error) {
+        console.error('[CONTROL CHAT REQUESTS] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Request to join chat room (for agents)
+app.post('/api/control/chat/rooms/:roomId/request', requireControlAuth, async (req, res) => {
+    try {
+        const { roomId } = req.params;
+        const ownerUsername = req.body.owner_username || req.headers['x-owner-username'];
+        
+        if (!ownerUsername) {
+            return res.status(400).json({ success: false, message: 'اسم المالك مطلوب' });
+        }
+        
+        const masterPool = await dbManager.initMasterPool();
+        
+        // Check if already a member
+        const [existingMember] = await masterPool.query(
+            'SELECT id FROM chat_members WHERE chat_room_id = ? AND owner_username = ? AND status = "active"',
+            [roomId, ownerUsername]
+        );
+        
+        if (existingMember.length > 0) {
+            return res.json({ success: false, message: 'أنت عضو في هذه المحادثة بالفعل' });
+        }
+        
+        // Check if request already exists
+        const [existingRequest] = await masterPool.query(
+            'SELECT id FROM chat_membership_requests WHERE chat_room_id = ? AND owner_username = ? AND status = "pending"',
+            [roomId, ownerUsername]
+        );
+        
+        if (existingRequest.length > 0) {
+            return res.json({ success: false, message: 'لديك طلب انتظار بالفعل' });
+        }
+        
+        // Create request
+        await masterPool.query(
+            'INSERT INTO chat_membership_requests (chat_room_id, owner_username) VALUES (?, ?)',
+            [roomId, ownerUsername]
+        );
+        
+        res.json({ success: true, message: 'تم إرسال طلب الانضمام بنجاح' });
+    } catch (error) {
+        console.error('[CONTROL CHAT REQUEST JOIN] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Approve membership request (for admin)
+app.post('/api/control/chat/rooms/:roomId/requests/:requestId/approve', requireControlAuth, async (req, res) => {
+    try {
+        const { roomId, requestId } = req.params;
+        const approvedBy = req.headers['x-control-user'] || 'admin';
+        
+        const masterPool = await dbManager.initMasterPool();
+        
+        // Get request
+        const [requests] = await masterPool.query(
+            'SELECT owner_username FROM chat_membership_requests WHERE id = ? AND chat_room_id = ? AND status = "pending"',
+            [requestId, roomId]
+        );
+        
+        if (requests.length === 0) {
+            return res.status(404).json({ success: false, message: 'الطلب غير موجود أو تم معالجته' });
+        }
+        
+        const ownerUsername = requests[0].owner_username;
+        
+        // Update request status
+        await masterPool.query(
+            'UPDATE chat_membership_requests SET status = "approved", approved_at = NOW(), approved_by = ? WHERE id = ?',
+            [approvedBy, requestId]
+        );
+        
+        // Add as member
+        await masterPool.query(
+            'INSERT INTO chat_members (chat_room_id, owner_username) VALUES (?, ?) ON DUPLICATE KEY UPDATE status = "active"',
+            [roomId, ownerUsername]
+        );
+        
+        res.json({ success: true, message: 'تم الموافقة على الطلب بنجاح' });
+    } catch (error) {
+        console.error('[CONTROL CHAT APPROVE] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Reject membership request (for admin)
+app.post('/api/control/chat/rooms/:roomId/requests/:requestId/reject', requireControlAuth, async (req, res) => {
+    try {
+        const { roomId, requestId } = req.params;
+        
+        const masterPool = await dbManager.initMasterPool();
+        
+        // Update request status
+        await masterPool.query(
+            'UPDATE chat_membership_requests SET status = "rejected" WHERE id = ? AND chat_room_id = ?',
+            [requestId, roomId]
+        );
+        
+        res.json({ success: true, message: 'تم رفض الطلب' });
+    } catch (error) {
+        console.error('[CONTROL CHAT REJECT] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Get chat messages
+app.get('/api/control/chat/rooms/:roomId/messages', requireControlAuth, async (req, res) => {
+    try {
+        const { roomId } = req.params;
+        const limit = parseInt(req.query.limit) || 50;
+        const offset = parseInt(req.query.offset) || 0;
+        
+        const masterPool = await dbManager.initMasterPool();
+        
+        const [messages] = await masterPool.query(`
+            SELECT 
+                cm.id,
+                cm.sender_username,
+                cm.message,
+                cm.message_type,
+                cm.file_url,
+                cm.created_at,
+                od.agent_name,
+                od.company_name
+            FROM chat_messages cm
+            LEFT JOIN owners_databases od ON cm.sender_username = od.username
+            WHERE cm.chat_room_id = ?
+            ORDER BY cm.created_at DESC
+            LIMIT ? OFFSET ?
+        `, [roomId, limit, offset]);
+        
+        res.json({ success: true, messages: messages.reverse() }); // Reverse to show oldest first
+    } catch (error) {
+        console.error('[CONTROL CHAT MESSAGES] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
+// Send chat message
+app.post('/api/control/chat/rooms/:roomId/messages', requireControlAuth, async (req, res) => {
+    try {
+        const { roomId } = req.params;
+        const { message, message_type, file_url } = req.body;
+        const senderUsername = req.body.sender_username || req.headers['x-owner-username'];
+        
+        if (!message || message.trim().length === 0) {
+            return res.status(400).json({ success: false, message: 'الرسالة مطلوبة' });
+        }
+        
+        if (!senderUsername) {
+            return res.status(400).json({ success: false, message: 'اسم المرسل مطلوب' });
+        }
+        
+        // Verify sender is a member
+        const masterPool = await dbManager.initMasterPool();
+        const [member] = await masterPool.query(
+            'SELECT id FROM chat_members WHERE chat_room_id = ? AND owner_username = ? AND status = "active"',
+            [roomId, senderUsername]
+        );
+        
+        if (member.length === 0) {
+            return res.status(403).json({ success: false, message: 'أنت لست عضواً في هذه المحادثة' });
+        }
+        
+        // Insert message
+        const [result] = await masterPool.query(
+            'INSERT INTO chat_messages (chat_room_id, sender_username, message, message_type, file_url) VALUES (?, ?, ?, ?, ?)',
+            [roomId, senderUsername, message.trim(), message_type || 'text', file_url || null]
+        );
+        
+        res.json({ success: true, message_id: result.insertId, message: 'تم إرسال الرسالة بنجاح' });
+    } catch (error) {
+        console.error('[CONTROL CHAT SEND MESSAGE] Error:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+    }
+});
+
 // ================= Health Check =================
 
 app.get('/api/health', async (req, res) => {

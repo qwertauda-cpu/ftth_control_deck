@@ -383,6 +383,10 @@
                     <span class="menu-item-icon">👨‍👩‍👧‍👦</span>
                     <span>الفرق</span>
                 </a>
+                <a class="menu-item" data-section="chat">
+                    <span class="menu-item-icon">💬</span>
+                    <span>المحادثة</span>
+                </a>
             </div>
             <div class="sidebar-footer">
                 <button class="logout-btn" onclick="logout()">🚪 تسجيل الخروج</button>
@@ -698,6 +702,8 @@
                 loadTickets();
             } else if (section === 'teams') {
                 loadTeams();
+            } else if (section === 'chat') {
+                loadChatRooms();
             }
         }
 
@@ -1038,8 +1044,211 @@
             }
         }
 
+        // Chat functions
+        let currentChatRoomId = null;
+        let chatPollInterval = null;
+
+        async function loadChatRooms() {
+            try {
+                const response = await fetchWithAuth(`${API_BASE}/api/control/chat/rooms`);
+                if (!response) return;
+                const data = await response.json();
+                
+                const container = document.getElementById('chatRoomsList');
+                if (data.success && data.rooms && data.rooms.length > 0) {
+                    container.innerHTML = data.rooms.map(room => `
+                        <div onclick="selectChatRoom(${room.id})" style="padding: 15px; margin-bottom: 10px; border: 2px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.3s;" 
+                             onmouseover="this.style.borderColor='#667eea'; this.style.background='#f7fafc';" 
+                             onmouseout="this.style.borderColor='#e2e8f0'; this.style.background='white';"
+                             id="chatRoom-${room.id}">
+                            <div style="font-weight: 600; margin-bottom: 5px;">${room.name}</div>
+                            ${room.description ? `<div style="font-size: 12px; color: #718096; margin-bottom: 8px;">${room.description}</div>` : ''}
+                            <div style="display: flex; gap: 15px; font-size: 12px; color: #718096;">
+                                <span>👥 ${room.members_count || 0} عضو</span>
+                                ${room.pending_requests_count > 0 ? `<span style="color: #ed8936;">⏳ ${room.pending_requests_count} طلب</span>` : ''}
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<div style="text-align: center; color: #718096; padding: 20px;">لا توجد محادثات</div>';
+                }
+            } catch (error) {
+                console.error('Error loading chat rooms:', error);
+                document.getElementById('chatRoomsList').innerHTML = '<div style="text-align: center; color: #f56565; padding: 20px;">حدث خطأ في التحميل</div>';
+            }
+        }
+
+        async function selectChatRoom(roomId) {
+            currentChatRoomId = roomId;
+            
+            // Highlight selected room
+            document.querySelectorAll('[id^="chatRoom-"]').forEach(el => {
+                el.style.borderColor = '#e2e8f0';
+                el.style.background = 'white';
+            });
+            const selectedRoom = document.getElementById(`chatRoom-${roomId}`);
+            if (selectedRoom) {
+                selectedRoom.style.borderColor = '#667eea';
+                selectedRoom.style.background = '#f0f4ff';
+            }
+            
+            // Load messages
+            await loadChatMessages(roomId);
+            
+            // Load members and requests
+            await loadChatMembers(roomId);
+            await loadChatRequests(roomId);
+            
+            // Show input area
+            document.getElementById('chatInputArea').style.display = 'block';
+            
+            // Start polling for new messages
+            if (chatPollInterval) clearInterval(chatPollInterval);
+            chatPollInterval = setInterval(() => loadChatMessages(roomId), 3000);
+        }
+
+        async function loadChatMessages(roomId) {
+            try {
+                const response = await fetchWithAuth(`${API_BASE}/api/control/chat/rooms/${roomId}/messages?limit=100`);
+                if (!response) return;
+                const data = await response.json();
+                
+                const container = document.getElementById('chatMessagesArea');
+                if (data.success && data.messages && data.messages.length > 0) {
+                    container.innerHTML = data.messages.map(msg => `
+                        <div style="margin-bottom: 15px; padding: 12px; background: white; border-radius: 8px; border-right: 3px solid #667eea;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <strong style="color: #667eea;">${msg.sender_username}</strong>
+                                <span style="font-size: 12px; color: #718096;">${new Date(msg.created_at).toLocaleString('ar-SA')}</span>
+                            </div>
+                            <div>${msg.message}</div>
+                        </div>
+                    `).join('');
+                    container.scrollTop = container.scrollHeight;
+                } else {
+                    container.innerHTML = '<div style="text-align: center; color: #718096; padding: 20px;">لا توجد رسائل</div>';
+                }
+            } catch (error) {
+                console.error('Error loading messages:', error);
+            }
+        }
+
+        async function loadChatMembers(roomId) {
+            // This can be displayed in a sidebar or modal
+        }
+
+        async function loadChatRequests(roomId) {
+            try {
+                const response = await fetchWithAuth(`${API_BASE}/api/control/chat/rooms/${roomId}/requests`);
+                if (!response) return;
+                const data = await response.json();
+                
+                if (data.success && data.requests && data.requests.length > 0) {
+                    // Show requests notification or modal
+                    console.log('Pending requests:', data.requests);
+                }
+            } catch (error) {
+                console.error('Error loading requests:', error);
+            }
+        }
+
+        async function sendChatMessage() {
+            if (!currentChatRoomId) {
+                alert('يرجى اختيار محادثة أولاً');
+                return;
+            }
+            
+            const messageInput = document.getElementById('chatMessageInput');
+            const message = messageInput.value.trim();
+            
+            if (!message) return;
+            
+            try {
+                const response = await fetchWithAuth(`${API_BASE}/api/control/chat/rooms/${currentChatRoomId}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        sender_username: 'admin' // TODO: Get from token
+                    })
+                });
+                
+                if (!response) return;
+                const data = await response.json();
+                
+                if (data.success) {
+                    messageInput.value = '';
+                    await loadChatMessages(currentChatRoomId);
+                } else {
+                    alert(data.message || 'فشل إرسال الرسالة');
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                alert('حدث خطأ في إرسال الرسالة');
+            }
+        }
+
+        function showCreateChatModal() {
+            document.getElementById('createChatModal').style.display = 'flex';
+        }
+
+        function closeCreateChatModal() {
+            document.getElementById('createChatModal').style.display = 'none';
+            document.getElementById('newChatName').value = '';
+            document.getElementById('newChatDescription').value = '';
+        }
+
+        async function createChatRoom() {
+            const name = document.getElementById('newChatName').value.trim();
+            const description = document.getElementById('newChatDescription').value.trim();
+            
+            if (!name) {
+                alert('يرجى إدخال اسم المحادثة');
+                return;
+            }
+            
+            try {
+                const response = await fetchWithAuth(`${API_BASE}/api/control/chat/rooms`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name, description })
+                });
+                
+                if (!response) return;
+                const data = await response.json();
+                
+                if (data.success) {
+                    closeCreateChatModal();
+                    await loadChatRooms();
+                    await selectChatRoom(data.room_id);
+                } else {
+                    alert(data.message || 'فشل إنشاء المحادثة');
+                }
+            } catch (error) {
+                console.error('Error creating chat room:', error);
+                alert('حدث خطأ في إنشاء المحادثة');
+            }
+        }
+
+        // Allow Enter key to send message
+        document.addEventListener('DOMContentLoaded', () => {
+            const messageInput = document.getElementById('chatMessageInput');
+            if (messageInput) {
+                messageInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        sendChatMessage();
+                    }
+                });
+            }
+        });
+
         // Logout
         function logout() {
+            if (chatPollInterval) clearInterval(chatPollInterval);
             localStorage.removeItem('control_token');
             localStorage.removeItem('control_login_time');
             window.location.href = '/control-login.html';
