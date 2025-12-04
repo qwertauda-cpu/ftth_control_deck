@@ -444,6 +444,18 @@ app.post('/api/auth/login', async (req, res) => {
             });
         }
         
+        // تحديث last_activity عند تسجيل الدخول
+        try {
+            const ownerPool = await dbManager.getOwnerPool(foundDomain);
+            await ownerPool.query(
+                'UPDATE users SET updated_at = NOW() WHERE id = ?',
+                [foundUser.id]
+            );
+            console.log('[LOGIN] Updated last activity for user:', username);
+        } catch (error) {
+            console.warn('[LOGIN] Could not update last activity:', error.message);
+        }
+        
         console.log('[LOGIN] Login successful for user:', username, 'Owner:', foundOwnerUsername);
         res.json({
             success: true,
@@ -7114,9 +7126,27 @@ app.get('/api/admin/owners/list', requireAdminAuth, async (req, res) => {
                 const [alwataniCount] = await ownerPool.query('SELECT COUNT(*) as count FROM alwatani_login');
                 const alwataniPagesCount = alwataniCount[0]?.count || 0;
                 
+                // الحصول على آخر نشاط (آخر مرة فتح فيها الموقع)
+                // نبحث عن آخر updated_at من جدول users للوكيل
+                const ownerUsernamePart = owner.username.split('@')[0];
+                const [lastActivity] = await ownerPool.query(
+                    'SELECT MAX(updated_at) as last_activity FROM users WHERE username LIKE ? OR agent_name LIKE ?',
+                    [`%${ownerUsernamePart}%`, `%${owner.agent_name || ''}%`]
+                );
+                
+                let isActive = false;
+                let lastActivityTime = null;
+                const now = new Date();
+                const ACTIVE_THRESHOLD_HOURS = 24; // الوكيل يعتبر نشط إذا فتح الموقع خلال آخر 24 ساعة
+                
+                if (lastActivity[0] && lastActivity[0].last_activity) {
+                    lastActivityTime = new Date(lastActivity[0].last_activity);
+                    const hoursSinceLastActivity = (now - lastActivityTime) / (1000 * 60 * 60);
+                    isActive = hoursSinceLastActivity <= ACTIVE_THRESHOLD_HOURS;
+                }
+                
                 // حساب عدد الأيام من تاريخ الإنشاء
                 const createdAt = new Date(owner.created_at);
-                const now = new Date();
                 const daysDiff = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
                 
                 ownersWithDetails.push({
@@ -7127,8 +7157,9 @@ app.get('/api/admin/owners/list', requireAdminAuth, async (req, res) => {
                     agent_name: owner.agent_name || 'غير محدد',
                     phone: owner.phone || 'غير محدد',
                     email: owner.email || 'غير محدد',
-                    is_active: owner.is_active === 1 || owner.is_active === true,
-                    status: owner.is_active === 1 || owner.is_active === true ? 'نشط' : 'غير نشط',
+                    is_active: isActive, // بناءً على آخر نشاط (فتح الموقع)
+                    status: isActive ? 'نشط' : 'غير نشط',
+                    last_activity: lastActivityTime ? lastActivityTime.toISOString() : null,
                     alwatani_pages_count: alwataniPagesCount,
                     days_used: daysDiff,
                     created_at: owner.created_at
@@ -7164,6 +7195,82 @@ app.get('/api/admin/owners/list', requireAdminAuth, async (req, res) => {
         });
     } catch (error) {
         console.error('[ADMIN DASHBOARD] Error loading owners list:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get Alwatani Pages for a specific owner
+app.get('/api/admin/owners/:ownerId/alwatani-pages', requireAdminAuth, async (req, res) => {
+    try {
+        const { ownerId } = req.params;
+        
+        // الحصول على معلومات الوكيل
+        const masterPool = await dbManager.initMasterPool();
+        const [owners] = await masterPool.query(
+            'SELECT id, username, domain, database_name, agent_name FROM owners_databases WHERE id = ?',
+            [ownerId]
+        );
+        
+        if (owners.length === 0) {
+            return res.status(404).json({ success: false, error: 'الوكيل غير موجود' });
+        }
+        
+        const owner = owners[0];
+        
+        try {
+            const ownerPool = await dbManager.getOwnerPool(owner.domain);
+            
+            // جلب جميع صفحات الوطني مع معلومات إضافية
+            const [alwataniPages] = await ownerPool.query(
+                'SELECT id, username, password, user_id, created_at, updated_at FROM alwatani_login ORDER BY created_at DESC'
+            );
+            
+            // جلب معلومات المستخدمين المرتبطين
+            const pagesWithDetails = [];
+            for (const page of alwataniPages) {
+                let userInfo = null;
+                if (page.user_id) {
+                    try {
+                        const [users] = await ownerPool.query(
+                            'SELECT id, username, agent_name, phone, email FROM users WHERE id = ?',
+                            [page.user_id]
+                        );
+                        if (users.length > 0) {
+                            userInfo = users[0];
+                        }
+                    } catch (err) {
+                        // تجاهل الخطأ
+                    }
+                }
+                
+                pagesWithDetails.push({
+                    id: page.id,
+                    username: page.username,
+                    user_id: page.user_id,
+                    created_at: page.created_at,
+                    updated_at: page.updated_at,
+                    user_info: userInfo
+                });
+            }
+            
+            res.json({
+                success: true,
+                owner: {
+                    id: owner.id,
+                    agent_name: owner.agent_name || owner.username,
+                    username: owner.username
+                },
+                pages: pagesWithDetails,
+                total: pagesWithDetails.length
+            });
+        } catch (error) {
+            res.status(500).json({ 
+                success: false, 
+                error: 'فشل الاتصال بقاعدة بيانات الوكيل: ' + error.message 
+            });
+        }
+    } catch (error) {
+        console.error('[ADMIN DASHBOARD] Error loading alwatani pages:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
