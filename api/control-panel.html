@@ -605,7 +605,7 @@
         let statsChart = null;
 
         // Check authentication
-        if (!sessionStorage.getItem('control_token')) {
+        if (!localStorage.getItem('control_token')) {
             window.location.href = '/control-login.html';
         }
 
@@ -649,7 +649,7 @@
 
         // Get auth token
         function getAuthToken() {
-            return sessionStorage.getItem('control_token');
+            return localStorage.getItem('control_token');
         }
 
         // Fetch with auth
@@ -1017,8 +1017,8 @@
 
         // Logout
         function logout() {
-            sessionStorage.removeItem('control_token');
-            sessionStorage.removeItem('control_login_time');
+            localStorage.removeItem('control_token');
+            localStorage.removeItem('control_login_time');
             window.location.href = '/control-login.html';
         }
 
