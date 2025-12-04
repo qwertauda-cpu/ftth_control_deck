@@ -52,19 +52,13 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files (HTML files in api directory) - MUST be before other routes
-app.use(express.static(path.join(__dirname), {
-    index: false, // Don't serve index.html automatically
-    extensions: ['html', 'htm']
-}));
-
-// Serve admin HTML files directly with explicit routes
+// Serve admin HTML files directly with explicit routes - MUST be before static middleware
 app.get('/admin-login.html', (req, res) => {
     const filePath = path.join(__dirname, 'admin-login.html');
-    console.log('[ADMIN] Serving admin-login.html from:', filePath);
+    console.log('[ADMIN] ✅ Serving admin-login.html from:', filePath);
     res.sendFile(filePath, (err) => {
         if (err) {
-            console.error('[ADMIN] Error serving admin-login.html:', err);
+            console.error('[ADMIN] ❌ Error serving admin-login.html:', err);
             res.status(500).send(`
                 <!DOCTYPE html>
                 <html lang="ar" dir="rtl">
@@ -76,16 +70,18 @@ app.get('/admin-login.html', (req, res) => {
                 </body>
                 </html>
             `);
+        } else {
+            console.log('[ADMIN] ✅ Successfully served admin-login.html');
         }
     });
 });
 
 app.get('/admin-dashboard.html', (req, res) => {
     const filePath = path.join(__dirname, 'admin-dashboard.html');
-    console.log('[ADMIN] Serving admin-dashboard.html from:', filePath);
+    console.log('[ADMIN] ✅ Serving admin-dashboard.html from:', filePath);
     res.sendFile(filePath, (err) => {
         if (err) {
-            console.error('[ADMIN] Error serving admin-dashboard.html:', err);
+            console.error('[ADMIN] ❌ Error serving admin-dashboard.html:', err);
             res.status(500).send(`
                 <!DOCTYPE html>
                 <html lang="ar" dir="rtl">
@@ -97,6 +93,8 @@ app.get('/admin-dashboard.html', (req, res) => {
                 </body>
                 </html>
             `);
+        } else {
+            console.log('[ADMIN] ✅ Successfully served admin-dashboard.html');
         }
     });
 });
@@ -109,6 +107,12 @@ app.get('/admin/login', (req, res) => {
 app.get('/admin/dashboard', (req, res) => {
     res.redirect('/admin-dashboard.html');
 });
+
+// Serve static files (HTML files in api directory) - AFTER specific routes
+app.use(express.static(path.join(__dirname), {
+    index: false, // Don't serve index.html automatically
+    extensions: ['html', 'htm']
+}));
 
 // Store sync progress for each user (in-memory)
 const syncProgressStore = new Map(); // userId -> { stage, current, total, message, startedAt, updatedAt, phoneFound }
