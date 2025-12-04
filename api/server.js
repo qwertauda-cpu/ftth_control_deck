@@ -6997,6 +6997,37 @@ app.get('/api/admin/database/stats', requireAdminAuth, async (req, res) => {
     }
 });
 
+// Get All Databases List
+app.get('/api/admin/database/databases-list', requireAdminAuth, async (req, res) => {
+    try {
+        const masterPool = await dbManager.initMasterPool();
+        const [owners] = await masterPool.query(
+            'SELECT database_name, username, domain FROM owners_databases WHERE is_active = TRUE ORDER BY database_name'
+        );
+        
+        const databases = [
+            { name: 'ftth_master', type: 'master' }
+        ];
+        
+        owners.forEach(owner => {
+            databases.push({
+                name: owner.database_name,
+                type: 'owner',
+                username: owner.username,
+                domain: owner.domain
+            });
+        });
+        
+        res.json({
+            success: true,
+            databases: databases
+        });
+    } catch (error) {
+        console.error('[ADMIN DASHBOARD] Error loading databases list:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Get Database Tables List
 app.get('/api/admin/database/tables-list', requireAdminAuth, async (req, res) => {
     try {
