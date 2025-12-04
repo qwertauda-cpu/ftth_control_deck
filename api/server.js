@@ -43,8 +43,6 @@ const querystring = require('querystring');
 const zlib = require('zlib');
 const dbManager = require('./db-manager');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 
 // Configure multer for image uploads
 const storage = multer.diskStorage({
