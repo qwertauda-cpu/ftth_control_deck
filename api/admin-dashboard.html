@@ -21,6 +21,17 @@
         })();
     </script>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100%;
+            overflow-x: hidden;
+        }
+        
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
@@ -70,20 +81,28 @@
             }
             
             .container {
-                padding-left: 0.75rem !important;
-                padding-right: 0.75rem !important;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
                 max-width: 100% !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
             }
             
             /* Remove extra margins */
-            body {
-                margin: 0;
-                padding: 0;
+            * {
+                box-sizing: border-box;
+            }
+            
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100%;
+                overflow-x: hidden;
             }
             
             .min-h-screen {
-                margin: 0;
-                padding: 0;
+                margin: 0 !important;
+                padding: 0 !important;
             }
             
             /* Header adjustments - sticky at top */
@@ -114,15 +133,17 @@
             
             /* Compact header on mobile */
             header {
-                padding: 0.75rem 0.75rem !important;
-                margin: 0;
+                padding: 0.75rem 0.5rem !important;
+                margin: 0 !important;
                 border-radius: 0;
+                width: 100%;
             }
             
             header .container {
                 gap: 0.5rem !important;
-                padding-left: 0 !important;
-                padding-right: 0 !important;
+                padding-left: 0.5rem !important;
+                padding-right: 0.5rem !important;
+                margin: 0 !important;
             }
             
             header h1 {
@@ -140,7 +161,10 @@
             /* Better spacing for main content */
             main {
                 padding-top: 0.5rem !important;
-                padding-bottom: 1rem !important;
+                padding-bottom: 0.75rem !important;
+                padding-left: 0.5rem !important;
+                padding-right: 0.5rem !important;
+                margin: 0 !important;
             }
             
             main > div {
@@ -429,12 +453,20 @@
                 color: rgba(255,255,255,0.9) !important;
             }
             
-            /* Remove extra margins from body */
-            html, body {
+            /* Ensure no gaps anywhere */
+            body > div {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            
+            /* Remove default margins from all elements */
+            * {
                 margin: 0;
-                padding: 0;
-                width: 100%;
-                overflow-x: hidden;
+            }
+            
+            /* Only add margins where needed */
+            main > div:not(:last-child) {
+                margin-bottom: 0.75rem;
             }
             
             /* Buttons - better mobile UX */
@@ -720,7 +752,7 @@
             </div>
         </header>
 
-        <main class="container mx-auto p-2 md:p-6" style="padding-left: 0.75rem; padding-right: 0.75rem;">
+        <main class="container mx-auto p-2 md:p-6" style="padding-left: 0.5rem; padding-right: 0.5rem;">
             <!-- Statistics Cards -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-4 md:mb-8">
                 <div class="stat-card bg-white rounded-xl shadow-md md:shadow-lg p-4 md:p-6 border-l-4 border-blue-500 active:scale-[0.98] transition-transform">
