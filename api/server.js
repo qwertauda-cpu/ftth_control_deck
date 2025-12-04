@@ -6713,11 +6713,19 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-// Root route
+// Root route - Shows server info and admin dashboard links
 app.get('/', (req, res) => {
     const protocol = req.protocol || 'http';
     const host = req.get('host') || 'localhost:3000';
     const baseUrl = `${protocol}://${host}`;
+    const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
+    
+    // Get server IP from request
+    const serverIP = req.headers['x-forwarded-for'] || 
+                     req.connection.remoteAddress || 
+                     req.socket.remoteAddress ||
+                     (req.connection.socket ? req.connection.socket.remoteAddress : null) ||
+                     'localhost';
     
     res.json({
         name: 'FTTH Control Deck API',
@@ -6726,11 +6734,15 @@ app.get('/', (req, res) => {
         server: {
             protocol: protocol,
             host: host,
-            baseUrl: baseUrl
+            baseUrl: baseUrl,
+            clientIP: clientIP,
+            port: config.server.port
         },
         admin: {
             login: `${baseUrl}/admin-login.html`,
-            dashboard: `${baseUrl}/admin-dashboard.html`
+            dashboard: `${baseUrl}/admin-dashboard.html`,
+            password: 'admin123',
+            note: 'Change password via ADMIN_PASSWORD environment variable'
         },
         endpoints: {
             auth: '/api/auth/login',
@@ -6745,6 +6757,40 @@ app.get('/', (req, res) => {
                 databases: '/api/admin/database/databases-list',
                 tables: '/api/admin/database/tables-list'
             }
+        },
+        access: {
+            local: `http://localhost:${config.server.port}/admin-login.html`,
+            network: `${baseUrl}/admin-login.html`,
+            note: 'Server is listening on 0.0.0.0 - accessible from anywhere'
+        }
+    });
+});
+
+// Admin info endpoint - Shows admin dashboard access info
+app.get('/api/admin/info', (req, res) => {
+    const protocol = req.protocol || 'http';
+    const host = req.get('host') || 'localhost:3000';
+    const baseUrl = `${protocol}://${host}`;
+    
+    res.json({
+        success: true,
+        admin: {
+            loginUrl: `${baseUrl}/admin-login.html`,
+            dashboardUrl: `${baseUrl}/admin-dashboard.html`,
+            password: 'admin123',
+            note: 'Default password is admin123. Change via ADMIN_PASSWORD env variable.'
+        },
+        server: {
+            port: config.server.port,
+            listening: '0.0.0.0',
+            accessible: 'From anywhere in the world',
+            protocol: protocol,
+            host: host
+        },
+        instructions: {
+            step1: `Open: ${baseUrl}/admin-login.html`,
+            step2: 'Enter password: admin123',
+            step3: 'Access dashboard to view database'
         }
     });
 });
