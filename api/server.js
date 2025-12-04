@@ -128,6 +128,11 @@ app.get('/control-panel.html', (req, res) => {
 });
 
 // Serve static files (but skip control panel files - they're handled by routes above)
+const staticMiddleware = express.static(path.join(__dirname), {
+    index: false,
+    extensions: ['html', 'htm']
+});
+
 app.use((req, res, next) => {
     const requestPath = req.path.toLowerCase();
     // Skip static middleware for control panel files
@@ -136,10 +141,7 @@ app.use((req, res, next) => {
         return next(); // Let it fall through to 404 handler if route wasn't matched
     }
     // For other files, use static middleware
-    express.static(path.join(__dirname), {
-        index: false,
-        extensions: ['html', 'htm']
-    })(req, res, next);
+    staticMiddleware(req, res, next);
 });
 
 // Store sync progress for each user (in-memory)
