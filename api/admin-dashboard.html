@@ -1033,6 +1033,14 @@
     <script>
         const API_URL = window.location.origin;
         let authToken = localStorage.getItem('admin_token');
+        
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+            if (typeof text !== 'string') return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
 
         // Check authentication
         if (!authToken) {
@@ -1063,10 +1071,43 @@
             try {
                 const response = await fetch(`${API_URL}/api/admin/owners/list`, {
                     headers: {
-                        'Authorization': `Bearer ${authToken}`
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
                     }
                 });
+                
+                if (!response.ok) {
+                    console.error('[ADMIN] API Error:', response.status, response.statusText);
+                    if (response.status === 401) {
+                        localStorage.removeItem('admin_token');
+                        window.location.href = '/admin-login.html';
+                        return;
+                    }
+                }
+                
                 const data = await response.json();
+                console.log('[ADMIN] Owners list response:', data);
+                
+                if (!data.success) {
+                    console.error('[ADMIN] API returned error:', data.error || data.message);
+                    loadingDiv.classList.add('hidden');
+                    container.classList.remove('hidden');
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="px-6 py-8 text-center text-red-500">
+                                خطأ في جلب البيانات: ${data.error || data.message || 'خطأ غير معروف'}
+                            </td>
+                        </tr>
+                    `;
+                    if (mobileCards) {
+                        mobileCards.innerHTML = `
+                            <div class="text-center py-8 text-red-500 text-sm">
+                                خطأ في جلب البيانات: ${data.error || data.message || 'خطأ غير معروف'}
+                            </div>
+                        `;
+                    }
+                    return;
+                }
                 
                 if (data.success && data.owners) {
                     loadingDiv.classList.add('hidden');
