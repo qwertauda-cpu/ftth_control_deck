@@ -1613,7 +1613,7 @@
                         </div>
                         <div class="agent-info-item">
                             <div class="agent-info-label">المنصب</div>
-                            <div class="agent-info-value">${agent.user?.position || 'غير محدد'}</div>
+                            <div class="agent-info-value">${agent.user?.position === 'owner' ? 'وكيل' : (agent.user?.position || 'غير محدد')}</div>
                         </div>
                         <div class="agent-info-item">
                             <div class="agent-info-label">المحافظة</div>
@@ -1629,7 +1629,7 @@
                         </div>
                         <div class="agent-info-item">
                             <div class="agent-info-label">قاعدة البيانات</div>
-                            <div class="agent-info-value">${agent.database_name || agent.owner_domain || 'N/A'}</div>
+                            <div class="agent-info-value">${(agent.database_name === 'owner' || agent.owner_domain === 'owner') ? 'غير متاح' : (agent.database_name || agent.owner_domain || 'N/A')}</div>
                         </div>
                         <div class="agent-info-item">
                             <div class="agent-info-label">الحالة</div>
