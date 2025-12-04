@@ -2323,15 +2323,6 @@
             }
             
             content.innerHTML = html;
-            
-            // Generate QR codes for each account
-            if (agent.alwatani_accounts && agent.alwatani_accounts.length > 0) {
-                setTimeout(() => {
-                    agent.alwatani_accounts.forEach(account => {
-                        generateQRCode(account.id, account.username);
-                    });
-                }, 100);
-            }
         }
 
         // Close agent details modal
