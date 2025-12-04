@@ -2224,7 +2224,37 @@
                     
                     <!-- Main Toolbar -->
                     <div id="flowchartToolbar" style="position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 100; flex-wrap: wrap; background: rgba(30, 30, 30, 0.9); padding: 12px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3); backdrop-filter: blur(10px);">
-                        <button class="btn btn-secondary btn-sm" onclick="addFlowchartNode()" title="إضافة عقدة" style="transition: all 0.3s ease;">➕ عقدة</button>
+                        <div style="position: relative;">
+                            <button class="btn btn-secondary btn-sm" onclick="toggleNodeTypeMenu()" title="إضافة عقدة" style="transition: all 0.3s ease;">➕ عقدة</button>
+                            <div id="nodeTypeMenu" style="display: none; position: absolute; top: 100%; right: 0; margin-top: 8px; background: rgba(30, 30, 30, 0.95); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; padding: 8px; min-width: 200px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px); z-index: 1000;">
+                                <div style="color: #fff; font-size: 12px; padding: 8px; margin-bottom: 4px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">اختر نوع العقدة:</div>
+                                <div class="node-type-option" onclick="addFlowchartNode('box')" style="padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 4px; transition: all 0.2s; display: flex; align-items: center; gap: 10px;">
+                                    <div style="width: 30px; height: 20px; background: linear-gradient(135deg, #42A5F5 0%, #1E88E5 100%); border: 2px solid #64B5F6; border-radius: 4px;"></div>
+                                    <span style="color: #fff;">مربع</span>
+                                </div>
+                                <div class="node-type-option" onclick="addFlowchartNode('ellipse')" style="padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 4px; transition: all 0.2s; display: flex; align-items: center; gap: 10px;">
+                                    <div style="width: 30px; height: 20px; background: linear-gradient(135deg, #66BB6A 0%, #43A047 100%); border: 2px solid #81C784; border-radius: 50%;"></div>
+                                    <span style="color: #fff;">دائرة</span>
+                                </div>
+                                <div class="node-type-option" onclick="addFlowchartNode('diamond')" style="padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 4px; transition: all 0.2s; display: flex; align-items: center; gap: 10px;">
+                                    <div style="width: 20px; height: 20px; background: linear-gradient(135deg, #FFA726 0%, #FB8C00 100%); border: 2px solid #FFB74D; transform: rotate(45deg); margin: 0 auto;"></div>
+                                    <span style="color: #fff;">معين</span>
+                                </div>
+                                <div class="node-type-option" onclick="addFlowchartNode('triangle')" style="padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 4px; transition: all 0.2s; display: flex; align-items: center; gap: 10px;">
+                                    <div style="width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-bottom: 17px solid #AB47BC; margin: 0 auto;"></div>
+                                    <span style="color: #fff;">مثلث</span>
+                                </div>
+                                <div class="node-type-option" onclick="addFlowchartNode('hexagon')" style="padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 4px; transition: all 0.2s; display: flex; align-items: center; gap: 10px;">
+                                    <div style="width: 24px; height: 24px; background: linear-gradient(135deg, #EC407A 0%, #C2185B 100%); border: 2px solid #F48FB1; clip-path: polygon(30% 0%, 70% 0%, 100% 50%, 70% 100%, 30% 100%, 0% 50%); margin: 0 auto;"></div>
+                                    <span style="color: #fff;">سداسي</span>
+                                </div>
+                                <div class="node-type-option" onclick="addFlowchartNode('star')" style="padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 4px; transition: all 0.2s; display: flex; align-items: center; gap: 10px;">
+                                    <div style="width: 24px; height: 24px; background: linear-gradient(135deg, #FFD54F 0%, #FFC107 100%); border: 2px solid #FFE082; clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); margin: 0 auto;"></div>
+                                    <span style="color: #fff;">نجمة</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" onclick="enableEdgeCreation()" id="edgeCreationBtn" title="ربط العقد" style="transition: all 0.3s ease;">🔗 ربط</button>
                         <button class="btn btn-secondary btn-sm" onclick="deleteSelectedNode()" title="حذف المحدد" style="transition: all 0.3s ease;">🗑️ حذف</button>
                         <button class="btn btn-secondary btn-sm" onclick="saveFlowchart()" title="حفظ المخطط" style="transition: all 0.3s ease;">💾 حفظ</button>
                         <button class="btn btn-secondary btn-sm" onclick="clearFlowchart()" title="مسح الكل" style="transition: all 0.3s ease;">🗑️ مسح</button>
@@ -3975,7 +4005,7 @@
                     const canvasPos = params.pointer;
                     // Convert canvas coordinates to network coordinates
                     const networkPos = flowchartNetwork.canvasToDOM(canvasPos);
-                    addNodeAtPosition(networkPos.x, networkPos.y);
+                    addNodeAtPosition(networkPos.x, networkPos.y, 'box');
                 }
             });
 
@@ -4006,11 +4036,56 @@
                 }
             });
 
-            // Enable edge creation on drag
+            // Enable edge creation on click (when edge creation mode is active)
+            flowchartNetwork.on('click', function(params) {
+                if (edgeCreationMode && params.nodes.length > 0) {
+                    if (!edgeFromNode) {
+                        // Start edge creation
+                        edgeFromNode = params.nodes[0];
+                        const node = flowchartNodes.get(edgeFromNode);
+                        if (node) {
+                            flowchartNetwork.selectNodes([edgeFromNode]);
+                            alert('تم تحديد العقدة الأولى. اضغط على عقدة أخرى لربطها');
+                        }
+                    } else {
+                        // Complete edge creation
+                        const toNode = params.nodes[0];
+                        if (edgeFromNode !== toNode) {
+                            const edgeId = 'edge_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                            flowchartEdges.add({
+                                id: edgeId,
+                                from: edgeFromNode,
+                                to: toNode,
+                                arrows: { to: { enabled: true, type: 'arrow' } },
+                                color: { color: 'rgba(144, 202, 249, 0.8)', highlight: '#FFB74D' },
+                                width: 3,
+                                smooth: { type: 'dynamic', roundness: 0.7 }
+                            });
+                            console.log('✅ Edge created from', edgeFromNode, 'to', toNode);
+                            edgeFromNode = null;
+                            flowchartNetwork.unselectAll();
+                            
+                            // Disable edge creation mode
+                            edgeCreationMode = false;
+                            const btn = document.getElementById('edgeCreationBtn');
+                            if (btn) {
+                                btn.style.background = '';
+                                btn.style.borderColor = '';
+                            }
+                        } else {
+                            alert('لا يمكن ربط العقدة بنفسها');
+                            edgeFromNode = null;
+                            flowchartNetwork.unselectAll();
+                        }
+                    }
+                }
+            });
+            
+            // Enable edge creation on drag (alternative method)
             if (isFlowchartEditMode) {
                 flowchartNetwork.on('oncontext', function(params) {
                     params.event.preventDefault();
-                    if (params.nodes.length > 0) {
+                    if (params.nodes.length > 0 && !edgeCreationMode) {
                         startEdgeCreation(params.nodes[0]);
                     }
                 });
@@ -4137,7 +4212,7 @@
             }
         }
 
-        function addNodeAtPosition(x, y) {
+        function addNodeAtPosition(x, y, nodeType = 'box') {
             if (!isFlowchartEditMode) return;
             if (!flowchartNodes) {
                 console.error('Flowchart nodes dataset not initialized');
@@ -4145,13 +4220,74 @@
             }
             
             const nodeId = 'node_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            
+            // Define node styles based on type
+            const nodeStyles = {
+                'box': {
+                    shape: 'box',
+                    color: {
+                        border: '#64B5F6',
+                        background: 'linear-gradient(135deg, #42A5F5 0%, #1E88E5 100%)',
+                        highlight: { border: '#FFB74D', background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)' },
+                        hover: { border: '#90CAF9', background: 'linear-gradient(135deg, #64B5F6 0%, #42A5F5 100%)' }
+                    }
+                },
+                'ellipse': {
+                    shape: 'ellipse',
+                    color: {
+                        border: '#81C784',
+                        background: 'linear-gradient(135deg, #66BB6A 0%, #43A047 100%)',
+                        highlight: { border: '#FFB74D', background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)' },
+                        hover: { border: '#A5D6A7', background: 'linear-gradient(135deg, #81C784 0%, #66BB6A 100%)' }
+                    }
+                },
+                'diamond': {
+                    shape: 'diamond',
+                    color: {
+                        border: '#FFB74D',
+                        background: 'linear-gradient(135deg, #FFA726 0%, #FB8C00 100%)',
+                        highlight: { border: '#FFB74D', background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)' },
+                        hover: { border: '#FFCC80', background: 'linear-gradient(135deg, #FFB74D 0%, #FFA726 100%)' }
+                    }
+                },
+                'triangle': {
+                    shape: 'triangle',
+                    color: {
+                        border: '#BA68C8',
+                        background: 'linear-gradient(135deg, #AB47BC 0%, #8E24AA 100%)',
+                        highlight: { border: '#FFB74D', background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)' },
+                        hover: { border: '#CE93D8', background: 'linear-gradient(135deg, #BA68C8 0%, #AB47BC 100%)' }
+                    }
+                },
+                'hexagon': {
+                    shape: 'hexagon',
+                    color: {
+                        border: '#F48FB1',
+                        background: 'linear-gradient(135deg, #EC407A 0%, #C2185B 100%)',
+                        highlight: { border: '#FFB74D', background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)' },
+                        hover: { border: '#F8BBD0', background: 'linear-gradient(135deg, #F48FB1 0%, #EC407A 100%)' }
+                    }
+                },
+                'star': {
+                    shape: 'star',
+                    color: {
+                        border: '#FFE082',
+                        background: 'linear-gradient(135deg, #FFD54F 0%, #FFC107 100%)',
+                        highlight: { border: '#FFB74D', background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)' },
+                        hover: { border: '#FFF59D', background: 'linear-gradient(135deg, #FFE082 0%, #FFD54F 100%)' }
+                    }
+                }
+            };
+            
+            const style = nodeStyles[nodeType] || nodeStyles['box'];
+            
             const newNode = {
                 id: nodeId,
                 label: 'عقدة جديدة',
                 x: x || 0,
                 y: y || 0,
                 size: 40,
-                shape: 'box',
+                shape: style.shape,
                 borderWidth: 3,
                 shadow: {
                     enabled: true,
@@ -4160,18 +4296,7 @@
                     x: 0,
                     y: 0
                 },
-                color: {
-                    border: '#64B5F6',
-                    background: 'linear-gradient(135deg, #42A5F5 0%, #1E88E5 100%)',
-                    highlight: {
-                        border: '#FFB74D',
-                        background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)'
-                    },
-                    hover: {
-                        border: '#90CAF9',
-                        background: 'linear-gradient(135deg, #64B5F6 0%, #42A5F5 100%)'
-                    }
-                },
+                color: style.color,
                 font: {
                     color: '#FFFFFF',
                     size: 15,
