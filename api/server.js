@@ -141,7 +141,26 @@ app.get('/admin-login.html', (req, res) => {
 
 app.get('/admin-dashboard.html', (req, res) => {
     const filePath = path.join(__dirname, 'admin-dashboard.html');
+    console.log('[ADMIN] ✅ Route matched: /admin-dashboard.html');
     console.log('[ADMIN] ✅ Serving admin-dashboard.html from:', filePath);
+    console.log('[ADMIN] ✅ File exists:', fs.existsSync(filePath));
+    console.log('[ADMIN] ✅ __dirname:', __dirname);
+    
+    if (!fs.existsSync(filePath)) {
+        console.error('[ADMIN] ❌ File does not exist:', filePath);
+        return res.status(404).send(`
+            <!DOCTYPE html>
+            <html lang="ar" dir="rtl">
+            <head><meta charset="UTF-8"><title>خطأ</title></head>
+            <body>
+                <h1>خطأ: الملف غير موجود</h1>
+                <p>المسار: ${filePath}</p>
+                <p>__dirname: ${__dirname}</p>
+            </body>
+            </html>
+        `);
+    }
+    
     res.sendFile(filePath, (err) => {
         if (err) {
             console.error('[ADMIN] ❌ Error serving admin-dashboard.html:', err);
