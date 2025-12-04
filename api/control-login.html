@@ -13,17 +13,17 @@
         }
 
         :root {
-            --mdc-primary: #2196F3;
-            --mdc-primary-dark: #1976D2;
-            --mdc-primary-light: #64B5F6;
-            --mdc-secondary: #FF9800;
-            --mdc-error: #F44336;
-            --mdc-surface: #FFFFFF;
-            --mdc-background: #FAFAFA;
-            --mdc-on-primary: #FFFFFF;
-            --mdc-on-surface: #212121;
-            --mdc-on-surface-secondary: #757575;
-            --mdc-divider: #E0E0E0;
+            --mdc-primary: #90CAF9;
+            --mdc-primary-dark: #64B5F6;
+            --mdc-primary-light: #BBDEFB;
+            --mdc-secondary: #FFB74D;
+            --mdc-error: #EF5350;
+            --mdc-surface: #1E1E1E;
+            --mdc-background: #121212;
+            --mdc-on-primary: #000000;
+            --mdc-on-surface: #FFFFFF;
+            --mdc-on-surface-secondary: #B0B0B0;
+            --mdc-divider: #3A3A3A;
         }
 
         body {
@@ -39,11 +39,12 @@
         .login-container {
             background: var(--mdc-surface);
             border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3), 0 8px 16px rgba(0,0,0,0.4);
             padding: 48px 40px;
             width: 100%;
             max-width: 400px;
             animation: slideUp 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            border: 1px solid var(--mdc-divider);
         }
 
         @keyframes slideUp {
@@ -72,8 +73,8 @@
             justify-content: center;
             margin: 0 auto 16px;
             font-size: 40px;
-            color: var(--mdc-on-primary);
-            box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+            color: var(--mdc-background);
+            box-shadow: 0 4px 8px rgba(144, 202, 249, 0.3);
         }
 
         .logo h1 {
@@ -111,7 +112,7 @@
             font-size: 16px;
             font-family: 'Roboto', sans-serif;
             transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
-            background: var(--mdc-surface);
+            background: rgba(255, 255, 255, 0.05);
             color: var(--mdc-on-surface);
         }
 
@@ -158,7 +159,7 @@
             width: 100%;
             padding: 14px 24px;
             background: var(--mdc-primary);
-            color: var(--mdc-on-primary);
+            color: var(--mdc-background);
             border: none;
             border-radius: 4px;
             font-size: 14px;
@@ -166,7 +167,7 @@
             font-family: 'Roboto', sans-serif;
             cursor: pointer;
             transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
-            box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
+            box-shadow: 0 2px 4px rgba(144, 202, 249, 0.3);
             text-transform: uppercase;
             letter-spacing: 1.25px;
             position: relative;
@@ -193,7 +194,7 @@
 
         .btn-login:hover {
             background: var(--mdc-primary-dark);
-            box-shadow: 0 4px 8px rgba(33, 150, 243, 0.4);
+            box-shadow: 0 4px 8px rgba(144, 202, 249, 0.4);
         }
 
         .btn-login:active {
@@ -208,7 +209,7 @@
         }
 
         .error-message {
-            background: #FFEBEE;
+            background: rgba(239, 83, 80, 0.15);
             color: var(--mdc-error);
             padding: 16px;
             border-radius: 4px;
@@ -216,7 +217,7 @@
             font-size: 14px;
             display: none;
             border-right: 4px solid var(--mdc-error);
-            box-shadow: 0 2px 4px rgba(244, 67, 54, 0.2);
+            box-shadow: 0 2px 4px rgba(239, 83, 80, 0.2);
         }
 
         .error-message.show {

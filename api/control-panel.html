@@ -14,24 +14,24 @@
         }
 
         :root {
-            --mdc-primary: #2196F3;
-            --mdc-primary-dark: #1976D2;
-            --mdc-primary-light: #64B5F6;
-            --mdc-secondary: #FF9800;
-            --mdc-error: #F44336;
-            --mdc-success: #4CAF50;
-            --mdc-warning: #FF9800;
-            --mdc-info: #2196F3;
-            --mdc-surface: #FFFFFF;
-            --mdc-background: #FAFAFA;
-            --mdc-on-primary: #FFFFFF;
-            --mdc-on-surface: #212121;
-            --mdc-on-surface-secondary: #757575;
-            --mdc-divider: #E0E0E0;
-            --mdc-elevation-1: 0 2px 4px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
-            --mdc-elevation-2: 0 4px 8px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
-            --mdc-elevation-4: 0 8px 16px rgba(0,0,0,0.1), 0 4px 8px rgba(0,0,0,0.06);
-            --mdc-elevation-8: 0 16px 24px rgba(0,0,0,0.1), 0 8px 12px rgba(0,0,0,0.06);
+            --mdc-primary: #90CAF9;
+            --mdc-primary-dark: #64B5F6;
+            --mdc-primary-light: #BBDEFB;
+            --mdc-secondary: #FFB74D;
+            --mdc-error: #EF5350;
+            --mdc-success: #66BB6A;
+            --mdc-warning: #FFB74D;
+            --mdc-info: #90CAF9;
+            --mdc-surface: #1E1E1E;
+            --mdc-background: #121212;
+            --mdc-on-primary: #000000;
+            --mdc-on-surface: #FFFFFF;
+            --mdc-on-surface-secondary: #B0B0B0;
+            --mdc-divider: #3A3A3A;
+            --mdc-elevation-1: 0 2px 4px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+            --mdc-elevation-2: 0 4px 8px rgba(0,0,0,0.3), 0 2px 4px rgba(0,0,0,0.2);
+            --mdc-elevation-4: 0 8px 16px rgba(0,0,0,0.4), 0 4px 8px rgba(0,0,0,0.3);
+            --mdc-elevation-8: 0 16px 24px rgba(0,0,0,0.5), 0 8px 12px rgba(0,0,0,0.4);
         }
 
         body {
@@ -80,8 +80,8 @@
         .sidebar-header {
             padding: 24px 16px;
             border-bottom: 1px solid var(--mdc-divider);
-            background: var(--mdc-primary);
-            color: var(--mdc-on-primary);
+            background: var(--mdc-surface);
+            color: var(--mdc-on-surface);
         }
 
         .sidebar-header h1 {
@@ -123,7 +123,7 @@
             width: 0;
             height: 0;
             border-radius: 50%;
-            background: rgba(33, 150, 243, 0.1);
+            background: rgba(144, 202, 249, 0.1);
             transform: translate(-50%, -50%);
             transition: width 0.3s, height 0.3s;
         }
@@ -138,7 +138,7 @@
         }
 
         .menu-item.active {
-            background: rgba(33, 150, 243, 0.08);
+            background: rgba(144, 202, 249, 0.12);
             color: var(--mdc-primary);
             font-weight: 500;
         }
@@ -173,7 +173,7 @@
             width: 100%;
             padding: 12px 24px;
             background: var(--mdc-error);
-            color: var(--mdc-on-primary);
+            color: var(--mdc-on-surface);
             border: none;
             border-radius: 4px;
             cursor: pointer;
@@ -304,11 +304,11 @@
             font-size: 24px;
         }
 
-        .stat-card-icon.primary { background: rgba(33, 150, 243, 0.12); color: var(--mdc-primary); }
-        .stat-card-icon.success { background: rgba(76, 175, 80, 0.12); color: var(--mdc-success); }
-        .stat-card-icon.danger { background: rgba(244, 67, 54, 0.12); color: var(--mdc-error); }
-        .stat-card-icon.warning { background: rgba(255, 152, 0, 0.12); color: var(--mdc-warning); }
-        .stat-card-icon.info { background: rgba(33, 150, 243, 0.12); color: var(--mdc-info); }
+        .stat-card-icon.primary { background: rgba(144, 202, 249, 0.2); color: var(--mdc-primary); }
+        .stat-card-icon.success { background: rgba(102, 187, 106, 0.2); color: var(--mdc-success); }
+        .stat-card-icon.danger { background: rgba(239, 83, 80, 0.2); color: var(--mdc-error); }
+        .stat-card-icon.warning { background: rgba(255, 183, 77, 0.2); color: var(--mdc-warning); }
+        .stat-card-icon.info { background: rgba(144, 202, 249, 0.2); color: var(--mdc-info); }
 
         .stat-card-value {
             font-size: 34px;
@@ -423,7 +423,7 @@
 
         .btn-primary {
             background: var(--mdc-primary);
-            color: var(--mdc-on-primary);
+            color: var(--mdc-background);
             border: none;
             box-shadow: var(--mdc-elevation-2);
             text-transform: uppercase;
@@ -1141,24 +1141,24 @@
                     tbody.innerHTML = data.owners.map(agent => `
                         <tr>
                             <td>
-                                <strong style="color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">${agent.owner_username || 'N/A'}</strong>
-                                ${agent.owner_domain ? `<br><small style="color: rgba(255,255,255,0.85); text-shadow: 0 1px 2px rgba(0,0,0,0.2);">${agent.owner_domain}</small>` : ''}
+                                <strong>${agent.owner_username || 'N/A'}</strong>
+                                ${agent.owner_domain ? `<br><small>${agent.owner_domain}</small>` : ''}
                             </td>
-                            <td style="color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">${agent.user?.name || agent.owner_username || 'غير محدد'}</td>
-                            <td style="color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">${agent.user?.email || 'غير محدد'}</td>
-                            <td style="color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">${agent.user?.phone || 'غير محدد'}</td>
+                            <td>${agent.user?.name || agent.owner_username || 'غير محدد'}</td>
+                            <td>${agent.user?.email || 'غير محدد'}</td>
+                            <td>${agent.user?.phone || 'غير محدد'}</td>
                             <td>
                                 <span class="badge badge-info">${agent.alwatani_accounts_count || 0} حساب</span>
                                 ${agent.alwatani_accounts && agent.alwatani_accounts.length > 0 ? 
-                                    `<br><small style="color: rgba(255,255,255,0.9); text-shadow: 0 1px 2px rgba(0,0,0,0.2); font-weight: 500;">${agent.alwatani_accounts.map(acc => acc.username).join(', ')}</small>` : 
-                                    '<br><small style="color: rgba(255,255,255,0.8); text-shadow: 0 1px 2px rgba(0,0,0,0.2);">لا توجد حسابات</small>'
+                                    `<br><small>${agent.alwatani_accounts.map(acc => acc.username).join(', ')}</small>` : 
+                                    '<br><small>لا توجد حسابات</small>'
                                 }
                             </td>
                             <td>
                                 <span class="badge badge-success">${agent.subscribers_count || 0}</span>
-                                <br><small style="color: rgba(255,255,255,0.85); text-shadow: 0 1px 2px rgba(0,0,0,0.2);">مشترك</small>
+                                <br><small>مشترك</small>
                             </td>
-                            <td style="color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">${agent.user?.position || 'غير محدد'}</td>
+                            <td>${agent.user?.position || 'غير محدد'}</td>
                             <td>
                                 <button class="btn btn-primary btn-sm" onclick="viewAgentDetails('${agent.owner_username}')">عرض</button>
                             </td>
