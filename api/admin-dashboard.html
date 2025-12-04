@@ -74,12 +74,10 @@
                 padding-right: 1rem;
             }
             
-            /* Header adjustments - auto-hide on scroll */
+            /* Header adjustments - sticky at top */
             header {
-                position: fixed;
+                position: sticky;
                 top: 0;
-                left: 0;
-                right: 0;
                 z-index: 50;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.1);
                 backdrop-filter: blur(10px);
@@ -92,13 +90,13 @@
                 box-shadow: none;
             }
             
-            /* Add padding to body to compensate for fixed header */
+            /* No extra padding needed with sticky */
             body {
                 padding-top: 0;
             }
             
             main {
-                padding-top: 5.5rem !important;
+                padding-top: 0 !important;
                 margin-top: 0;
             }
             
@@ -650,7 +648,7 @@
             </div>
         </header>
 
-        <main class="container mx-auto p-3 md:p-6" style="padding-top: 1rem;">
+        <main class="container mx-auto p-3 md:p-6">
             <!-- Statistics Cards -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-4 md:mb-8">
                 <div class="stat-card bg-white rounded-xl shadow-md md:shadow-lg p-4 md:p-6 border-l-4 border-blue-500 active:scale-[0.98] transition-transform">
