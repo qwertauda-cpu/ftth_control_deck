@@ -243,6 +243,36 @@
         </main>
     </div>
 
+    <!-- Modal for Alwatani Pages -->
+    <div id="pages-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6 flex justify-between items-center">
+                <div>
+                    <h3 id="modal-owner-name" class="text-2xl font-bold">صفحات الوطني</h3>
+                    <p id="modal-owner-pages-count" class="text-purple-100 text-sm mt-1">جاري التحميل...</p>
+                </div>
+                <button onclick="closePagesModal()" class="text-white hover:text-gray-200 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div id="pages-modal-loading" class="flex-1 overflow-y-auto p-6">
+                <div class="text-center py-8">
+                    <div class="loading-spinner mx-auto mb-4"></div>
+                    <p class="text-gray-600">جاري تحميل صفحات الوطني...</p>
+                </div>
+            </div>
+            
+            <div id="pages-modal-content" class="hidden flex-1 overflow-y-auto p-6">
+                <div id="pages-list" class="space-y-3">
+                    <!-- Pages will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_URL = window.location.origin;
         let authToken = localStorage.getItem('admin_token');
@@ -485,6 +515,13 @@
             const contentDiv = document.getElementById('pages-modal-content');
             const pagesList = document.getElementById('pages-list');
             
+            // التحقق من وجود العناصر
+            if (!modal || !modalOwnerName || !modalPagesCount || !loadingDiv || !contentDiv || !pagesList) {
+                console.error('[MODAL] Missing modal elements');
+                alert('خطأ: عناصر الـ modal غير موجودة. يرجى تحديث الصفحة.');
+                return;
+            }
+            
             modal.classList.remove('hidden');
             modalOwnerName.textContent = `صفحات الوطني - ${ownerName}`;
             modalPagesCount.textContent = `عدد الصفحات: ${pagesCount}`;
@@ -567,7 +604,9 @@
         // Close Pages Modal
         function closePagesModal() {
             const modal = document.getElementById('pages-modal');
-            modal.classList.add('hidden');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
         }
 
         // Logout
