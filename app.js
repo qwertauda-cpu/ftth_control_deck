@@ -2815,8 +2815,9 @@ async function monitorSyncProgress(userId) {
                     }
                     
                     if (progress.logs && Array.isArray(progress.logs) && progress.logs.length > 0) {
-                        // عرض آخر 30 سجل
-                        const recentLogs = progress.logs.slice(-30);
+                        // عرض جميع السجلات (تراكمي - كل رسالة تحت السابقة)
+                        // الاحتفاظ بآخر 50 سجل للعرض (لكن نحفظ 200 في السيرفر)
+                        const recentLogs = progress.logs.slice(-50);
                         consoleContent.innerHTML = recentLogs.map(log => {
                             const time = new Date(log.timestamp).toLocaleTimeString('en-US', { hour12: false });
                             const message = log.message || '';
@@ -2831,10 +2832,10 @@ async function monitorSyncProgress(userId) {
                             }
                             return `<div class="${color}">[${time}] ${message}</div>`;
                         }).join('');
-                        // Scroll to bottom
+                        // Scroll to bottom تلقائياً
                         setTimeout(() => {
                             consoleBox.scrollTop = consoleBox.scrollHeight;
-                        }, 100);
+                        }, 50);
                     } else if (progress.message) {
                         // إذا لم تكن هناك logs، نعرض الرسالة الحالية
                         const time = new Date().toLocaleTimeString('en-US', { hour12: false });

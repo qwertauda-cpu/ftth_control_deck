@@ -3979,21 +3979,26 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         console.log(`[SYNC] 🔄 Starting full sync: Will fetch all ${totalCount} subscribers from API and save to database`);
         
         // ========== جلب جميع الصفحات - صفحة واحدة كل ثانية ==========
-        // تحديث progress للصفحة الأولى بدون تغيير الرسالة الرئيسية
-        const existing = syncProgressStore.get(id) || { logs: [] };
-        existing.stage = 'fetching_pages';
-        existing.current = 1;
-        existing.total = totalPages;
-        existing.message = 'جاري جلب الصفحات...';
-        if (!existing.logs) existing.logs = [];
-        existing.logs.push({
+        // تحديث progress للصفحة الأولى - الرسالة الرئيسية تبقى ثابتة
+        updateSyncProgress(id, {
+            stage: 'fetching_pages',
+            current: 1,
+            total: totalPages,
+            message: 'جاري جلب الصفحات...'
+        });
+        
+        // إضافة رسالة الصفحة الأولى إلى logs
+        const existing1 = syncProgressStore.get(id) || { logs: [] };
+        if (!existing1.logs) existing1.logs = [];
+        existing1.logs.push({
             timestamp: new Date().toISOString(),
             message: 'FETCH PAGE 1 COMPLETE',
             stage: 'fetching_pages'
         });
-        if (existing.logs.length > 100) existing.logs = existing.logs.slice(-100);
-        existing.updatedAt = new Date().toISOString();
-        syncProgressStore.set(id, existing);
+        // الاحتفاظ بآخر 200 سجل بدلاً من 100
+        if (existing1.logs.length > 200) existing1.logs = existing1.logs.slice(-200);
+        existing1.updatedAt = new Date().toISOString();
+        syncProgressStore.set(id, existing1);
         
         // جلب باقي الصفحات واحدة تلو الأخرى
         for (let pageNum = 2; pageNum <= totalPages; pageNum++) {
@@ -4029,32 +4034,35 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                 const customersList = normalizeAlwataniCollection(pageResult.data);
                 allCustomers = allCustomers.concat(customersList);
                 
-                // تحديث progress - فقط logs للـ CMD box، الرسالة الرئيسية تبقى كما هي
+                // تحديث progress - فقط الأرقام، الرسالة الرئيسية تبقى ثابتة
                 const current = syncProgressStore.get(id) || { logs: [] };
                 current.current = pageNum;
                 current.total = totalPages;
-                current.message = 'جاري جلب الصفحات...';
+                current.message = 'جاري جلب الصفحات...'; // الرسالة الرئيسية تبقى ثابتة
                 if (!current.logs) current.logs = [];
+                // إضافة رسالة جديدة للـ logs (تراكمي - كل رسالة تحت السابقة)
                 current.logs.push({
                     timestamp: new Date().toISOString(),
                     message: `FETCH PAGE ${pageNum} COMPLETE (${customersList.length} subscribers)`,
                     stage: 'fetching_pages'
                 });
-                if (current.logs.length > 100) current.logs = current.logs.slice(-100);
+                // الاحتفاظ بآخر 200 سجل
+                if (current.logs.length > 200) current.logs = current.logs.slice(-200);
                 current.updatedAt = new Date().toISOString();
                 syncProgressStore.set(id, current);
             } else {
                 const current = syncProgressStore.get(id) || { logs: [] };
                 current.current = pageNum - 1;
                 current.total = totalPages;
-                current.message = 'جاري جلب الصفحات...';
+                current.message = 'جاري جلب الصفحات...'; // الرسالة الرئيسية تبقى ثابتة
                 if (!current.logs) current.logs = [];
+                // إضافة رسالة خطأ للـ logs
                 current.logs.push({
                     timestamp: new Date().toISOString(),
                     message: `FAILED TO FETCH PAGE ${pageNum}: ${pageResult.message || 'Unknown error'}`,
                     stage: 'fetching_pages'
                 });
-                if (current.logs.length > 100) current.logs = current.logs.slice(-100);
+                if (current.logs.length > 200) current.logs = current.logs.slice(-200);
                 current.updatedAt = new Date().toISOString();
                 syncProgressStore.set(id, current);
             }
@@ -4188,6 +4196,14 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         // ========== جلب تفاصيل جميع المشتركين - مشترك واحد كل ثانية ==========
         console.log(`[SYNC] 📊 Starting to fetch details for ${combinedRecords.length} subscribers...`);
         
+        // تحديث progress لبدء مرحلة جلب المشتركين - الرسالة الرئيسية تبقى ثابتة
+        updateSyncProgress(id, {
+            stage: 'enriching',
+            current: 0,
+            total: combinedRecords.length,
+            message: 'جاري جلب معلومات المشتركين...'
+        });
+        
         let processed = 0;
         let successCount = 0;
         let phoneFoundCount = 0;
@@ -4223,53 +4239,54 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                         phoneFoundCount++;
                     }
                     
-                    // تحديث progress - فقط logs للـ CMD box، الرسالة الرئيسية تبقى كما هي
+                    // تحديث progress - فقط الأرقام وlogs، الرسالة الرئيسية تبقى ثابتة
                     const current = syncProgressStore.get(id) || { logs: [] };
-                    current.stage = 'enriching';
                     current.current = i + 1;
                     current.total = combinedRecords.length;
-                    current.message = 'جاري جلب معلومات المشتركين...';
+                    current.message = 'جاري جلب معلومات المشتركين...'; // الرسالة الرئيسية تبقى ثابتة
                     current.phoneFound = phoneFoundCount;
                     if (!current.logs) current.logs = [];
+                    // إضافة رسالة جديدة للـ logs (تراكمي - كل رسالة تحت السابقة)
                     current.logs.push({
                         timestamp: new Date().toISOString(),
                         message: `FETCHING SUBSCRIBER: ${subscriberName}`,
                         stage: 'enriching'
                     });
-                    if (current.logs.length > 100) current.logs = current.logs.slice(-100);
+                    // الاحتفاظ بآخر 200 سجل
+                    if (current.logs.length > 200) current.logs = current.logs.slice(-200);
                     current.updatedAt = new Date().toISOString();
                     syncProgressStore.set(id, current);
                 } else {
                     const current = syncProgressStore.get(id) || { logs: [] };
-                    current.stage = 'enriching';
                     current.current = i + 1;
                     current.total = combinedRecords.length;
-                    current.message = 'جاري جلب معلومات المشتركين...';
+                    current.message = 'جاري جلب معلومات المشتركين...'; // الرسالة الرئيسية تبقى ثابتة
                     current.phoneFound = phoneFoundCount;
                     if (!current.logs) current.logs = [];
+                    // إضافة رسالة خطأ للـ logs
                     current.logs.push({
                         timestamp: new Date().toISOString(),
                         message: `FAILED TO FETCH: ${subscriberName}`,
                         stage: 'enriching'
                     });
-                    if (current.logs.length > 100) current.logs = current.logs.slice(-100);
+                    if (current.logs.length > 200) current.logs = current.logs.slice(-200);
                     current.updatedAt = new Date().toISOString();
                     syncProgressStore.set(id, current);
                 }
             } catch (error) {
                 const current = syncProgressStore.get(id) || { logs: [] };
-                current.stage = 'enriching';
                 current.current = i + 1;
                 current.total = combinedRecords.length;
-                current.message = 'جاري جلب معلومات المشتركين...';
+                current.message = 'جاري جلب معلومات المشتركين...'; // الرسالة الرئيسية تبقى ثابتة
                 current.phoneFound = phoneFoundCount;
                 if (!current.logs) current.logs = [];
+                // إضافة رسالة خطأ للـ logs
                 current.logs.push({
                     timestamp: new Date().toISOString(),
                     message: `ERROR FETCHING: ${subscriberName} - ${error.message}`,
                     stage: 'enriching'
                 });
-                if (current.logs.length > 100) current.logs = current.logs.slice(-100);
+                if (current.logs.length > 200) current.logs = current.logs.slice(-200);
                 current.updatedAt = new Date().toISOString();
                 syncProgressStore.set(id, current);
             }
