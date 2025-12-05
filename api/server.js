@@ -1607,6 +1607,20 @@ async function fetchCustomersPageWithRetry(pageNumber, token, username, password
             `${context}_${pageNumber}`
         );
         applyToken(resp);
+        
+        // معالجة 502 Bad Gateway (خطأ من API الوطني)
+        if (resp.statusCode === 502 || (resp.data?.errorCode === 502 && resp.data?.title?.includes('Exception while reading from stream'))) {
+            if (attempt < PAGE_FETCH_MAX_RETRIES - 1) {
+                const waitTime = backoff * (attempt + 1);
+                console.warn(`[SYNC] ⚠️ 502 Bad Gateway for page ${pageNumber}. Waiting ${waitTime / 1000}s before retry...`);
+                await delay(waitTime);
+                attempt++;
+                continue;
+            } else {
+                console.error(`[SYNC] ❌ Failed to fetch page ${pageNumber} after ${PAGE_FETCH_MAX_RETRIES} attempts due to 502 errors`);
+                return resp; // إرجاع الخطأ بعد استنفاد المحاولات
+            }
+        }
 
         if (resp.redirect && isRateLimitRedirect(resp)) {
             console.warn(`[SYNC] ⚠️ Rate limit redirect for page ${pageNumber}. Waiting ${(backoff / 1000).toFixed(1)}s before retry...`);
