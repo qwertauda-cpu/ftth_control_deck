@@ -2355,13 +2355,15 @@ async function enrichCustomersWithDetails(records, tokenRef, username, password,
             break;
         }
         
-        // تحديث حالة التقدم
+        // تحديث حالة التقدم بشكل ثابت (بعد كل batch فقط)
         if (userId) {
+            // التأكد من أن current لا يتجاوز total ولا ينقص
+            const safeCurrent = Math.min(processed, records.length);
             updateSyncProgress(userId, {
                 stage: 'enriching',
-                current: processed,
+                current: safeCurrent,
                 total: records.length,
-                message: `جاري جلب معلومات المشتركين... ${processed}/${records.length} (${successCount} نجح، ${phoneFoundCount} مع رقم هاتف)`,
+                message: `جاري جلب معلومات المشتركين... ${safeCurrent}/${records.length} (${successCount} نجح، ${phoneFoundCount} مع رقم هاتف)`,
                 phoneFound: phoneFoundCount
             });
         }
