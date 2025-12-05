@@ -51,7 +51,7 @@ async function getOwnerUsernameFromAlwataniLoginId(alwataniLoginId) {
         // الحصول على جميع المالكين من قاعدة البيانات الرئيسية
         const masterPool = await dbManager.initMasterPool();
         const [owners] = await masterPool.query(
-            'SELECT username, domain FROM owners_databases WHERE is_active = TRUE'
+            'SELECT username, domain FROM owners_databases WHERE is_active = 1'
         );
         
         // البحث في كل قاعدة بيانات عن alwatani_login id
@@ -411,7 +411,7 @@ async function getAlwataniPoolFromRequestHelper(req) {
             
             const masterPool = await dbManager.initMasterPool();
             const [allOwners] = await masterPool.query(
-                'SELECT username, domain FROM owners_databases WHERE is_active = TRUE'
+                'SELECT username, domain FROM owners_databases WHERE is_active = 1'
             );
             
             for (const owner of allOwners) {
@@ -474,7 +474,7 @@ app.post('/api/auth/login', async (req, res) => {
         console.log('[LOGIN] Searching for user in all databases:', username);
         const masterPool = await dbManager.initMasterPool();
         const [owners] = await masterPool.query(
-            'SELECT username, domain, database_name FROM owners_databases WHERE is_active = TRUE'
+            'SELECT username, domain, database_name FROM owners_databases WHERE is_active = 1'
         );
         
         let foundUser = null;
@@ -6848,10 +6848,50 @@ app.post('/api/control/login', async (req, res) => {
         const masterPool = await dbManager.initMasterPool();
         
         // Try to find account in database
-        const [accounts] = await masterPool.query(
-            'SELECT id, username, password_hash, full_name, email, role, is_active FROM control_accounts WHERE username = ?',
-            [username]
-        );
+        let accounts = [];
+        try {
+            [accounts] = await masterPool.query(
+                'SELECT id, username, password_hash, full_name, email, role, is_active FROM control_accounts WHERE username = ?',
+                [username]
+            );
+        } catch (tableError) {
+            // If table doesn't exist, try to create it
+            if (tableError.code === 'ER_NO_SUCH_TABLE' || tableError.sqlMessage?.includes("doesn't exist")) {
+                console.log('[CONTROL LOGIN] control_accounts table not found, creating...');
+                try {
+                    await masterPool.query(`
+                        CREATE TABLE IF NOT EXISTS control_accounts (
+                            id INT PRIMARY KEY AUTO_INCREMENT,
+                            username VARCHAR(255) UNIQUE NOT NULL COMMENT 'اسم المستخدم',
+                            password_hash VARCHAR(255) NOT NULL COMMENT 'كلمة المرور المشفرة',
+                            full_name VARCHAR(255) COMMENT 'الاسم الكامل',
+                            email VARCHAR(255) COMMENT 'البريد الإلكتروني',
+                            role VARCHAR(50) DEFAULT 'admin' COMMENT 'الدور (admin, manager, viewer)',
+                            is_active BOOLEAN DEFAULT TRUE COMMENT 'حالة تفعيل الحساب',
+                            last_login TIMESTAMP NULL COMMENT 'آخر تسجيل دخول',
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                            created_by INT COMMENT 'من أنشأ الحساب',
+                            INDEX idx_username (username),
+                            INDEX idx_email (email),
+                            INDEX idx_role (role),
+                            INDEX idx_is_active (is_active)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                    `);
+                    console.log('[CONTROL LOGIN] ✅ control_accounts table created');
+                    // Try query again after creating table
+                    [accounts] = await masterPool.query(
+                        'SELECT id, username, password_hash, full_name, email, role, is_active FROM control_accounts WHERE username = ?',
+                        [username]
+                    );
+                } catch (initError) {
+                    console.error('[CONTROL LOGIN] Error creating control_accounts table:', initError);
+                    // Continue with fallback
+                }
+            } else {
+                console.error('[CONTROL LOGIN] Error querying control_accounts:', tableError);
+            }
+        }
         
         let isValid = false;
         let account = null;
@@ -7077,10 +7117,15 @@ app.get('/api/control/database/databases', requireControlAuth, async (req, res) 
                 let indexSizeMB = 0;
                 
                 if (sizeResult && sizeResult[0]) {
-                    sizeMB = sizeResult[0].size_mb || 0;
-                    dataSizeMB = sizeResult[0].data_size_mb || 0;
-                    indexSizeMB = sizeResult[0].index_size_mb || 0;
+                    sizeMB = Number(sizeResult[0].size_mb) || 0;
+                    dataSizeMB = Number(sizeResult[0].data_size_mb) || 0;
+                    indexSizeMB = Number(sizeResult[0].index_size_mb) || 0;
                 }
+                
+                // Ensure sizeMB is a number
+                sizeMB = Number(sizeMB) || 0;
+                dataSizeMB = Number(dataSizeMB) || 0;
+                indexSizeMB = Number(indexSizeMB) || 0;
                 
                 // Count total rows in all tables
                 let totalRows = 0;
@@ -7100,12 +7145,13 @@ app.get('/api/control/database/databases', requireControlAuth, async (req, res) 
                 
                 await tempPool.end();
                 
-                // Format size
+                // Format size - ensure sizeMB is a valid number
                 let sizeFormatted = '0 MB';
-                if (sizeMB >= 1024) {
-                    sizeFormatted = `${(sizeMB / 1024).toFixed(2)} GB`;
-                } else if (sizeMB > 0) {
-                    sizeFormatted = `${sizeMB.toFixed(2)} MB`;
+                const numericSizeMB = Number(sizeMB) || 0;
+                if (numericSizeMB >= 1024) {
+                    sizeFormatted = `${(numericSizeMB / 1024).toFixed(2)} GB`;
+                } else if (numericSizeMB > 0) {
+                    sizeFormatted = `${numericSizeMB.toFixed(2)} MB`;
                 } else {
                     sizeFormatted = '< 0.01 MB';
                 }
