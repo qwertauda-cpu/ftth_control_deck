@@ -2595,6 +2595,17 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
             
             renderSubscriberStatusCards();
             renderExpiringSoonList();
+            
+            // التأكد من أن pageSize مضبوط على 100
+            if (subscriberPagination.pageSize !== 100) {
+                subscriberPagination.pageSize = 100;
+                // تحديث القائمة المنسدلة إذا كانت موجودة
+                const pageSizeSelect = document.getElementById('subscriber-page-size');
+                if (pageSizeSelect) {
+                    pageSizeSelect.value = '100';
+                }
+            }
+            
             applySubscriberFilter(activeSubscriberFilter || 'all');
             
             // تحديث الإحصائيات من البيانات
