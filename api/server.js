@@ -206,7 +206,23 @@ const syncProgressStore = new Map(); // userId -> { stage, current, total, messa
 
 // Helper functions to update sync progress
 function updateSyncProgress(userId, progress) {
-    const existing = syncProgressStore.get(userId) || {};
+    const existing = syncProgressStore.get(userId) || { logs: [] };
+    // Initialize logs array if it doesn't exist
+    if (!existing.logs) {
+        existing.logs = [];
+    }
+    // Add log entry if message is provided and different from previous
+    if (progress.message && progress.message !== existing.message) {
+        existing.logs.push({
+            timestamp: new Date().toISOString(),
+            message: progress.message,
+            stage: progress.stage || existing.stage
+        });
+        // Keep only last 100 logs to prevent memory issues
+        if (existing.logs.length > 100) {
+            existing.logs = existing.logs.slice(-100);
+        }
+    }
     // Always update total and current when provided to avoid stale values
     syncProgressStore.set(userId, {
         ...existing,
@@ -214,7 +230,9 @@ function updateSyncProgress(userId, progress) {
         // Ensure total and current are always updated if provided
         total: progress.total !== undefined ? progress.total : existing.total,
         current: progress.current !== undefined ? progress.current : existing.current,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        // Preserve logs
+        logs: existing.logs
     });
 }
 
