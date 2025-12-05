@@ -4162,23 +4162,80 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
 
         console.log(`[SYNC] ✅ Prepared ${combinedRecords.length} subscribers. Now starting to fetch details from subscriber pages...`);
         
-        // جلب التفاصيل لجميع المشتركين
+        // ========== جلب تفاصيل جميع المشتركين - مشترك واحد كل ثانية ==========
         console.log(`[SYNC] 📊 Starting to fetch details for ${combinedRecords.length} subscribers...`);
         
-        // تحديث حالة التقدم قبل بدء جلب التفاصيل
-        updateSyncProgress(id, {
-            stage: 'enriching',
-            current: 0,
-            total: combinedRecords.length,
-            message: `جاري جلب معلومات المشتركين... ${combinedRecords.length} مشترك`
-        });
+        let processed = 0;
+        let successCount = 0;
+        let phoneFoundCount = 0;
         
-        // إضافة userId إلى records قبل إرسالها
-        combinedRecords.forEach(item => {
-            item.userId = id; // استخدام id من req.params (alwatani_login.id)
-        });
+        for (let i = 0; i < combinedRecords.length; i++) {
+            if (isSyncCancelled(id)) {
+                break;
+            }
+            
+            // تأخير ثانية واحدة قبل كل مشترك (باستثناء الأول)
+            if (i > 0) {
+                await delay(1000);
+            }
+            
+            const item = combinedRecords[i];
+            const subscriberName = item.record?.username || 
+                                 item.record?.deviceName || 
+                                 item.record?.name || 
+                                 item.accountId || 
+                                 'Unknown';
+            
+            try {
+                const detailResp = await fetchAlwataniCustomerDetails(
+                    item.accountId, tokenRef, account.username, account.password
+                );
+                
+                if (detailResp.success && detailResp.data) {
+                    const beforePhone = item.record.phone;
+                    mergeCustomerDetails(item.record, detailResp.data);
+                    successCount++;
+                    
+                    if (detailResp.data.phone && detailResp.data.phone !== beforePhone) {
+                        phoneFoundCount++;
+                    }
+                    
+                    // تحديث progress مع اسم المشترك للـ CMD box
+                    updateSyncProgress(id, {
+                        stage: 'enriching',
+                        current: i + 1,
+                        total: combinedRecords.length,
+                        message: `FETCHING SUBSCRIBER: ${subscriberName}`,
+                        phoneFound: phoneFoundCount
+                    });
+                } else {
+                    updateSyncProgress(id, {
+                        stage: 'enriching',
+                        current: i + 1,
+                        total: combinedRecords.length,
+                        message: `FAILED TO FETCH: ${subscriberName}`,
+                        phoneFound: phoneFoundCount
+                    });
+                }
+            } catch (error) {
+                updateSyncProgress(id, {
+                    stage: 'enriching',
+                    current: i + 1,
+                    total: combinedRecords.length,
+                    message: `ERROR FETCHING: ${subscriberName} - ${error.message}`,
+                    phoneFound: phoneFoundCount
+                });
+            }
+            
+            processed++;
+        }
         
-        const enrichResult = await enrichCustomersWithDetails(combinedRecords, tokenRef, account.username, account.password, id, alwataniPool);
+        const enrichResult = {
+            processed,
+            successCount,
+            phoneFoundCount,
+            cancelled: false
+        };
         
         if (enrichResult?.cancelled || isSyncCancelled(id)) {
             updateSyncProgress(id, {
