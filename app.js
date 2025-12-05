@@ -2445,6 +2445,87 @@ async function loadLocalSubscribers() {
     }
 }
 
+// Load subscribers from local database (alwatani_customers_cache)
+async function loadSubscribersFromDB(pageNumber = 1, pageSize = ALWATANI_CUSTOMERS_PAGE_SIZE) {
+    if (!currentUserId) {
+        showSubscribersTableMessage('يرجى اختيار حساب الوطني من القائمة.');
+        return;
+    }
+
+    const userId = currentUserId;
+    
+    try {
+        showSubscribersTableMessage('جاري تحميل البيانات من قاعدة البيانات المحلية...');
+        console.log('[LOAD DB] Fetching subscribers from local database for userId:', userId, 'page:', pageNumber);
+        
+        const apiUrl = `${API_URL}/alwatani-login/${userId}/customers/db?username=${encodeURIComponent(currentDetailUser || '')}&pageNumber=${pageNumber}&pageSize=${pageSize}`;
+        const response = await fetch(apiUrl, addUsernameToFetchOptions());
+        const data = await response.json();
+        
+        console.log('[LOAD DB] Response:', {
+            success: data.success,
+            hasData: !!data.data,
+            combinedLength: data.data?.combined?.length || 0,
+            total: data.pagination?.total || 0
+        });
+        
+        if (data.success && data.data && data.data.combined && Array.isArray(data.data.combined)) {
+            const combinedList = data.data.combined;
+            console.log('[LOAD DB] Processing', combinedList.length, 'subscribers from database');
+            
+            subscribersCache = combinedList.map((sub) => {
+                // Normalize data structure from database
+                const normalized = {
+                    id: sub.id || sub.accountId || sub.account_id || null,
+                    account_id: sub.account_id || sub.accountId || null,
+                    accountId: sub.accountId || sub.account_id || null,
+                    username: sub.username || null,
+                    deviceName: sub.deviceName || sub.device_name || null,
+                    name: sub.name || '--',
+                    phone: sub.phone || null,
+                    zone: sub.zone || null,
+                    page_url: sub.page_url || (sub.accountId || sub.account_id ? `https://admin.ftth.iq/customer-details/${sub.accountId || sub.account_id}/details/view` : '#'),
+                    start_date: sub.start_date || sub.startDate || null,
+                    startDate: sub.startDate || sub.start_date || null,
+                    end_date: sub.end_date || sub.endDate || null,
+                    endDate: sub.endDate || sub.end_date || null,
+                    status: sub.status || null,
+                    raw: sub.raw || {},
+                    rawCustomer: sub.rawCustomer || null,
+                    rawAddress: sub.rawAddress || null
+                };
+                return {
+                    ...normalized,
+                    _meta: buildSubscriberMeta(normalized)
+                };
+            });
+            
+            console.log('[LOAD DB] Successfully loaded', subscribersCache.length, 'subscribers from database');
+            
+            renderSubscriberStatusCards();
+            renderExpiringSoonList();
+            applySubscriberFilter(activeSubscriberFilter || 'all');
+            updateStats();
+            
+            showSubscribersTableMessage(`✅ تم تحميل ${subscribersCache.length} مشترك من قاعدة البيانات المحلية`);
+        } else {
+            console.warn('[LOAD DB] No data in response:', data);
+            subscribersCache = [];
+            showSubscribersTableMessage('لا توجد بيانات في قاعدة البيانات المحلية. يرجى المزامنة أولاً.');
+            renderSubscriberStatusCards();
+            renderExpiringSoonList();
+            applySubscriberFilter(activeSubscriberFilter || 'all');
+        }
+    } catch (error) {
+        console.error('[LOAD DB] Error loading subscribers from database:', error);
+        subscribersCache = [];
+        showSubscribersTableMessage('❌ حدث خطأ في تحميل البيانات من قاعدة البيانات المحلية');
+        renderSubscriberStatusCards();
+        renderExpiringSoonList();
+        applySubscriberFilter(activeSubscriberFilter || 'all');
+    }
+}
+
 async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOMERS_PAGE_SIZE) {
     if (!currentUserId) {
         showSubscribersTableMessage('يرجى اختيار حساب الوطني من القائمة.');
