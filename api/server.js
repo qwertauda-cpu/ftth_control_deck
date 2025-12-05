@@ -2223,16 +2223,17 @@ async function enrichCustomersWithDetails(records, tokenRef, username, password,
         }
         
         const batch = records.slice(i, i + concurrency);
+        
+        // تأخير ثانية واحدة قبل جلب كل مشترك (باستثناء الأول)
+        if (i > 0) {
+            await delay(delayBetweenSubscribers);
+        }
+        
         const batchResults = await Promise.all(batch.map(async (item, index) => {
             try {
                 if (!item.accountId) {
                     console.warn(`[ENRICH] Skipping subscriber without accountId`);
                     return { success: false };
-                }
-                
-                // تأخير ثانية واحدة قبل جلب كل مشترك (باستثناء الأول)
-                if (i > 0 || index > 0) {
-                    await delay(delayBetweenSubscribers);
                 }
                 
                 // Retry mechanism مع exponential backoff
