@@ -3922,16 +3922,8 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                         const customersList = normalizeAlwataniCollection(pageResult.data);
                         allCustomers = allCustomers.concat(customersList);
                         totalCustomersInBatch += customersList.length;
-                        console.log(`[SYNC] ✅ Page ${currentPageNum}/${totalPages}: ${customersList.length} subscribers (Total so far: ${allCustomers.length})`);
                         pagesFetchedInBatch++;
-                        
-                        // تحديث progress بعد كل صفحة لاستقرار أفضل
-                        updateSyncProgress(id, {
-                            stage: 'fetching_pages',
-                            current: currentPageNum,
-                            total: totalPages,
-                            message: `جاري جلب الصفحات... الصفحة ${currentPageNum} من ${totalPages} (${allCustomers.length} مشترك حتى الآن)`
-                        });
+                        console.log(`[SYNC] ✅ Page ${currentPageNum}/${totalPages}: ${customersList.length} subscribers (Total so far: ${allCustomers.length})`);
                     } else {
                         if (isRateLimitRedirect(pageResult)) {
                             console.warn(`[SYNC] ⚠️ Rate limit prevented fetching page ${currentPageNum} after retries.`);
@@ -3940,15 +3932,17 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                     }
                 }
                 
-                // تحديث حالة التقدم بعد جلب كل batch
+                // تحديث حالة التقدم بعد جلب كل batch فقط (وليس بعد كل صفحة)
                 const lastPageInBatch = Math.min(startPage + pageResults.length - 1, totalPages);
-                console.log(`[SYNC] 📦 Batch complete: Pages ${startPage}-${lastPageInBatch} (${pagesFetchedInBatch} pages, ${totalCustomersInBatch} subscribers)`);
+                const pagesFetchedSoFar = Math.min(lastPageInBatch, totalPages);
+                console.log(`[SYNC] 📦 Batch complete: Pages ${startPage}-${lastPageInBatch} (${pagesFetchedInBatch} pages, ${totalCustomersInBatch} subscribers, Total: ${allCustomers.length})`);
                 
+                // تحديث progress بشكل ثابت بعد كل batch فقط
                 updateSyncProgress(id, {
                     stage: 'fetching_pages',
-                    current: lastPageInBatch,
+                    current: pagesFetchedSoFar,
                     total: totalPages,
-                    message: `جاري جلب الصفحات... ${lastPageInBatch}/${totalPages} (${allCustomers.length} مشترك حتى الآن)`
+                    message: `جاري جلب جميع الصفحات... ${pagesFetchedSoFar}/${totalPages} صفحة (${allCustomers.length} مشترك)`
                 });
                 
                 // تأخير ثابت بين الـ batches لتجنب rate limiting
@@ -3973,21 +3967,37 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
             });
         }
 
+        // التحقق من أن جميع الصفحات تم جلبها بنجاح
         const totalFetched = allCustomers.length;
-        console.log(`[SYNC] ✅ Fetched ${totalFetched} subscribers from all pages`);
+        const expectedTotal = totalPages * pageSize;
+        const pagesFetched = Math.ceil(totalFetched / pageSize);
+        
+        console.log(`[SYNC] ✅ Fetched ${totalFetched} subscribers from ${pagesFetched} pages (Expected: ~${expectedTotal} from ${totalPages} pages)`);
+        
+        // التحقق من أن جميع الصفحات تم جلبها قبل المتابعة
+        if (pagesFetched < totalPages) {
+            console.warn(`[SYNC] ⚠️ Warning: Only fetched ${pagesFetched} pages out of ${totalPages} total pages`);
+            updateSyncProgress(id, {
+                stage: 'error',
+                current: pagesFetched,
+                total: totalPages,
+                message: `⚠️ تم جلب ${pagesFetched} صفحة فقط من ${totalPages} - قد تكون هناك صفحات فشلت في الجلب`
+            });
+            // نتابع مع البيانات المتوفرة، لكن نعطي تحذير
+        }
         
         // تحديث حالة التقدم بعد جلب جميع الصفحات
         updateSyncProgress(id, {
             stage: 'pages_complete',
             current: totalPages,
             total: totalPages,
-            message: `✅ تم جلب جميع الصفحات (${totalPages} صفحة، ${totalFetched} مشترك)`
+            message: `✅ تم جلب جميع الصفحات (${totalPages} صفحة، ${totalFetched} مشترك) - جاري الانتقال لمرحلة جلب العناوين...`
         });
         
         // تأخير قصير قبل الانتقال للمرحلة التالية
-        await delay(1000);
+        await delay(1500);
         
-        // ========== المرحلة 1: جلب العناوين ==========
+        // ========== المرحلة 1: جلب العناوين (فقط بعد اكتمال جميع الصفحات) ==========
         // التأكد من أن allCustomers محدد وليس فارغ
         if (!allCustomers || !Array.isArray(allCustomers) || allCustomers.length === 0) {
             console.error('[SYNC] No customers fetched, cannot proceed with address fetching');
