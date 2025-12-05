@@ -3216,9 +3216,21 @@ async function handleDeleteAlwataniLogin(req, res) {
     try {
         const { id } = req.params;
         const userId = req.query.user_id || req.headers['x-user-id'];
-        const ownerUsername = req.query.username || req.headers['x-username'];
+        const ownerUsername = getUsernameFromRequest(req);
+        
+        console.log('[DELETE ALWATANI LOGIN] Request:', {
+            id,
+            userId,
+            ownerUsername,
+            query: req.query,
+            headers: {
+                'x-username': req.headers['x-username'],
+                'x-user-id': req.headers['x-user-id']
+            }
+        });
         
         if (!ownerUsername) {
+            console.error('[DELETE ALWATANI LOGIN] Missing username');
             return res.status(400).json({ 
                 success: false,
                 message: 'اسم المستخدم (username) مطلوب'

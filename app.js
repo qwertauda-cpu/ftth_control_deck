@@ -1269,12 +1269,22 @@ async function deletePage(userId, button) {
     
     try {
         // Delete from alwatani_login table
+        if (!currentDetailUser) {
+            alert('❌ خطأ: لم يتم تحديد المستخدم. يرجى تسجيل الدخول مرة أخرى.');
+            return;
+        }
+        
         const url = addUsernameToUrl(`${API_URL}/alwatani-login/${userId}`);
+        console.log('[DELETE] Deleting account:', { userId, username: currentDetailUser, url });
+        
         const response = await fetch(url, addUsernameToFetchOptions({
             method: 'DELETE'
         }));
         
+        console.log('[DELETE] Response status:', response.status);
+        
         const data = await response.json();
+        console.log('[DELETE] Response data:', data);
         
         if (data.success) {
             button.closest('.slide-up').remove();
