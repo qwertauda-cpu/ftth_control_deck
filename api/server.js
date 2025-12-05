@@ -3514,236 +3514,20 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         const totalPages = totalCount > 0 ? Math.ceil(totalCount / pageSize) : Math.ceil(firstPageList.length / pageSize);
         
         console.log(`[SYNC] Total count: ${totalCount || 'unknown'}, Total pages: ${totalPages}`);
-        
-        // ==================== المزامنة الذكية ====================
-        // مقارنة العدد الإجمالي مع قاعدة البيانات لتحديد إذا كنا نحتاج المزامنة الكاملة
-        let useSmartSync = false;
-        let missingAccountIds = [];
-        
-        if (!forceFullSync && totalCount > 0) {
-            try {
-                const [dbCountResult] = await alwataniPool.query(
-                    'SELECT COUNT(DISTINCT account_id) as total FROM alwatani_customers_cache WHERE partner_id = ?',
-                    [partnerId]
-                );
-                const dbTotal = dbCountResult[0]?.total || 0;
-                const difference = totalCount - dbTotal;
-                
-                console.log(`[SYNC] 📊 Total in Alwatani: ${totalCount}, In DB: ${dbTotal}, Difference: ${difference}`);
-                
-                // إذا كان الفرق صغير (أقل من 50 مشترك)، نستخدم المزامنة الذكية
-                if (difference > 0 && difference <= 50) {
-                    useSmartSync = true;
-                    console.log(`[SYNC] 🔍 Smart sync enabled: Only ${difference} missing subscribers detected. Identifying missing IDs...`);
-                    
-                    updateSyncProgress(id, {
-                        stage: 'identifying_missing',
-                        current: 0,
-                        total: totalPages,
-                        message: `تحديد المشتركين الناقصين... (${difference} ناقص)`
-                    });
-                    
-                    // جمع جميع IDs من الصفحة الأولى
-                    const allAccountIdsFromAlwatani = new Set();
-                    firstPageList.forEach(customer => {
-                        const accountId = extractAlwataniAccountId(customer);
-                        if (accountId) {
-                            allAccountIdsFromAlwatani.add(String(accountId));
-                        }
-                    });
-                    
-                    // جلب باقي الصفحات للحصول على جميع IDs (بدون عناوين أو تفاصيل - أسرع)
-                    for (let pageNum = 2; pageNum <= totalPages; pageNum++) {
-                        if (isSyncCancelled(id)) {
-                            cancelled = true;
-                            break;
-                        }
-                        
-                        const pageResp = await fetchCustomersPageWithRetry(
-                            pageNum,
-                            token,
-                            account.username,
-                            account.password,
-                            sortProperty,
-                            pageSize,
-                            applyTokenFromResponse,
-                            `customers_id_only_${pageNum}`
-                        );
-                        
-                        if (pageResp.success && pageResp.data) {
-                            const customersList = normalizeAlwataniCollection(pageResp.data);
-                            customersList.forEach(customer => {
-                                const accountId = extractAlwataniAccountId(customer);
-                                if (accountId) {
-                                    allAccountIdsFromAlwatani.add(String(accountId));
-                                }
-                            });
-                        }
-                        
-                        updateSyncProgress(id, {
-                            stage: 'identifying_missing',
-                            current: pageNum,
-                            total: totalPages,
-                            message: `جلب IDs من الصفحة ${pageNum}/${totalPages}...`
-                        });
-                        
-                        // تأخير قصير لتجنب rate limiting
-                        const currentPageDelay = getPageFetchBatchDelay();
-                        if (pageNum < totalPages && currentPageDelay > 0) {
-                            await delay(currentPageDelay);
-                        }
-                    }
-                    
-                    if (cancelled) {
-                        updateSyncProgress(id, {
-                            stage: 'cancelled',
-                            message: 'تم إيقاف المزامنة أثناء تحديد المشتركين الناقصين',
-                            cancelRequested: true
-                        });
-                        return res.json({
-                            success: true,
-                            cancelled: true,
-                            message: 'تم إيقاف العملية أثناء تحديد المشتركين الناقصين'
-                        });
-                    }
-                    
-                    // جلب IDs من قاعدة البيانات
-                    const [dbAccountIds] = await alwataniPool.query(
-                        'SELECT DISTINCT account_id FROM alwatani_customers_cache WHERE partner_id = ?',
-                        [partnerId]
-                    );
-                    const dbAccountIdsSet = new Set(dbAccountIds.map(row => String(row.account_id)));
-                    
-                    // تحديد المشتركين الناقصين
-                    missingAccountIds = Array.from(allAccountIdsFromAlwatani).filter(
-                        accountId => !dbAccountIdsSet.has(accountId)
-                    );
-                    
-                    console.log(`[SYNC] ✅ Identified ${missingAccountIds.length} missing subscribers`);
-                    
-                    if (missingAccountIds.length === 0) {
-                        console.log(`[SYNC] ✅ No missing subscribers found. All ${totalCount} subscribers are already in database.`);
-                        updateSyncProgress(id, {
-                            stage: 'complete',
-                            current: totalCount,
-                            total: totalCount,
-                            message: `✅ جميع ${totalCount} مشترك موجودين في قاعدة البيانات`
-                        });
-                        return res.json({
-                            success: true,
-                            message: `✅ جميع ${totalCount} مشترك موجودين في قاعدة البيانات`,
-                            stats: {
-                                totalInAlwatani: totalCount,
-                                totalInDB: dbTotal,
-                                missing: 0
-                            }
-                        });
-                    }
-                    
-                    console.log(`[SYNC] 🔄 Will fetch full data for ${missingAccountIds.length} missing subscribers only...`);
-                } else if (difference > 0) {
-                    console.log(`[SYNC] 📊 Large difference (${difference} missing) - Using full sync approach`);
-                } else {
-                    console.log(`[SYNC] ✅ Database is up to date or ahead (DB: ${dbTotal}, Alwatani: ${totalCount})`);
-                }
-            } catch (error) {
-                console.error(`[SYNC] Error in smart sync check:`, error);
-                console.log(`[SYNC] Falling back to full sync due to error`);
-                useSmartSync = false;
-            }
-        }
-        // ==================== نهاية المزامنة الذكية ====================
+        console.log(`[SYNC] 🔄 Starting full sync: Will fetch all ${totalCount} subscribers from API and save to database`);
         
         // تحديث حالة التقدم بعد معرفة العدد الإجمالي
         updateSyncProgress(id, {
             stage: 'fetching_pages',
             current: 1,
             total: totalPages,
-            message: useSmartSync 
-                ? `جاري جلب بيانات المشتركين الناقصين... (${missingAccountIds.length} مشترك)`
-                : `جاري جلب صفحات المشتركين... الصفحة 1 من ${totalPages}`
+            message: `جاري جلب صفحات المشتركين... الصفحة 1 من ${totalPages}`
         });
 
-        // جلب الصفحات المتبقية بشكل متوازي (أو فقط للمشتركين الناقصين في المزامنة الذكية)
+        // جلب الصفحات المتبقية بشكل متوازي
         const remainingPages = totalPages > 1 ? totalPages - 1 : 0;
         
-        if (useSmartSync && missingAccountIds.length > 0) {
-            // المزامنة الذكية: جلب فقط المشتركين الناقصين
-            console.log(`[SYNC] 🔍 Smart sync: Fetching full data for ${missingAccountIds.length} missing subscribers only...`);
-            
-            // إنشاء Set للبحث السريع
-            const missingIdsSet = new Set(missingAccountIds.map(id => String(id)));
-            
-            // تصفية الصفحة الأولى للمشتركين الناقصين فقط
-            allCustomers = firstPageList.filter(customer => {
-                const accountId = extractAlwataniAccountId(customer);
-                return accountId && missingIdsSet.has(String(accountId));
-            });
-            
-            console.log(`[SYNC] Found ${allCustomers.length} missing subscribers in first page`);
-            
-            // جلب باقي الصفحات للمشتركين الناقصين فقط
-            if (remainingPages > 0) {
-                for (let pageNum = 2; pageNum <= totalPages; pageNum++) {
-                    if (isSyncCancelled(id)) {
-                        cancelled = true;
-                        break;
-                    }
-                    
-                    // إذا وجدنا جميع المشتركين الناقصين، نتوقف
-                    if (allCustomers.length >= missingAccountIds.length) {
-                        console.log(`[SYNC] ✅ Found all ${missingAccountIds.length} missing subscribers, stopping page fetch`);
-                        break;
-                    }
-                    
-                    const pageResp = await fetchCustomersPageWithRetry(
-                        pageNum,
-                        token,
-                        account.username,
-                        account.password,
-                        sortProperty,
-                        pageSize,
-                        applyTokenFromResponse,
-                        `customers_missing_${pageNum}`
-                    );
-                    
-                    if (pageResp.statusCode === 403 && !pageResp.success) {
-                        console.error('[SYNC] Failed to fetch page due to 403 after retry');
-                        const stage = pageResp.context || `customers_page_${pageNum}`;
-                        return res.json({
-                            success: false,
-                            stage,
-                            message: `[${stage}] تم رفض الوصول (403) أثناء جلب صفحات المشتركين. يرجى التحقق من بيانات الدخول.`
-                        });
-                    }
-                    
-                    if (pageResp.success && pageResp.data) {
-                        const customersList = normalizeAlwataniCollection(pageResp.data);
-                        // تصفية: فقط المشتركين الناقصين
-                        const missingFromPage = customersList.filter(customer => {
-                            const accountId = extractAlwataniAccountId(customer);
-                            return accountId && missingIdsSet.has(String(accountId));
-                        });
-                        allCustomers = allCustomers.concat(missingFromPage);
-                        console.log(`[SYNC] Page ${pageNum}: Found ${missingFromPage.length} missing subscribers (out of ${customersList.length} total)`);
-                    }
-                    
-                    updateSyncProgress(id, {
-                        stage: 'fetching_missing_pages',
-                        current: allCustomers.length,
-                        total: missingAccountIds.length,
-                        message: `جاري جلب بيانات المشتركين الناقصين... ${allCustomers.length}/${missingAccountIds.length}`
-                    });
-                    
-                    const currentPageDelay = getPageFetchBatchDelay();
-                    if (currentPageDelay > 0 && pageNum < totalPages) {
-                        await delay(currentPageDelay);
-                    }
-                }
-            }
-            
-            console.log(`[SYNC] ✅ Fetched ${allCustomers.length} missing subscribers (out of ${missingAccountIds.length} identified)`);
-        } else if (remainingPages > 0) {
+        if (remainingPages > 0) {
             // المزامنة الكاملة: جلب جميع الصفحات
             console.log(`[SYNC] Fetching ${remainingPages} pages in parallel (${parallelPages} pages per batch)...`);
             
@@ -3832,11 +3616,7 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         }
 
         const totalFetched = allCustomers.length;
-        if (useSmartSync) {
-            console.log(`[SYNC] ✅ Smart sync: Fetched ${totalFetched} missing subscribers (out of ${missingAccountIds.length} identified)`);
-        } else {
-            console.log(`[SYNC] ✅ Fetched ${totalFetched} subscribers from all pages`);
-        }
+        console.log(`[SYNC] ✅ Fetched ${totalFetched} subscribers from all pages`);
         
         // تحديث حالة التقدم بعد جلب جميع الصفحات
         updateSyncProgress(id, {
@@ -3905,138 +3685,39 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
 
         console.log(`[SYNC] ✅ Prepared ${combinedRecords.length} subscribers. Now starting to fetch details from subscriber pages...`);
         
-        // التحقق من البيانات الموجودة في قاعدة البيانات (مزامنة ذكية)
-        let recordsToEnrich = combinedRecords;
-        let skippedCount = 0;
-        let existingCustomersMap = new Map();
-        
-        if (!forceFullSync) {
-            console.log(`[SYNC] 🔍 Smart sync: Checking existing data...`);
-            const [existingRecords] = await alwataniPool.query(
-                'SELECT account_id, customer_data FROM alwatani_customers_cache WHERE partner_id = ?',
-                [partnerId]
-            );
-            
-            // إنشاء خريطة للمشتركين الموجودين مع بياناتهم
-            existingRecords.forEach(row => {
-                try {
-                    const customerData = typeof row.customer_data === 'string' 
-                        ? JSON.parse(row.customer_data) 
-                        : row.customer_data;
-                    const accountId = String(row.account_id);
-                    
-                    // التحقق من وجود بيانات كاملة (خاصة رقم الهاتف وusername)
-                    const hasPhone = customerData?.phone && 
-                                    customerData?.phone.trim() !== '' && 
-                                    customerData?.phone !== '--' &&
-                                    customerData?.phone !== null;
-                    
-                    const hasUsername = customerData?.username && 
-                                       customerData?.username.trim() !== '' && 
-                                       customerData?.username !== '--' &&
-                                       customerData?.username !== null;
-                    
-                    const hasCompleteData = hasPhone && hasUsername;
-                    
-                    existingCustomersMap.set(accountId, {
-                        exists: true,
-                        hasCompleteData,
-                        hasPhone,
-                        data: customerData
-                    });
-                } catch (e) {
-                    console.error(`[SYNC] Error reading subscriber data ${row.account_id}:`, e.message);
-                }
-            });
-            
-            // فلترة المشتركين: فقط الجدد أو الذين ينقصهم البيانات
-            recordsToEnrich = combinedRecords.filter(item => {
-                const accountId = String(item.accountId);
-                const existing = existingCustomersMap.get(accountId);
-                
-                if (!existing) {
-                    // مشترك جديد - يحتاج جلب التفاصيل
-                    return true;
-                }
-                
-                if (!existing.hasCompleteData) {
-                    // موجود لكن البيانات غير مكتملة - يحتاج تحديث
-                    // لا نطبع رسالة لكل مشترك لتقليل الضوضاء - فقط في النهاية
-                    return true;
-                }
-                
-                // موجود وبياناته كاملة - يتم تخطيه
-                return false;
-            });
-            
-            skippedCount = combinedRecords.length - recordsToEnrich.length;
-        } else {
-            console.log(`[SYNC] 🔄 Full sync: Will fetch details for all subscribers (forceFullSync enabled)`);
-        }
-        
-        const toEnrichCount = recordsToEnrich.length;
-        
-        if (skippedCount > 0) {
-            console.log(`[SYNC] 📊 Stats: ${toEnrichCount} need details, ${skippedCount} will be skipped (exists with complete data)`);
-        } else {
-            console.log(`[SYNC] 📊 Stats: ${toEnrichCount} subscribers need details`);
-        }
+        // جلب التفاصيل لجميع المشتركين
+        console.log(`[SYNC] 📊 Starting to fetch details for ${combinedRecords.length} subscribers...`);
         
         // تحديث حالة التقدم قبل بدء جلب التفاصيل
         updateSyncProgress(id, {
             stage: 'enriching',
             current: 0,
-            total: toEnrichCount,
-            message: skippedCount > 0 
-                ? `جاري جلب تفاصيل ${toEnrichCount} مشترك (تم تخطي ${skippedCount} موجودين)...`
-                : `جاري جلب تفاصيل ${toEnrichCount} مشترك...`
+            total: combinedRecords.length,
+            message: `جاري جلب تفاصيل ${combinedRecords.length} مشترك...`
         });
         
-        // تحديث السجلات المخطاة بالبيانات الموجودة (فقط في المزامنة الذكية)
-        if (!forceFullSync && skippedCount > 0) {
-            combinedRecords.forEach(item => {
-                const accountId = String(item.accountId);
-                const existing = existingCustomersMap.get(accountId);
-                
-                if (existing && existing.hasCompleteData && existing.data) {
-                    // نسخ البيانات الكاملة من الكاش
-                    Object.assign(item.record, existing.data);
-                }
-            });
-        }
+        // إضافة userId إلى records قبل إرسالها
+        combinedRecords.forEach(item => {
+            item.userId = id; // استخدام id من req.params (alwatani_login.id)
+        });
         
-        // جلب التفاصيل فقط للمشتركين الجدد أو غير المكتملين
-        if (toEnrichCount > 0) {
-            // إضافة userId إلى records قبل إرسالها
-            recordsToEnrich.forEach(item => {
-                item.userId = id; // استخدام id من req.params (alwatani_login.id)
-            });
-            const enrichResult = await enrichCustomersWithDetails(recordsToEnrich, tokenRef, account.username, account.password, id, alwataniPool);
-            
-            if (enrichResult?.cancelled || isSyncCancelled(id)) {
-                updateSyncProgress(id, {
-                    stage: 'cancelled',
-                    current: enrichResult?.processed || 0,
-                    total: toEnrichCount,
-                    message: `تم إيقاف جلب التفاصيل بعد معالجة ${enrichResult?.processed || 0} من ${toEnrichCount}`,
-                    phoneFound: enrichResult?.phoneFoundCount || 0,
-                    cancelRequested: true
-                });
-                return res.json({
-                    success: true,
-                    cancelled: true,
-                    message: 'تم إيقاف جلب التفاصيل حسب الطلب',
-                    processed: enrichResult?.processed || 0,
-                    phones: enrichResult?.phoneFoundCount || 0
-                });
-            }
-        } else {
-            console.log(`[SYNC] ✅ All subscribers exist with complete data - no need to fetch details`);
+        const enrichResult = await enrichCustomersWithDetails(combinedRecords, tokenRef, account.username, account.password, id, alwataniPool);
+        
+        if (enrichResult?.cancelled || isSyncCancelled(id)) {
             updateSyncProgress(id, {
-                stage: 'enriching',
-                current: 0,
-                total: 0,
-                message: `✅ جميع المشتركين موجودين وبياناتهم مكتملة`
+                stage: 'cancelled',
+                current: enrichResult?.processed || 0,
+                total: combinedRecords.length,
+                message: `تم إيقاف جلب التفاصيل بعد معالجة ${enrichResult?.processed || 0} من ${combinedRecords.length}`,
+                phoneFound: enrichResult?.phoneFoundCount || 0,
+                cancelRequested: true
+            });
+            return res.json({
+                success: true,
+                cancelled: true,
+                message: 'تم إيقاف جلب التفاصيل حسب الطلب',
+                processed: enrichResult?.processed || 0,
+                phones: enrichResult?.phoneFoundCount || 0
             });
         }
         
