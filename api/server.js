@@ -3689,7 +3689,7 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
             stage: 'fetching_pages',
             current: 1,
             total: totalPages,
-            message: `جاري جلب صفحات المشتركين... الصفحة 1 من ${totalPages}`
+            message: `جاري جلب جميع الصفحات... الصفحة 1 من ${totalPages}`
         });
 
         // جلب الصفحات المتبقية بشكل متوازي
@@ -3760,7 +3760,7 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                     stage: 'fetching_pages',
                     current: lastPageInBatch,
                     total: totalPages,
-                    message: `Fetching subscriber pages... Page ${lastPageInBatch}/${totalPages} (${pagesFetchedInBatch} successful in this batch)`
+                    message: `جاري جلب جميع الصفحات... الصفحة ${lastPageInBatch} من ${totalPages}`
                 });
                 
                 const currentPageDelay = getPageFetchBatchDelay();
@@ -3791,7 +3791,17 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
             stage: 'pages_complete',
             current: totalPages,
             total: totalPages,
-            message: `✅ تم جلب جميع الصفحات (${totalPages} صفحة، ${totalFetched} مشترك) - جاري جلب العناوين...`
+            message: `✅ تم جلب جميع الصفحات (${totalPages} صفحة، ${totalFetched} مشترك)`
+        });
+        
+        // تأخير قصير قبل الانتقال للمرحلة التالية
+        await delay(1000);
+        
+        updateSyncProgress(id, {
+            stage: 'fetching_addresses',
+            current: 0,
+            total: accountIds.length,
+            message: `جاري جلب العناوين...`
         });
 
         // ========== المرحلة 1: جلب العناوين ==========
@@ -3801,12 +3811,7 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
             .map((value) => String(value))
         ));
 
-        updateSyncProgress(id, {
-            stage: 'fetching_addresses',
-            current: 0,
-            total: accountIds.length,
-            message: `جاري جلب العناوين لـ ${accountIds.length} مشترك...`
-        });
+        // تم تحديث progress في السطر السابق
 
         const addressesResp = await fetchAlwataniResource(
             `/api/addresses?${accountIds.map(id => `accountIds=${encodeURIComponent(id)}`).join('&')}`,
@@ -3834,7 +3839,17 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
             stage: 'addresses_complete',
             current: accountIds.length,
             total: accountIds.length,
-            message: `✅ تم جلب العناوين - جاري تحضير البيانات...`
+            message: `✅ تم جلب العناوين`
+        });
+        
+        // تأخير قصير قبل الانتقال لمرحلة جلب التفاصيل
+        await delay(1000);
+        
+        updateSyncProgress(id, {
+            stage: 'preparing',
+            current: 0,
+            total: combinedRecords.length,
+            message: `جاري تحضير البيانات...`
         });
 
         // تحضير البيانات الأساسية (بدون تفاصيل من صفحات المشتركين بعد)
@@ -3861,7 +3876,7 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
             stage: 'enriching',
             current: 0,
             total: combinedRecords.length,
-            message: `جاري جلب تفاصيل ${combinedRecords.length} مشترك...`
+            message: `جاري جلب معلومات المشتركين... ${combinedRecords.length} مشترك`
         });
         
         // إضافة userId إلى records قبل إرسالها
