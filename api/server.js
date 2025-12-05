@@ -3992,7 +3992,7 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         if (!existing1.logs) existing1.logs = [];
         existing1.logs.push({
             timestamp: new Date().toISOString(),
-            message: 'FETCH PAGE 1 COMPLETE',
+            message: `1/${totalPages} - FETCH PAGE 1 COMPLETE`,
             stage: 'fetching_pages'
         });
         // الاحتفاظ بآخر 200 سجل بدلاً من 100
@@ -4040,10 +4040,10 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                 current.total = totalPages;
                 current.message = 'جاري جلب الصفحات...'; // الرسالة الرئيسية تبقى ثابتة
                 if (!current.logs) current.logs = [];
-                // إضافة رسالة جديدة للـ logs (تراكمي - كل رسالة تحت السابقة)
+                // إضافة رسالة جديدة للـ logs مع رقم الصفحة (تراكمي - كل رسالة تحت السابقة)
                 current.logs.push({
                     timestamp: new Date().toISOString(),
-                    message: `FETCH PAGE ${pageNum} COMPLETE (${customersList.length} subscribers)`,
+                    message: `${pageNum}/${totalPages} - FETCH PAGE ${pageNum} COMPLETE (${customersList.length} subscribers)`,
                     stage: 'fetching_pages'
                 });
                 // الاحتفاظ بآخر 200 سجل
@@ -4059,7 +4059,7 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                 // إضافة رسالة خطأ للـ logs
                 current.logs.push({
                     timestamp: new Date().toISOString(),
-                    message: `FAILED TO FETCH PAGE ${pageNum}: ${pageResult.message || 'Unknown error'}`,
+                    message: `${pageNum}/${totalPages} - FAILED TO FETCH PAGE ${pageNum}: ${pageResult.message || 'Unknown error'}`,
                     stage: 'fetching_pages'
                 });
                 if (current.logs.length > 200) current.logs = current.logs.slice(-200);
@@ -4251,11 +4251,11 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                     current.phoneFound = phoneFoundCount;
                     if (!current.logs) current.logs = [];
                     
-                    // إضافة معلومات المشترك إلى logs (اسم المشترك + رقم الهاتف إن وجد)
+                    // إضافة معلومات المشترك إلى logs مع رقم التسلسل (اسم المشترك + رقم الهاتف إن وجد)
                     const phoneInfo = detailResp.data.phone ? ` - Phone: ${detailResp.data.phone}` : '';
                     current.logs.push({
                         timestamp: new Date().toISOString(),
-                        message: `${subscriberName}${phoneInfo}`,
+                        message: `${i + 1}/${combinedRecords.length} - ${subscriberName}${phoneInfo}`,
                         stage: 'enriching'
                     });
                     // الاحتفاظ بآخر 200 سجل
@@ -4269,10 +4269,10 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                     current.message = 'جاري جلب معلومات المشتركين...'; // الرسالة الرئيسية تبقى ثابتة
                     current.phoneFound = phoneFoundCount;
                     if (!current.logs) current.logs = [];
-                    // إضافة رسالة خطأ للـ logs
+                    // إضافة رسالة خطأ للـ logs مع رقم التسلسل
                     current.logs.push({
                         timestamp: new Date().toISOString(),
-                        message: `${subscriberName} - FAILED`,
+                        message: `${i + 1}/${combinedRecords.length} - ${subscriberName} - FAILED`,
                         stage: 'enriching'
                     });
                     if (current.logs.length > 200) current.logs = current.logs.slice(-200);
@@ -4286,10 +4286,10 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                 current.message = 'جاري جلب معلومات المشتركين...'; // الرسالة الرئيسية تبقى ثابتة
                 current.phoneFound = phoneFoundCount;
                 if (!current.logs) current.logs = [];
-                // إضافة رسالة خطأ للـ logs
+                // إضافة رسالة خطأ للـ logs مع رقم التسلسل
                 current.logs.push({
                     timestamp: new Date().toISOString(),
-                    message: `${subscriberName} - ERROR: ${error.message}`,
+                    message: `${i + 1}/${combinedRecords.length} - ${subscriberName} - ERROR: ${error.message}`,
                     stage: 'enriching'
                 });
                 if (current.logs.length > 200) current.logs = current.logs.slice(-200);
