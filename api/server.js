@@ -3411,6 +3411,111 @@ ALWATANI_ROUTES.forEach(route => {
     app.get(`${route}/:id/customers`, handleGetAlwataniCustomers);
 });
 
+// Get customers from local database (alwatani_customers_cache)
+app.get('/api/alwatani-login/:id/customers/db', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const ownerUsername = getUsernameFromRequest(req);
+        
+        if (!ownerUsername) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'username (owner_username) مطلوب في الطلب' 
+            });
+        }
+        
+        const ownerPool = await getOwnerPoolFromRequestHelper(req);
+        const [accounts] = await ownerPool.query(
+            'SELECT id, username, password FROM alwatani_login WHERE id = ?',
+            [id]
+        );
+
+        if (accounts.length === 0) {
+            return res.status(404).json({ success: false, message: 'الحساب غير موجود' });
+        }
+
+        const account = accounts[0];
+        
+        // الحصول على pool لقاعدة بيانات الوطني
+        const alwataniPool = await dbManager.getAlwataniPool(account.username);
+        
+        // الحصول على partnerId
+        let partnerId = null;
+        try {
+            const verification = await verifyAlwataniAccount(account.username, account.password, {
+                maxAttempts: 2,
+                retryDelay: 3000
+            });
+            
+            if (verification.success && verification.data) {
+                partnerId = verification.data?.AccountId || verification.data?.account_id || null;
+            }
+        } catch (e) {
+            console.warn('[CUSTOMERS DB] Could not get partnerId, will fetch all:', e.message);
+        }
+        
+        const pageNumber = Math.max(parseInt(req.query.pageNumber, 10) || 1, 1);
+        const pageSize = Math.min(Math.max(parseInt(req.query.pageSize, 10) || 100, 1), 1000);
+        const offset = (pageNumber - 1) * pageSize;
+        
+        // جلب المشتركين من قاعدة البيانات المحلية
+        let query = 'SELECT account_id, partner_id, customer_data, synced_at FROM alwatani_customers_cache WHERE 1=1';
+        const params = [];
+        
+        if (partnerId) {
+            query += ' AND partner_id = ?';
+            params.push(partnerId);
+        }
+        
+        query += ' ORDER BY synced_at DESC LIMIT ? OFFSET ?';
+        params.push(pageSize, offset);
+        
+        const [rows] = await alwataniPool.query(query, params);
+        
+        // جلب العدد الإجمالي
+        let countQuery = 'SELECT COUNT(*) as total FROM alwatani_customers_cache WHERE 1=1';
+        const countParams = [];
+        if (partnerId) {
+            countQuery += ' AND partner_id = ?';
+            countParams.push(partnerId);
+        }
+        const [countResult] = await alwataniPool.query(countQuery, countParams);
+        const total = countResult[0]?.total || 0;
+        
+        // تحويل البيانات من JSON إلى objects
+        const combined = rows.map(row => {
+            try {
+                const customerData = typeof row.customer_data === 'string' 
+                    ? JSON.parse(row.customer_data) 
+                    : row.customer_data;
+                return customerData;
+            } catch (e) {
+                console.error('[CUSTOMERS DB] Error parsing customer data:', e);
+                return null;
+            }
+        }).filter(t => t !== null);
+        
+        res.json({
+            success: true,
+            pagination: {
+                pageNumber,
+                pageSize,
+                total,
+                totalPages: Math.ceil(total / pageSize)
+            },
+            data: {
+                combined
+            }
+        });
+    } catch (error) {
+        console.error('[CUSTOMERS DB] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطأ في جلب المشتركين من قاعدة البيانات: ' + error.message
+        });
+    }
+});
+
 // Sync all customers from Alwatani and store locally
 app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
     const { id } = req.params;

@@ -2816,19 +2816,19 @@ async function syncCustomers() {
                 `;
             }
             
-            // Reload subscribers from cache with retry mechanism
-            console.log('[SYNC] Reloading subscribers from cache...');
-            await loadRemoteSubscribers();
+            // Reload subscribers from local database (not from API)
+            console.log('[SYNC] Reloading subscribers from local database...');
+            await loadSubscribersFromDB();
             
             // If no data loaded, retry after a short delay (database might need a moment)
             if (subscribersCache.length === 0) {
                 console.log('[SYNC] No data loaded, retrying after 1 second...');
                 setTimeout(async () => {
-                    await loadRemoteSubscribers();
+                    await loadSubscribersFromDB();
                     await updateSyncStatus();
                 }, 1000);
             } else {
-                console.log('[SYNC] Successfully loaded', subscribersCache.length, 'subscribers');
+                console.log('[SYNC] Successfully loaded', subscribersCache.length, 'subscribers from database');
                 await updateSyncStatus();
             }
         } else {
