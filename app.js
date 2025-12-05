@@ -4307,7 +4307,16 @@ function scrollToSection(sectionId, options = {}) {
 }
 
 // دالة جديدة للتنقل إلى قسم مع تفعيل القائمة
+// Flag لمنع الاستدعاء المتكرر
+let isNavigating = false;
+
 function navigateToSection(sectionId) {
+    // منع الاستدعاء المتكرر
+    if (isNavigating) {
+        console.log('[navigateToSection] Already navigating, skipping...');
+        return;
+    }
+    
     const pageDetailScreen = document.getElementById('page-detail-screen');
     const dashboardScreen = document.getElementById('dashboard-screen');
     
@@ -4331,14 +4340,18 @@ function navigateToSection(sectionId) {
     // إذا كنا في شاشة أخرى، نحتاج لفتح page-detail-screen أولاً
     if (isInOtherScreen && currentUserId && currentDetailUser) {
         console.log('[navigateToSection] Opening page-detail-screen first from another screen');
+        isNavigating = true;
         // فتح صفحة تفاصيل المستخدم
         openPageDetail(currentDetailUser, currentDetailPass, currentUserId);
         // الانتظار قليلاً ثم الانتقال للقسم المطلوب
         setTimeout(() => {
+            isNavigating = false;
             navigateToSection(sectionId);
-        }, 100);
+        }, 500); // زيادة الوقت لتجنب الحلقة اللانهائية
         return;
     }
+    
+    isNavigating = true;
     
     // إذا كنا في page-detail-screen
     if (pageDetailScreen && !pageDetailScreen.classList.contains('hidden')) {
@@ -4366,6 +4379,7 @@ function navigateToSection(sectionId) {
         }
         
         setSideMenuActiveBySection(sectionId);
+        isNavigating = false;
     } else {
         // إذا لم نكن في page-detail-screen وليس لدينا معلومات المستخدم، نحتاج لفتحها أولاً
         if (currentUserId && currentDetailUser) {

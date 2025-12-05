@@ -5266,9 +5266,27 @@ app.get('/api/alwatani-login/:id/wallet/transactions/db', async (req, res) => {
 
         // الحصول على pool لقاعدة بيانات الوطني
         const alwataniUsername = accounts[0].username;
-        const alwataniPool = await dbManager.getAlwataniPool(alwataniUsername);
+        let alwataniPool;
+        try {
+            alwataniPool = await dbManager.getAlwataniPool(alwataniUsername);
+        } catch (poolError) {
+            console.error('[WALLET] Error getting alwatani pool:', poolError);
+            return res.status(500).json({
+                success: false,
+                message: 'خطأ في الاتصال بقاعدة بيانات الوطني: ' + poolError.message
+            });
+        }
         
-        const [rows] = await alwataniPool.query(query, params);
+        let rows;
+        try {
+            [rows] = await alwataniPool.query(query, params);
+        } catch (queryError) {
+            console.error('[WALLET] Error executing query:', queryError);
+            return res.status(500).json({
+                success: false,
+                message: 'خطأ في تنفيذ الاستعلام: ' + queryError.message
+            });
+        }
 
         // تحويل البيانات من JSON إلى objects
         const transactions = rows.map(row => {
@@ -5506,7 +5524,15 @@ app.get('/api/subscribers', async (req, res) => {
         }
         
         // الحصول على pool لقاعدة بيانات الوطني
-        const alwataniPool = await getAlwataniPoolFromRequestHelper(req);
+        let alwataniPool;
+        try {
+            alwataniPool = await getAlwataniPoolFromRequestHelper(req);
+        } catch (poolError) {
+            console.error('[SUBSCRIBERS] Error getting alwatani pool:', poolError);
+            return res.status(500).json({ 
+                error: 'خطأ في الاتصال بقاعدة بيانات الوطني: ' + poolError.message 
+            });
+        }
         
         // إضافة pagination وlimit لتحسين الأداء
         const page = parseInt(req.query.page || '1', 10);
@@ -5515,10 +5541,18 @@ app.get('/api/subscribers', async (req, res) => {
         
         // استخدام alwatani_customers_cache بدلاً من subscribers
         // جلب المشتركين مع pagination من cache
-        const [rows] = await alwataniPool.query(
-            'SELECT account_id, customer_data, synced_at FROM alwatani_customers_cache ORDER BY synced_at DESC LIMIT ? OFFSET ?',
-            [Math.min(limit, 100), offset] // حد أقصى 100 مشترك
-        );
+        let rows;
+        try {
+            [rows] = await alwataniPool.query(
+                'SELECT account_id, customer_data, synced_at FROM alwatani_customers_cache ORDER BY synced_at DESC LIMIT ? OFFSET ?',
+                [Math.min(limit, 100), offset] // حد أقصى 100 مشترك
+            );
+        } catch (queryError) {
+            console.error('[SUBSCRIBERS] Error executing query:', queryError);
+            return res.status(500).json({ 
+                error: 'خطأ في تنفيذ الاستعلام: ' + queryError.message 
+            });
+        }
         
         // تحويل البيانات من JSON إلى objects
         const subscribers = rows.map(row => {
@@ -5574,7 +5608,15 @@ app.get('/api/subscribers/stats', async (req, res) => {
         }
         
         // الحصول على pool لقاعدة بيانات الوطني
-        const alwataniPool = await getAlwataniPoolFromRequestHelper(req);
+        let alwataniPool;
+        try {
+            alwataniPool = await getAlwataniPoolFromRequestHelper(req);
+        } catch (poolError) {
+            console.error('[SUBSCRIBERS STATS] Error getting alwatani pool:', poolError);
+            return res.status(500).json({ 
+                error: 'خطأ في الاتصال بقاعدة بيانات الوطني: ' + poolError.message 
+            });
+        }
         
         const partnerIdParam = req.query.partnerId ? parseInt(req.query.partnerId, 10) : null;
         let query = 'SELECT customer_data, updated_at FROM alwatani_customers_cache';
@@ -5585,7 +5627,15 @@ app.get('/api/subscribers/stats', async (req, res) => {
             params.push(partnerIdParam);
         }
 
-        const [cacheRows] = await alwataniPool.query(query, params);
+        let cacheRows;
+        try {
+            [cacheRows] = await alwataniPool.query(query, params);
+        } catch (queryError) {
+            console.error('[SUBSCRIBERS STATS] Error executing query:', queryError);
+            return res.status(500).json({ 
+                error: 'خطأ في تنفيذ الاستعلام: ' + queryError.message 
+            });
+        }
 
         if (cacheRows && cacheRows.length > 0) {
             const stats = computeCacheStats(cacheRows);
