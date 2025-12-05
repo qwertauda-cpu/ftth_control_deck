@@ -3660,6 +3660,12 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         }
 
         if (!partnerId) {
+            updateSyncProgress(id, {
+                stage: 'error',
+                current: 0,
+                total: 0,
+                message: '❌ لم يتم تحديد معرف الشريك (partnerId)'
+            });
             return res.json({
                 success: false,
                 message: 'لم يتم تحديد معرف الشريك (partnerId)'
@@ -3667,6 +3673,14 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         }
 
         console.log(`[SYNC] Starting sync for account ${id} (partnerId: ${partnerId})`);
+        
+        // تحديث progress قبل بدء جلب الصفحات
+        updateSyncProgress(id, {
+            stage: 'preparing',
+            current: 0,
+            total: 0,
+            message: 'جاري تحضير جلب بيانات المشتركين...'
+        });
 
         const pageSize = 100; // استخدام الحجم المدعوم من واجهة الوطني
         const sortProperty = encodeURIComponent('self.displayValue');
