@@ -3557,11 +3557,30 @@ app.get('/api/alwatani-login/:id/customers/db', async (req, res) => {
             });
         }
         
-        const ownerPool = await getOwnerPoolFromRequestHelper(req);
-        const [accounts] = await ownerPool.query(
-            'SELECT id, username, password FROM alwatani_login WHERE id = ?',
-            [id]
-        );
+        let ownerPool;
+        try {
+            ownerPool = await getOwnerPoolFromRequestHelper(req);
+        } catch (error) {
+            console.error('[CUSTOMERS DB] Error getting owner pool:', error);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'خطأ في الاتصال بقاعدة البيانات: ' + error.message 
+            });
+        }
+        
+        let accounts;
+        try {
+            [accounts] = await ownerPool.query(
+                'SELECT id, username, password FROM alwatani_login WHERE id = ?',
+                [id]
+            );
+        } catch (error) {
+            console.error('[CUSTOMERS DB] Error querying alwatani_login:', error);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'خطأ في جلب بيانات الحساب: ' + error.message 
+            });
+        }
 
         if (accounts.length === 0) {
             return res.status(404).json({ success: false, message: 'الحساب غير موجود' });
@@ -3570,7 +3589,16 @@ app.get('/api/alwatani-login/:id/customers/db', async (req, res) => {
         const account = accounts[0];
         
         // الحصول على pool لقاعدة بيانات الوطني
-        const alwataniPool = await dbManager.getAlwataniPool(account.username);
+        let alwataniPool;
+        try {
+            alwataniPool = await dbManager.getAlwataniPool(account.username);
+        } catch (error) {
+            console.error('[CUSTOMERS DB] Error getting alwatani pool:', error);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'خطأ في الاتصال بقاعدة بيانات الوطني: ' + error.message 
+            });
+        }
         
         // الحصول على partnerId
         let partnerId = null;
@@ -3591,37 +3619,100 @@ app.get('/api/alwatani-login/:id/customers/db', async (req, res) => {
         const pageSize = Math.min(Math.max(parseInt(req.query.pageSize, 10) || 100, 1), 1000);
         const offset = (pageNumber - 1) * pageSize;
         
-        // جلب المشتركين من قاعدة البيانات المحلية
-        let query = 'SELECT account_id, partner_id, customer_data, synced_at FROM alwatani_customers_cache WHERE 1=1';
-        const params = [];
+        // التحقق من وجود الأعمدة في الجدول
+        let hasPartnerId = false;
+        let hasCustomerData = false;
         
-        if (partnerId) {
-            query += ' AND partner_id = ?';
-            params.push(partnerId);
+        try {
+            const [columns] = await alwataniPool.query(`
+                SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'alwatani_customers_cache' AND COLUMN_NAME IN ('partner_id', 'customer_data')
+            `);
+            hasPartnerId = columns.some(col => col.COLUMN_NAME === 'partner_id');
+            hasCustomerData = columns.some(col => col.COLUMN_NAME === 'customer_data');
+        } catch (e) {
+            console.warn('[CUSTOMERS DB] Could not check columns, assuming old schema:', e.message);
         }
         
-        query += ' ORDER BY synced_at DESC LIMIT ? OFFSET ?';
-        params.push(pageSize, offset);
-        
-        const [rows] = await alwataniPool.query(query, params);
+        // جلب المشتركين من قاعدة البيانات المحلية
+        let rows;
+        try {
+            if (hasCustomerData) {
+                // البنية الجديدة: customer_data (JSON)
+                let query = 'SELECT account_id, customer_data, synced_at FROM alwatani_customers_cache WHERE 1=1';
+                const params = [];
+                
+                if (hasPartnerId && partnerId) {
+                    query = 'SELECT account_id, partner_id, customer_data, synced_at FROM alwatani_customers_cache WHERE partner_id = ?';
+                    params.push(partnerId);
+                }
+                
+                query += ' ORDER BY synced_at DESC LIMIT ? OFFSET ?';
+                params.push(pageSize, offset);
+                
+                [rows] = await alwataniPool.query(query, params);
+            } else {
+                // البنية القديمة: أعمدة منفصلة
+                let query = 'SELECT account_id, username, device_name, phone, region, page_url, start_date, end_date, status, created_at as synced_at FROM alwatani_customers_cache WHERE 1=1';
+                const params = [];
+                
+                query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+                params.push(pageSize, offset);
+                
+                [rows] = await alwataniPool.query(query, params);
+            }
+        } catch (error) {
+            console.error('[CUSTOMERS DB] Error querying customers:', error);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'خطأ في جلب المشتركين من قاعدة البيانات: ' + error.message 
+            });
+        }
         
         // جلب العدد الإجمالي
-        let countQuery = 'SELECT COUNT(*) as total FROM alwatani_customers_cache WHERE 1=1';
-        const countParams = [];
-        if (partnerId) {
-            countQuery += ' AND partner_id = ?';
-            countParams.push(partnerId);
+        let total = 0;
+        try {
+            let countQuery;
+            const countParams = [];
+            
+            if (hasPartnerId && partnerId) {
+                countQuery = 'SELECT COUNT(*) as total FROM alwatani_customers_cache WHERE partner_id = ?';
+                countParams.push(partnerId);
+            } else {
+                countQuery = 'SELECT COUNT(*) as total FROM alwatani_customers_cache WHERE 1=1';
+            }
+            
+            const [countResult] = await alwataniPool.query(countQuery, countParams);
+            total = countResult[0]?.total || 0;
+        } catch (error) {
+            console.error('[CUSTOMERS DB] Error getting count:', error);
+            total = rows.length; // استخدام عدد الصفوف المسترجعة كبديل
         }
-        const [countResult] = await alwataniPool.query(countQuery, countParams);
-        const total = countResult[0]?.total || 0;
         
         // تحويل البيانات من JSON إلى objects
         const combined = rows.map(row => {
             try {
-                const customerData = typeof row.customer_data === 'string' 
-                    ? JSON.parse(row.customer_data) 
-                    : row.customer_data;
-                return customerData;
+                if (hasCustomerData && row.customer_data) {
+                    // البنية الجديدة: customer_data (JSON)
+                    const customerData = typeof row.customer_data === 'string' 
+                        ? JSON.parse(row.customer_data) 
+                        : row.customer_data;
+                    return customerData;
+                } else {
+                    // البنية القديمة: أعمدة منفصلة
+                    return {
+                        accountId: row.account_id,
+                        account_id: row.account_id,
+                        username: row.username || null,
+                        deviceName: row.device_name || null,
+                        phone: row.phone || null,
+                        zone: row.region || null,
+                        page_url: row.page_url || null,
+                        start_date: row.start_date || null,
+                        end_date: row.end_date || null,
+                        status: row.status || null
+                    };
+                }
             } catch (e) {
                 console.error('[CUSTOMERS DB] Error parsing customer data:', e);
                 return null;
