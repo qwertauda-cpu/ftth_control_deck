@@ -3869,6 +3869,19 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         await delay(1000);
         
         // ========== المرحلة 1: جلب العناوين ==========
+        // التأكد من أن allCustomers محدد وليس فارغ
+        if (!allCustomers || !Array.isArray(allCustomers) || allCustomers.length === 0) {
+            console.error('[SYNC] No customers fetched, cannot proceed with address fetching');
+            updateSyncProgress(id, {
+                stage: 'error',
+                message: 'لا توجد بيانات مشتركين للعمل عليها'
+            });
+            return res.json({
+                success: false,
+                message: 'لا توجد بيانات مشتركين للعمل عليها'
+            });
+        }
+        
         const accountIds = Array.from(new Set(allCustomers
             .map((customer) => extractAlwataniAccountId(customer))
             .filter((value) => value !== null && value !== undefined)
