@@ -2481,9 +2481,11 @@ async function verifyAlwataniAccount(username, password, options = {}) {
             headers: buildAlwataniHeaders({
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'Content-Length': Buffer.byteLength(postData),
-                'Referer': 'https://admin.ftth.iq/auth/login'
+                'Referer': 'https://admin.ftth.iq/auth/login',
+                'Connection': 'keep-alive'
             }),
-            timeout: 15000 // زيادة timeout إلى 15 ثانية
+            timeout: 30000, // زيادة timeout إلى 30 ثانية
+            rejectUnauthorized: true // السماح بشهادات SSL
         }, (res) => {
             parseAlwataniResponse(res).then((parsed) => {
                 console.log(`[VERIFY] Status Code: ${parsed.statusCode}`);
@@ -2512,21 +2514,32 @@ async function verifyAlwataniAccount(username, password, options = {}) {
                 port: error.port
             };
             console.error(`[VERIFY] ❌ Connection error:`, errorDetails);
+            
+            // تحديد ما إذا كان الخطأ قابل للإعادة
+            const retryable = error.code === 'ECONNRESET' || 
+                            error.code === 'ETIMEDOUT' || 
+                            error.code === 'ENOTFOUND' ||
+                            error.code === 'ECONNREFUSED' ||
+                            error.message.includes('timeout') ||
+                            error.message.includes('ECONNRESET');
+            
             resolve({
                 success: false,
                 message: 'Connection error to external site: ' + error.message,
-                retryable: true,
-                errorDetails
+                retryable: retryable,
+                errorDetails,
+                errorCode: error.code
             });
         });
 
         req.on('timeout', () => {
-            console.error(`[VERIFY] ❌ Connection timeout after 15 seconds`);
+            console.error(`[VERIFY] ❌ Connection timeout after 30 seconds`);
             req.destroy();
             resolve({
                 success: false,
-                message: 'Connection timeout to external site (15 seconds)',
-                retryable: true
+                message: 'Connection timeout to external site (30 seconds)',
+                retryable: true,
+                errorCode: 'ETIMEDOUT'
             });
         });
 
@@ -2558,8 +2571,17 @@ async function verifyAlwataniAccount(username, password, options = {}) {
         }
 
         attempt += 1;
-        const waitTime = retryDelay * attempt;
+        // زيادة وقت الانتظار تدريجياً مع كل محاولة
+        const waitTime = Math.min(retryDelay * attempt, 30000); // حد أقصى 30 ثانية
         console.warn(`[VERIFY] ⚠️ Connection issue while verifying (${result.message}). Retrying ${attempt}/${maxAttempts} after ${waitTime / 1000}s...`);
+        
+        // إذا كان الخطأ ECONNRESET، انتظر وقت أطول
+        if (result.errorCode === 'ECONNRESET') {
+            const extraWait = 5000; // انتظار إضافي 5 ثواني
+            console.log(`[VERIFY] ⏳ ECONNRESET detected, waiting extra ${extraWait / 1000}s before retry...`);
+            await delay(extraWait);
+        }
+        
         await delay(waitTime);
     }
 
