@@ -202,7 +202,7 @@ app.use((req, res, next) => {
 });
 
 // Store sync progress for each user (in-memory)
-const syncProgressStore = new Map(); // userId -> { stage, current, total, message, startedAt, updatedAt, phoneFound }
+const syncProgressStore = new Map(); // userId -> { stage, current, total, message, startedAt, updatedAt, phoneFound, logs: [] }
 
 // Helper functions to update sync progress
 function updateSyncProgress(userId, progress) {
@@ -2236,6 +2236,13 @@ async function enrichCustomersWithDetails(records, tokenRef, username, password,
                     return { success: false };
                 }
                 
+                // الحصول على اسم المشترك من البيانات
+                const subscriberName = item.record?.username || 
+                                     item.record?.deviceName || 
+                                     item.record?.name || 
+                                     item.accountId || 
+                                     'Unknown';
+                
                 // Retry mechanism مع exponential backoff
                 let detailResp = null;
                 let retries = 0;
@@ -2360,13 +2367,14 @@ async function enrichCustomersWithDetails(records, tokenRef, username, password,
         if (userId) {
             // التأكد من أن current لا يتجاوز total ولا ينقص
             const safeCurrent = Math.min(processed, records.length);
-            updateSyncProgress(userId, {
-                stage: 'enriching',
-                current: safeCurrent,
-                total: records.length,
-                message: `جاري جلب معلومات المشتركين... ${safeCurrent}/${records.length} (${successCount} نجح، ${phoneFoundCount} مع رقم هاتف)`,
-                phoneFound: phoneFoundCount
-            });
+            // لا نحدث الرسالة هنا لأننا نحدثها لكل مشترك على حدة
+            // فقط نحدث الأرقام
+            const existing = syncProgressStore.get(userId) || {};
+            existing.current = safeCurrent;
+            existing.total = records.length;
+            existing.phoneFound = phoneFoundCount;
+            existing.updatedAt = new Date().toISOString();
+            syncProgressStore.set(userId, existing);
         }
         
         // تسجيل التقدم بشكل متكرر لكل batch

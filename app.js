@@ -2805,6 +2805,21 @@ async function monitorSyncProgress(userId) {
                     progressPhoneFound.textContent = `${progress.phoneFound || 0} رقم هاتف تم العثور عليه`;
                 }
                 
+                // تحديث مربع CMD-like Console
+                const consoleBox = document.getElementById('sync-console-box');
+                const consoleContent = document.getElementById('sync-console-content');
+                if (consoleBox && consoleContent && progress.logs && Array.isArray(progress.logs)) {
+                    // عرض آخر 20 سجل
+                    const recentLogs = progress.logs.slice(-20);
+                    consoleContent.innerHTML = recentLogs.map(log => {
+                        const time = new Date(log.timestamp).toLocaleTimeString('en-US', { hour12: false });
+                        const message = log.message || '';
+                        return `<div class="text-green-400">[${time}] ${message}</div>`;
+                    }).join('');
+                    // Scroll to bottom
+                    consoleBox.scrollTop = consoleBox.scrollHeight;
+                }
+                
                 // إذا اكتملت المزامنة أو حدث خطأ
                 if (progress.stage === 'completed' || progress.stage === 'error') {
                     // تحديث شريط التقدم إلى 100% عند اكتمال المزامنة
