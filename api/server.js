@@ -686,8 +686,8 @@ const DETAIL_FETCH_DELAY_MIN = Math.max(0, parseInt(process.env.DETAIL_FETCH_DEL
 const DETAIL_FETCH_DELAY_MAX = Math.max(0, parseInt(process.env.DETAIL_FETCH_DELAY_MAX || '0', 10));
 const DETAIL_FETCH_MAX_RETRIES = Math.max(1, parseInt(process.env.DETAIL_FETCH_MAX_RETRIES || '3', 10));
 const DETAIL_FETCH_IMMEDIATE_SAVE = (process.env.DETAIL_FETCH_IMMEDIATE_SAVE || 'true').toLowerCase() !== 'false';
-const PAGE_FETCH_BATCH_SIZE = Math.max(1, parseInt(process.env.PAGE_FETCH_BATCH_SIZE || process.env.ALWATANI_PAGE_BATCH_SIZE || '6', 10)); // تقليل من 12 إلى 6 لاستقرار أفضل
-let PAGE_FETCH_BATCH_DELAY = Math.max(0, parseInt(process.env.PAGE_FETCH_BATCH_DELAY_MS || process.env.ALWATANI_PAGE_BATCH_DELAY || '1000', 10)); // تأخير ثابت 1 ثانية بين الـ batches
+const PAGE_FETCH_BATCH_SIZE = 1; // صفحة واحدة فقط في كل مرة
+let PAGE_FETCH_BATCH_DELAY = 1000; // ثانية واحدة بين كل صفحة
 const PAGE_FETCH_MAX_RETRIES = Math.max(1, parseInt(process.env.PAGE_FETCH_MAX_RETRIES || '4', 10));
 const PAGE_FETCH_RATE_LIMIT_BACKOFF = Math.max(1000, parseInt(process.env.PAGE_FETCH_RATE_BACKOFF_MS || '15000', 10));
 
@@ -3869,89 +3869,63 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
             message: `جاري جلب جميع الصفحات... الصفحة 1 من ${totalPages}`
         });
 
-        // جلب الصفحات المتبقية بشكل متوازي
+        // جلب الصفحات المتبقية واحدة تلو الأخرى (صفحة واحدة كل ثانية)
         const remainingPages = totalPages > 1 ? totalPages - 1 : 0;
         
         if (remainingPages > 0) {
-            // المزامنة الكاملة: جلب جميع الصفحات
-            console.log(`[SYNC] Fetching ${remainingPages} pages in parallel (${parallelPages} pages per batch)...`);
+            // المزامنة الكاملة: جلب جميع الصفحات واحدة تلو الأخرى
+            console.log(`[SYNC] Fetching ${remainingPages} pages sequentially (1 page per second)...`);
             
-            for (let startPage = 2; startPage <= totalPages; startPage += parallelPages) {
+            for (let pageNum = 2; pageNum <= totalPages; pageNum++) {
                 if (isSyncCancelled(id)) {
                     cancelled = true;
                     console.warn('[SYNC] ⏹️ Cancellation requested during page fetching.');
                     break;
                 }
                 
-                const endPage = Math.min(startPage + parallelPages - 1, totalPages);
-                const pagePromises = [];
-                
-                for (let pageNum = startPage; pageNum <= endPage; pageNum++) {
-                    pagePromises.push(
-                        fetchCustomersPageWithRetry(
-                            pageNum,
-                            token,
-                            account.username,
-                            account.password,
-                            sortProperty,
-                            pageSize,
-                            applyTokenFromResponse,
-                            'customers_page'
-                        )
-                    );
+                // تأخير ثانية واحدة قبل جلب كل صفحة (باستثناء الصفحة الأولى)
+                if (pageNum > 2) {
+                    await delay(1000); // ثانية واحدة بين كل صفحة
                 }
                 
-                const pageResults = await Promise.all(pagePromises);
+                const pageResult = await fetchCustomersPageWithRetry(
+                    pageNum,
+                    token,
+                    account.username,
+                    account.password,
+                    sortProperty,
+                    pageSize,
+                    applyTokenFromResponse,
+                    'customers_page'
+                );
                 
-                let pagesFetchedInBatch = 0;
-                let totalCustomersInBatch = 0;
-                
-                for (let i = 0; i < pageResults.length; i++) {
-                    const pageResult = pageResults[i];
-                    const currentPageNum = startPage + i;
-                    
-                    if (pageResult.statusCode === 403 && !pageResult.success) {
-                        console.error('[SYNC] Failed to fetch page due to 403 after retry');
-                        const stage = pageResult.context || `customers_page_${currentPageNum}`;
-                        return res.json({
-                            success: false,
-                            stage,
-                            message: `[${stage}] تم رفض الوصول (403) أثناء جلب صفحات المشتركين. يرجى التحقق من بيانات الدخول.`
-                        });
-                    }
+                if (pageResult.statusCode === 403 && !pageResult.success) {
+                    console.error('[SYNC] Failed to fetch page due to 403 after retry');
+                    const stage = pageResult.context || `customers_page_${pageNum}`;
+                    return res.json({
+                        success: false,
+                        stage,
+                        message: `[${stage}] تم رفض الوصول (403) أثناء جلب صفحات المشتركين. يرجى التحقق من بيانات الدخول.`
+                    });
+                }
 
-                    if (pageResult.success && pageResult.data) {
-                        const customersList = normalizeAlwataniCollection(pageResult.data);
-                        allCustomers = allCustomers.concat(customersList);
-                        totalCustomersInBatch += customersList.length;
-                        pagesFetchedInBatch++;
-                        console.log(`[SYNC] ✅ Page ${currentPageNum}/${totalPages}: ${customersList.length} subscribers (Total so far: ${allCustomers.length})`);
-                    } else {
-                        if (isRateLimitRedirect(pageResult)) {
-                            console.warn(`[SYNC] ⚠️ Rate limit prevented fetching page ${currentPageNum} after retries.`);
-                        }
-                        console.error(`[SYNC] ❌ Failed to fetch page ${currentPageNum}:`, pageResult.message);
+                if (pageResult.success && pageResult.data) {
+                    const customersList = normalizeAlwataniCollection(pageResult.data);
+                    allCustomers = allCustomers.concat(customersList);
+                    console.log(`[SYNC] ✅ Page ${pageNum}/${totalPages}: ${customersList.length} subscribers (Total so far: ${allCustomers.length})`);
+                    
+                    // تحديث progress بعد كل صفحة
+                    updateSyncProgress(id, {
+                        stage: 'fetching_pages',
+                        current: pageNum,
+                        total: totalPages,
+                        message: `جاري جلب جميع الصفحات... ${pageNum}/${totalPages} صفحة (${allCustomers.length} مشترك)`
+                    });
+                } else {
+                    if (isRateLimitRedirect(pageResult)) {
+                        console.warn(`[SYNC] ⚠️ Rate limit prevented fetching page ${pageNum} after retries.`);
                     }
-                }
-                
-                // تحديث حالة التقدم بعد جلب كل batch فقط (وليس بعد كل صفحة)
-                const lastPageInBatch = Math.min(startPage + pageResults.length - 1, totalPages);
-                const pagesFetchedSoFar = Math.min(lastPageInBatch, totalPages);
-                console.log(`[SYNC] 📦 Batch complete: Pages ${startPage}-${lastPageInBatch} (${pagesFetchedInBatch} pages, ${totalCustomersInBatch} subscribers, Total: ${allCustomers.length})`);
-                
-                // تحديث progress بشكل ثابت بعد كل batch فقط
-                updateSyncProgress(id, {
-                    stage: 'fetching_pages',
-                    current: pagesFetchedSoFar,
-                    total: totalPages,
-                    message: `جاري جلب جميع الصفحات... ${pagesFetchedSoFar}/${totalPages} صفحة (${allCustomers.length} مشترك)`
-                });
-                
-                // تأخير ثابت بين الـ batches لتجنب rate limiting
-                const currentPageDelay = getPageFetchBatchDelay();
-                if (lastPageInBatch < totalPages) {
-                    console.log(`[SYNC] ⏳ Waiting ${currentPageDelay}ms before next batch...`);
-                    await delay(currentPageDelay);
+                    console.error(`[SYNC] ❌ Failed to fetch page ${pageNum}:`, pageResult.message);
                 }
             }
         }
