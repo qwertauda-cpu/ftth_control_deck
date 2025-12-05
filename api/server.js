@@ -3868,21 +3868,19 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         // تأخير قصير قبل الانتقال للمرحلة التالية
         await delay(1000);
         
-        updateSyncProgress(id, {
-            stage: 'fetching_addresses',
-            current: 0,
-            total: accountIds.length,
-            message: `جاري جلب العناوين...`
-        });
-
         // ========== المرحلة 1: جلب العناوين ==========
         const accountIds = Array.from(new Set(allCustomers
             .map((customer) => extractAlwataniAccountId(customer))
             .filter((value) => value !== null && value !== undefined)
             .map((value) => String(value))
         ));
-
-        // تم تحديث progress في السطر السابق
+        
+        updateSyncProgress(id, {
+            stage: 'fetching_addresses',
+            current: 0,
+            total: accountIds.length,
+            message: `جاري جلب العناوين... ${accountIds.length} عنوان`
+        });
 
         const addressesResp = await fetchAlwataniResource(
             `/api/addresses?${accountIds.map(id => `accountIds=${encodeURIComponent(id)}`).join('&')}`,
