@@ -2183,13 +2183,12 @@ async function enrichCustomersWithDetails(records, tokenRef, username, password,
         });
     }
     
-    // جلب مشتركين بعدد قابل للتعديل عبر ENV (تفاصيل أسرع بدون حظر)
-    // قراءة القيم ديناميكياً في كل مرة
-    const concurrency = getDetailFetchConcurrency();
-    let delayBetweenBatches = getDetailFetchBatchDelay();
+    // جلب مشترك واحد في كل مرة مع تأخير ثانية واحدة بين كل مشترك
+    const concurrency = 1; // مشترك واحد فقط في كل مرة
+    const delayBetweenSubscribers = 1000; // ثانية واحدة بين كل مشترك
     let delayMin = DETAIL_FETCH_DELAY_MIN;
     let delayMax = DETAIL_FETCH_DELAY_MAX;
-    console.log(`[ENRICH] Starting detail fetching: ${concurrency} subscribers every ${(Math.max(delayBetweenBatches, 1) / 1000).toFixed(2)} seconds`);
+    console.log(`[ENRICH] Starting detail fetching: 1 subscriber every ${delayBetweenSubscribers / 1000} second`);
     
     let processed = 0;
     let successCount = 0;
@@ -2218,10 +2217,9 @@ async function enrichCustomersWithDetails(records, tokenRef, username, password,
             console.log(`[ENRICH] ⚠️ High error rate detected! Error rate: ${(errorRate * 100).toFixed(1)}%, consecutive errors: ${consecutiveErrors} - Waiting ${waitTime/1000} seconds before continuing...`);
             await delay(waitTime);
             consecutiveErrors = Math.floor(consecutiveErrors / 2); // تقليل العدد بعد الانتظار
-            // زيادة التأخير مؤقتاً
+            // زيادة التأخير مؤقتاً (لكن نبقى على ثانية واحدة كحد أدنى)
             delayMin = Math.min(delayMin * 1.5, 5000);
             delayMax = Math.min(delayMax * 1.5, 8000);
-            delayBetweenBatches = Math.min(delayBetweenBatches * 1.5, 5000);
         }
         
         const batch = records.slice(i, i + concurrency);
@@ -2232,8 +2230,10 @@ async function enrichCustomersWithDetails(records, tokenRef, username, password,
                     return { success: false };
                 }
                 
-                // لا تأخير بين الطلبات في نفس الـ batch (جميعهم متوازيين)
-                // فقط تأخير بين الـ batches
+                // تأخير ثانية واحدة قبل جلب كل مشترك (باستثناء الأول)
+                if (i > 0 || index > 0) {
+                    await delay(delayBetweenSubscribers);
+                }
                 
                 // Retry mechanism مع exponential backoff
                 let detailResp = null;
@@ -2371,11 +2371,10 @@ async function enrichCustomersWithDetails(records, tokenRef, username, password,
         // تسجيل التقدم بشكل متكرر لكل batch
         console.log(`[ENRICH] Progress: ${processed}/${records.length} (${successCount} success, ${phoneFoundCount} phones, ${totalErrors} errors)`);        
         
-        // تأخير بين الـ batches (إلا إذا كنا في نهاية القائمة)
-        if (i + concurrency < records.length) {
-            // تأخير أطول إذا كان هناك rate limiting
-            const waitTime = rateLimitErrors > 0 ? delayBetweenBatches * 2 : delayBetweenBatches;
-            await delay(waitTime);
+        // التأخير يتم داخل loop كل مشترك، لذلك لا حاجة لتأخير إضافي هنا
+        // لكن إذا كان هناك rate limiting، نزيد التأخير قليلاً
+        if (rateLimitErrors > 0 && i + concurrency < records.length) {
+            await delay(500); // تأخير إضافي 0.5 ثانية عند وجود rate limiting
         }
         
         // إذا حدث rate limiting كثيراً، نزيد التأخير
