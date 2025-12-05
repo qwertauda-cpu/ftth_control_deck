@@ -2242,7 +2242,7 @@ async function enrichCustomersWithDetails(records, tokenRef, username, password,
                 stage: 'enriching',
                 current: processed,
                 total: records.length,
-                message: `جاري جلب التفاصيل... ${processed}/${records.length} (${successCount} نجح، ${phoneFoundCount} مع رقم هاتف)`,
+                message: `جاري جلب معلومات المشتركين... ${processed}/${records.length} (${successCount} نجح، ${phoneFoundCount} مع رقم هاتف)`,
                 phoneFound: phoneFoundCount
             });
         }
