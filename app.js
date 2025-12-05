@@ -165,7 +165,7 @@ let activeSubscriberFilter = 'all';
 let expiringSortOrder = 'asc';
 let currentFilteredSubscribers = [];
 let subscriberPagination = {
-    pageSize: 10,
+    pageSize: 100,
     currentPage: 1
 };
 
@@ -4088,7 +4088,7 @@ function updateSubscriberFilterSummary(count) {
 
 function renderSubscribersTablePage() {
     const total = currentFilteredSubscribers.length;
-    const pageSize = subscriberPagination.pageSize || 10;
+    const pageSize = subscriberPagination.pageSize || 100;
     const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
     
     if (totalPages === 0) {
