@@ -947,6 +947,32 @@ async function fetchAlwataniResource(path, token, method = 'GET', retryOn403 = f
                                 parsed.json?.title ||
                                 `HTTP ${res.statusCode}: ${parsed.text?.substring(0, 200) || 'Unknown error'}`;
                             
+                            // معالجة 502 Bad Gateway (Exception while reading from stream من API الوطني)
+                            if (res.statusCode === 502 || (parsed.json?.errorCode === 502 && parsed.json?.title?.includes('Exception while reading from stream'))) {
+                                console.warn(`[ALWATANI] ⚠️ 502 Bad Gateway [${context}] - API server error, retryable`);
+                                errorMessage = 'خطأ في خادم الوطني (502). سيتم إعادة المحاولة...';
+                                
+                                // إعادة المحاولة بعد تأخير
+                                if (retryOn403) {
+                                    setTimeout(async () => {
+                                        console.log(`[ALWATANI] Retrying after 502 error [${context}]...`);
+                                        try {
+                                            const retryResult = await makeRequest(currentToken);
+                                            innerResolve(retryResult);
+                                        } catch (err) {
+                                            innerResolve({ 
+                                                success: false, 
+                                                statusCode: 502,
+                                                message: errorMessage,
+                                                context,
+                                                retryable: true
+                                            });
+                                        }
+                                    }, 5000); // انتظار 5 ثوانٍ قبل إعادة المحاولة
+                                    return;
+                                }
+                            }
+                            
                             // معالجة Rate Limiting (429) مع إعادة المحاولة التلقائية
                             if (res.statusCode === 429) {
                                 console.warn(`[ALWATANI] ⚠️ Rate Limit (429) [${context}] - Too Many Requests - Waiting 10 seconds...`);
