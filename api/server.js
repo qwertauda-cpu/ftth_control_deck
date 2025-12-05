@@ -5475,17 +5475,35 @@ app.get('/api/subscribers', async (req, res) => {
         const limit = parseInt(req.query.limit || '100', 10); // حد أقصى 100 مشترك في كل طلب
         const offset = (page - 1) * limit;
         
-        // جلب المشتركين مع pagination
+        // استخدام alwatani_customers_cache بدلاً من subscribers
+        // جلب المشتركين مع pagination من cache
         const [rows] = await alwataniPool.query(
-            'SELECT * FROM subscribers ORDER BY created_at DESC LIMIT ? OFFSET ?',
+            'SELECT account_id, customer_data, synced_at FROM alwatani_customers_cache ORDER BY synced_at DESC LIMIT ? OFFSET ?',
             [Math.min(limit, 100), offset] // حد أقصى 100 مشترك
         );
         
+        // تحويل البيانات من JSON إلى objects
+        const subscribers = rows.map(row => {
+            try {
+                const customerData = typeof row.customer_data === 'string' 
+                    ? JSON.parse(row.customer_data) 
+                    : row.customer_data;
+                return {
+                    ...customerData,
+                    account_id: row.account_id,
+                    synced_at: row.synced_at
+                };
+            } catch (e) {
+                console.error('[SUBSCRIBERS] Error parsing customer data:', e);
+                return null;
+            }
+        }).filter(t => t !== null);
+        
         // جلب العدد الإجمالي (اختياري - فقط إذا طُلب)
         if (req.query.includeTotal === 'true') {
-            const [countResult] = await alwataniPool.query('SELECT COUNT(*) as total FROM subscribers');
+            const [countResult] = await alwataniPool.query('SELECT COUNT(*) as total FROM alwatani_customers_cache');
             res.json({
-                data: rows || [],
+                data: subscribers || [],
                 pagination: {
                     page,
                     limit: Math.min(limit, 100),
@@ -5494,7 +5512,7 @@ app.get('/api/subscribers', async (req, res) => {
                 }
             });
         } else {
-            res.json(rows || []);
+            res.json(subscribers || []);
         }
     } catch (error) {
         console.error('Get subscribers error:', error);
@@ -5536,21 +5554,55 @@ app.get('/api/subscribers/stats', async (req, res) => {
             return res.json(stats);
         }
 
-        // Fallback: إحصائيات من subscribers table
-        const [totalResult] = await alwataniPool.query('SELECT COUNT(*) as count FROM subscribers');
-        const [activeResult] = await alwataniPool.query('SELECT COUNT(*) as count FROM subscribers WHERE status = "active"');
-        const [zonesResult] = await alwataniPool.query('SELECT COUNT(DISTINCT zone) as count FROM subscribers');
-        const [expiringResult] = await alwataniPool.query(
-            'SELECT COUNT(*) as count FROM subscribers WHERE end_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)'
-        );
+        // Fallback: إحصائيات من alwatani_customers_cache
+        // إذا لم تكن هناك بيانات في cache، نعيد إحصائيات فارغة
+        const [totalResult] = await alwataniPool.query('SELECT COUNT(*) as count FROM alwatani_customers_cache');
+        const total = totalResult[0]?.count || 0;
+        
+        // حساب الإحصائيات من customer_data
+        let active = 0;
+        let expiringSoon = 0;
+        const zonesSet = new Set();
+        
+        if (cacheRows && cacheRows.length > 0) {
+            for (const row of cacheRows) {
+                try {
+                    const customerData = typeof row.customer_data === 'string' 
+                        ? JSON.parse(row.customer_data) 
+                        : row.customer_data;
+                    
+                    if (customerData) {
+                        if (customerData.status === 'active' || customerData.status === 'connected') {
+                            active++;
+                        }
+                        
+                        if (customerData.zone) {
+                            zonesSet.add(customerData.zone);
+                        }
+                        
+                        // التحقق من انتهاء الصلاحية خلال 7 أيام
+                        if (customerData.end_date || customerData.endDate) {
+                            const endDate = new Date(customerData.end_date || customerData.endDate);
+                            const today = new Date();
+                            const daysUntilExpiry = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+                            if (daysUntilExpiry >= 0 && daysUntilExpiry <= 7) {
+                                expiringSoon++;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('[STATS] Error parsing customer data:', e);
+                }
+            }
+        }
         
         return res.json({
-            total: totalResult[0]?.count || 0,
-            active: activeResult[0]?.count || 0,
-            inactive: (totalResult[0]?.count || 0) - (activeResult[0]?.count || 0),
-            expiringSoon: expiringResult[0]?.count || 0,
-            zones: zonesResult[0]?.count || 0,
-            source: 'subscribers'
+            total: total,
+            active: active,
+            inactive: total - active,
+            expiringSoon: expiringSoon,
+            zones: zonesSet.size,
+            source: 'alwatani_customers_cache'
         });
     } catch (error) {
         console.error('Get stats error:', error);
