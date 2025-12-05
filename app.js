@@ -2812,7 +2812,7 @@ async function syncCustomers() {
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                    <span id="sync-btn-text">مزامنة المشتركين</span>
+                    <span id="sync-btn-text">مزامنة</span>
                 `;
             }
             
@@ -2832,6 +2832,9 @@ async function syncCustomers() {
                 await updateSyncStatus();
             }
         } else {
+            // إيقاف مراقبة التقدم عند الفشل
+            stopSyncProgressMonitoring();
+            
             const stageSuffix = data.stage ? ` [${data.stage}]` : '';
             const errorMsg = data.message || 'فشلت المزامنة';
             console.error('[SYNC] Sync failed. Server response:', {
@@ -2840,7 +2843,44 @@ async function syncCustomers() {
                 message: errorMsg,
                 fullData: data
             });
-            throw new Error(errorMsg + stageSuffix);
+            
+            // إظهار رسالة الخطأ
+            showSubscribersTableMessage(`❌ ${errorMsg}${stageSuffix}`);
+            
+            if (syncStatus) {
+                syncStatus.textContent = 'فشلت المزامنة. يرجى المحاولة مرة أخرى.';
+                syncStatus.className = 'text-sm text-red-600';
+            }
+            
+            // إخفاء زر الإيقاف وإعادة تفعيل زر المزامنة
+            if (stopSyncBtn) {
+                stopSyncBtn.classList.add('hidden');
+            }
+            if (syncButton) {
+                syncButton.disabled = false;
+                syncButton.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span id="sync-btn-text">مزامنة</span>
+                `;
+            }
+            
+            // إعادة تعيين شريط التقدم
+            const progressBar = document.getElementById('sync-progress-bar');
+            const progressPercentage = document.getElementById('sync-progress-percentage');
+            const progressPhoneFound = document.getElementById('sync-progress-phone-found');
+            if (progressBar) {
+                progressBar.style.width = '0%';
+            }
+            if (progressPercentage) {
+                progressPercentage.textContent = '0%';
+            }
+            if (progressPhoneFound) {
+                progressPhoneFound.textContent = '0 رقم هاتف تم العثور عليه';
+            }
+            
+            return; // لا نرمي خطأ هنا، لأننا عالجنا الخطأ بالفعل
         }
     } catch (error) {
         // إيقاف مراقبة التقدم عند حدوث خطأ
@@ -2871,9 +2911,39 @@ async function syncCustomers() {
             syncStatus.className = 'text-sm text-red-600';
         }
     } finally {
+        // إيقاف مراقبة التقدم
+        stopSyncProgressMonitoring();
+        
+        // إخفاء زر الإيقاف
+        const stopSyncBtn = document.getElementById('stop-sync-btn');
+        if (stopSyncBtn) {
+            stopSyncBtn.classList.add('hidden');
+            stopSyncBtn.disabled = false;
+        }
+        
+        // إعادة تعيين زر المزامنة
         if (syncButton) {
             syncButton.disabled = false;
-            syncButton.innerHTML = 'مزامنة المشتركين';
+            syncButton.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span id="sync-btn-text">مزامنة</span>
+            `;
+        }
+        
+        // إعادة تعيين شريط التقدم
+        const progressBar = document.getElementById('sync-progress-bar');
+        const progressPercentage = document.getElementById('sync-progress-percentage');
+        const progressPhoneFound = document.getElementById('sync-progress-phone-found');
+        if (progressBar) {
+            progressBar.style.width = '0%';
+        }
+        if (progressPercentage) {
+            progressPercentage.textContent = '0%';
+        }
+        if (progressPhoneFound) {
+            progressPhoneFound.textContent = '0 رقم هاتف تم العثور عليه';
         }
     }
 }
