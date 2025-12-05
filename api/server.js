@@ -1381,7 +1381,7 @@ function classifySubscriberStatus(record, nowMs = Date.now()) {
     return result;
 }
 
-function computeCacheStats(rows) {
+function computeCacheStats(rows, hasCustomerData = true) {
     const nowMs = Date.now();
     let total = 0;
     let active = 0;
@@ -1391,13 +1391,34 @@ function computeCacheStats(rows) {
     let lastUpdated = null;
 
     for (const row of rows) {
-        let record = row.customer_data;
-        if (typeof record === 'string') {
-            try {
-                record = JSON.parse(record);
-            } catch (error) {
-                continue;
+        let record;
+        if (hasCustomerData && row.customer_data) {
+            record = row.customer_data;
+            if (typeof record === 'string') {
+                try {
+                    record = JSON.parse(record);
+                } catch (error) {
+                    continue;
+                }
             }
+        } else {
+            // بناء record من الأعمدة المنفصلة
+            record = {
+                accountId: row.account_id,
+                account_id: row.account_id,
+                username: row.username,
+                deviceName: row.device_name,
+                device_name: row.device_name,
+                phone: row.phone,
+                zone: row.region,
+                region: row.region,
+                page_url: row.page_url,
+                start_date: row.start_date,
+                startDate: row.start_date,
+                end_date: row.end_date,
+                endDate: row.end_date,
+                status: row.status
+            };
         }
 
         if (!record || typeof record !== 'object') {
@@ -3927,15 +3948,15 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         // تأخير قصير قبل الانتقال لمرحلة جلب التفاصيل
         await delay(1000);
         
+        // تحضير البيانات الأساسية (بدون تفاصيل من صفحات المشتركين بعد)
+        const combinedRecords = [];
+        
         updateSyncProgress(id, {
             stage: 'preparing',
             current: 0,
-            total: combinedRecords.length,
+            total: allCustomers.length,
             message: `جاري تحضير البيانات...`
         });
-
-        // تحضير البيانات الأساسية (بدون تفاصيل من صفحات المشتركين بعد)
-        const combinedRecords = [];
         for (const customer of allCustomers) {
             const accountId = extractAlwataniAccountId(customer);
             if (!accountId) continue;
@@ -5539,14 +5560,36 @@ app.get('/api/subscribers', async (req, res) => {
         const limit = parseInt(req.query.limit || '100', 10); // حد أقصى 100 مشترك في كل طلب
         const offset = (page - 1) * limit;
         
+        // التحقق من بنية الجدول
+        let hasCustomerData = false;
+        try {
+            const [columns] = await alwataniPool.query(`
+                SELECT COLUMN_NAME 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_NAME = 'alwatani_customers_cache'
+            `);
+            const columnNames = columns.map(c => c.COLUMN_NAME);
+            hasCustomerData = columnNames.includes('customer_data');
+        } catch (e) {
+            console.warn('[SUBSCRIBERS] Could not check table structure, assuming old format:', e.message);
+        }
+        
         // استخدام alwatani_customers_cache بدلاً من subscribers
         // جلب المشتركين مع pagination من cache
         let rows;
         try {
-            [rows] = await alwataniPool.query(
-                'SELECT account_id, customer_data, synced_at FROM alwatani_customers_cache ORDER BY synced_at DESC LIMIT ? OFFSET ?',
-                [Math.min(limit, 100), offset] // حد أقصى 100 مشترك
-            );
+            if (hasCustomerData) {
+                [rows] = await alwataniPool.query(
+                    'SELECT account_id, customer_data, synced_at FROM alwatani_customers_cache ORDER BY synced_at DESC LIMIT ? OFFSET ?',
+                    [Math.min(limit, 100), offset]
+                );
+            } else {
+                [rows] = await alwataniPool.query(
+                    'SELECT account_id, username, device_name, phone, region, page_url, start_date, end_date, status, created_at as synced_at FROM alwatani_customers_cache ORDER BY created_at DESC LIMIT ? OFFSET ?',
+                    [Math.min(limit, 100), offset]
+                );
+            }
         } catch (queryError) {
             console.error('[SUBSCRIBERS] Error executing query:', queryError);
             return res.status(500).json({ 
@@ -5557,14 +5600,35 @@ app.get('/api/subscribers', async (req, res) => {
         // تحويل البيانات من JSON إلى objects
         const subscribers = rows.map(row => {
             try {
-                const customerData = typeof row.customer_data === 'string' 
-                    ? JSON.parse(row.customer_data) 
-                    : row.customer_data;
-                return {
-                    ...customerData,
-                    account_id: row.account_id,
-                    synced_at: row.synced_at
-                };
+                if (hasCustomerData && row.customer_data) {
+                    const customerData = typeof row.customer_data === 'string' 
+                        ? JSON.parse(row.customer_data) 
+                        : row.customer_data;
+                    return {
+                        ...customerData,
+                        account_id: row.account_id,
+                        synced_at: row.synced_at
+                    };
+                } else {
+                    // إذا كان الجدول يحتوي على أعمدة منفصلة، بناء object
+                    return {
+                        accountId: row.account_id,
+                        account_id: row.account_id,
+                        username: row.username,
+                        deviceName: row.device_name,
+                        device_name: row.device_name,
+                        phone: row.phone,
+                        zone: row.region,
+                        region: row.region,
+                        page_url: row.page_url,
+                        start_date: row.start_date,
+                        startDate: row.start_date,
+                        end_date: row.end_date,
+                        endDate: row.end_date,
+                        status: row.status,
+                        synced_at: row.synced_at
+                    };
+                }
             } catch (e) {
                 console.error('[SUBSCRIBERS] Error parsing customer data:', e);
                 return null;
@@ -5618,9 +5682,30 @@ app.get('/api/subscribers/stats', async (req, res) => {
             });
         }
         
+        // التحقق من بنية الجدول
+        let hasCustomerData = false;
+        try {
+            const [columns] = await alwataniPool.query(`
+                SELECT COLUMN_NAME 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_NAME = 'alwatani_customers_cache'
+            `);
+            const columnNames = columns.map(c => c.COLUMN_NAME);
+            hasCustomerData = columnNames.includes('customer_data');
+        } catch (e) {
+            console.warn('[SUBSCRIBERS STATS] Could not check table structure, assuming old format:', e.message);
+        }
+        
         const partnerIdParam = req.query.partnerId ? parseInt(req.query.partnerId, 10) : null;
-        let query = 'SELECT customer_data, updated_at FROM alwatani_customers_cache';
+        let query;
         const params = [];
+
+        if (hasCustomerData) {
+            query = 'SELECT customer_data, updated_at FROM alwatani_customers_cache';
+        } else {
+            query = 'SELECT account_id, username, device_name, phone, region, page_url, start_date, end_date, status, created_at as updated_at FROM alwatani_customers_cache';
+        }
 
         if (!Number.isNaN(partnerIdParam) && partnerIdParam > 0) {
             query += ' WHERE partner_id = ?';
@@ -5638,7 +5723,7 @@ app.get('/api/subscribers/stats', async (req, res) => {
         }
 
         if (cacheRows && cacheRows.length > 0) {
-            const stats = computeCacheStats(cacheRows);
+            const stats = computeCacheStats(cacheRows, hasCustomerData);
             return res.json(stats);
         }
 
