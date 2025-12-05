@@ -3991,11 +3991,12 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         });
         
         // إضافة رسالة الصفحة الأولى إلى logs
+        const firstPageCustomers = normalizeAlwataniCollection(firstPageResult.data);
         const existing1 = syncProgressStore.get(id) || { logs: [] };
         if (!existing1.logs) existing1.logs = [];
         existing1.logs.push({
             timestamp: new Date().toISOString(),
-            message: `1/${totalPages} - FETCH PAGE 1 COMPLETE`,
+            message: `1/${totalPages} - FETCH PAGE 1 COMPLETE (${firstPageCustomers.length} subscribers)`,
             stage: 'fetching_pages'
         });
         // الاحتفاظ بآخر 200 سجل بدلاً من 100
