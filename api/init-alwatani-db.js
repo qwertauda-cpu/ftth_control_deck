@@ -86,17 +86,21 @@ async function initAlwataniDatabase(username) {
         // ==================== 2. جدول wallet_transactions (معاملات المحفظة) ====================
         await connection.query(`
             CREATE TABLE IF NOT EXISTS wallet_transactions (
-                id INT PRIMARY KEY AUTO_INCREMENT,
-                transaction_id VARCHAR(255) UNIQUE,
-                transaction_type VARCHAR(50),
-                amount DECIMAL(10, 2),
-                balance DECIMAL(10, 2),
-                description TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                transaction_id BIGINT NOT NULL COMMENT 'معرف الحوالة من API الوطني',
+                partner_id INT NOT NULL COMMENT 'معرف الشريك (Partner ID)',
+                transaction_data JSON NOT NULL COMMENT 'بيانات الحوالة الكاملة (JSON)',
+                transaction_type VARCHAR(100) COMMENT 'نوع الحوالة',
+                transaction_amount DECIMAL(15, 2) COMMENT 'مبلغ الحوالة',
+                occured_at DATETIME COMMENT 'تاريخ حدوث الحوالة',
+                synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'تاريخ المزامنة',
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_transaction_partner (transaction_id, partner_id),
                 INDEX idx_transaction_id (transaction_id),
-                INDEX idx_type (transaction_type),
-                INDEX idx_created_at (created_at)
+                INDEX idx_partner_id (partner_id),
+                INDEX idx_transaction_type (transaction_type),
+                INDEX idx_occured_at (occured_at),
+                INDEX idx_synced_at (synced_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
         console.log('✅ تم إنشاء جدول: wallet_transactions');

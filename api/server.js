@@ -5053,7 +5053,23 @@ app.get('/api/alwatani-login/:id/wallet/transactions', async (req, res) => {
             });
         }
 
-        // جلب الحوالات
+        // الحصول على pool لقاعدة بيانات الوطني
+        const alwataniPool = await dbManager.getAlwataniPool(account.username);
+        
+        // جلب الحوالات الموجودة في قاعدة البيانات أولاً
+        let existingTransactionIds = new Set();
+        try {
+            const [existingTransactions] = await alwataniPool.query(
+                'SELECT transaction_id FROM wallet_transactions WHERE partner_id = ? ORDER BY transaction_id DESC LIMIT 10000',
+                [partnerId]
+            );
+            existingTransactionIds = new Set(existingTransactions.map(t => String(t.transaction_id)));
+            console.log(`[WALLET] Found ${existingTransactionIds.size} existing transactions in database for partnerId ${partnerId}`);
+        } catch (dbError) {
+            console.warn('[WALLET] Could not fetch existing transactions from database, will fetch all from API:', dbError.message);
+        }
+
+        // جلب الحوالات من API
         const transactionsPath = `/api/transactions?pageSize=${pageSize}&pageNumber=${pageNumber}&sortCriteria.property=${encodeURIComponent(sortProperty)}&sortCriteria.direction=${sortDirection}&hierarchyLevel=1&walletOwnerType=Partner&partnerId=${partnerId}`;
         const transactionsResp = await fetchAlwataniResource(
             transactionsPath,
@@ -5066,54 +5082,81 @@ app.get('/api/alwatani-login/:id/wallet/transactions', async (req, res) => {
         );
 
         if (!transactionsResp.success) {
-            return res.json({
-                success: false,
-                message: transactionsResp.message || 'فشل جلب الحوالات',
-                statusCode: transactionsResp.statusCode
-            });
+            // إذا فشل جلب الحوالات من API، حاول جلبها من قاعدة البيانات
+            try {
+                const [dbTransactions] = await alwataniPool.query(
+                    `SELECT transaction_data, occured_at, synced_at 
+                     FROM wallet_transactions 
+                     WHERE partner_id = ? 
+                     ORDER BY occured_at DESC 
+                     LIMIT ? OFFSET ?`,
+                    [partnerId, pageSize, (pageNumber - 1) * pageSize]
+                );
+                
+                const transactions = dbTransactions.map(row => {
+                    try {
+                        return typeof row.transaction_data === 'string' 
+                            ? JSON.parse(row.transaction_data) 
+                            : row.transaction_data;
+                    } catch (e) {
+                        return null;
+                    }
+                }).filter(t => t !== null);
+
+                return res.json({
+                    success: true,
+                    data: {
+                        items: transactions,
+                        totalCount: existingTransactionIds.size,
+                        fromCache: true
+                    },
+                    partnerId,
+                    pagination: {
+                        pageSize,
+                        pageNumber,
+                        sortProperty,
+                        sortDirection
+                    }
+                });
+            } catch (dbError) {
+                return res.json({
+                    success: false,
+                    message: transactionsResp.message || 'فشل جلب الحوالات',
+                    statusCode: transactionsResp.statusCode
+                });
+            }
         }
 
         const transactionsData = transactionsResp.data || {};
+        const allTransactions = normalizeAlwataniCollection(transactionsData);
         
-        // تسجيل بيانات الحوالات للتحقق من البنية
-        console.log('[WALLET] Transactions response structure:', {
-            hasData: !!transactionsData,
-            dataKeys: transactionsData ? Object.keys(transactionsData) : [],
-            hasItems: !!transactionsData.items,
-            itemsLength: transactionsData.items ? transactionsData.items.length : 0,
-            hasModels: !!transactionsData.models,
-            modelsLength: transactionsData.models ? transactionsData.models.length : 0,
-            fullData: JSON.stringify(transactionsData, null, 2).substring(0, 2000)
+        // تصفية الحوالات الجديدة فقط (التي ليست موجودة في قاعدة البيانات)
+        const newTransactions = allTransactions.filter(transaction => {
+            const transactionId = String(transaction.id || transaction.transaction_id || '');
+            return transactionId && !existingTransactionIds.has(transactionId);
         });
-        
-        if (transactionsData.items && transactionsData.items.length > 0) {
-            const firstTransaction = transactionsData.items[0];
-            console.log('[WALLET] First transaction full structure:', JSON.stringify(firstTransaction, null, 2));
-        } else if (transactionsData.models && transactionsData.models.length > 0) {
-            const firstTransaction = transactionsData.models[0];
-            console.log('[WALLET] First transaction (from models) full structure:', JSON.stringify(firstTransaction, null, 2));
-        } else if (Array.isArray(transactionsData) && transactionsData.length > 0) {
-            console.log('[WALLET] First transaction (from array) full structure:', JSON.stringify(transactionsData[0], null, 2));
-        }
 
-        // حفظ الحوالات في قاعدة البيانات
-        const transactions = normalizeAlwataniCollection(transactionsData);
-        if (transactions.length > 0) {
+        console.log(`[WALLET] Fetched ${allTransactions.length} transactions from API, ${newTransactions.length} are new`);
+
+        // حفظ الحوالات الجديدة فقط في قاعدة البيانات
+        if (newTransactions.length > 0) {
             try {
-                // الحصول على pool لقاعدة بيانات الوطني
-                const alwataniPool = await dbManager.getAlwataniPool(account.username);
-                await saveWalletTransactionsToDB(transactions, partnerId, alwataniPool);
-                console.log(`[WALLET] Saved ${transactions.length} transactions to database for partnerId ${partnerId}`);
+                await saveWalletTransactionsToDB(newTransactions, partnerId, alwataniPool);
+                console.log(`[WALLET] ✅ Saved ${newTransactions.length} new transactions to database for partnerId ${partnerId}`);
             } catch (dbError) {
-                console.error('[WALLET] Error saving transactions to database:', dbError);
+                console.error('[WALLET] Error saving new transactions to database:', dbError);
                 // لا نوقف العملية إذا فشل الحفظ، نكمل بإرجاع البيانات
             }
+        } else {
+            console.log(`[WALLET] No new transactions to save for partnerId ${partnerId}`);
         }
 
         res.json({
             success: true,
             data: transactionsData,
             partnerId,
+            newTransactionsCount: newTransactions.length,
+            totalTransactionsCount: allTransactions.length,
             pagination: {
                 pageSize,
                 pageNumber,
