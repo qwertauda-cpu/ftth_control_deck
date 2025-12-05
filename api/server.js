@@ -3574,18 +3574,48 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
             total: 0,
             message: 'جاري التحقق من الحساب...'
         });
+        
+        // تحديث progress أثناء التحقق
+        const verificationProgressInterval = setInterval(() => {
+            const currentProgress = getSyncProgress(id);
+            if (currentProgress && currentProgress.stage === 'verifying') {
+                updateSyncProgress(id, {
+                    stage: 'verifying',
+                    current: 0,
+                    total: 0,
+                    message: 'جاري التحقق من الحساب... قد يستغرق ذلك بضع لحظات'
+                });
+            }
+        }, 5000); // تحديث كل 5 ثواني
+        
         const verification = await verifyAlwataniAccount(account.username, account.password, {
             maxAttempts: 5,
             retryDelay: 10000
         });
+        
+        clearInterval(verificationProgressInterval);
 
         if (!verification.success) {
             console.error(`[SYNC] ❌ Account verification failed after all retries: ${verification.message}`);
+            updateSyncProgress(id, {
+                stage: 'error',
+                current: 0,
+                total: 0,
+                message: `❌ فشل التحقق من الحساب: ${verification.message || 'خطأ في الاتصال'}`
+            });
             return res.json({
                 success: false,
                 message: `❌ فشل التحقق من الحساب بعد عدة محاولات: ${verification.message || 'خطأ في الاتصال بالموقع الخارجي'}. يرجى المحاولة مرة أخرى.`
             });
         }
+        
+        // تحديث progress بعد نجاح التحقق
+        updateSyncProgress(id, {
+            stage: 'verified',
+            current: 0,
+            total: 0,
+            message: '✅ تم التحقق من الحساب - جاري جلب بيانات المشتركين...'
+        });
 
         let token = verification.data?.access_token;
         if (!token) {
