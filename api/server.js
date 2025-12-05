@@ -841,39 +841,39 @@ function parseAlwataniResponse(res) {
             }
             
             try {
-                let rawData = Buffer.concat(chunks);
-                rawData = decodeAlwataniBuffer(rawData, (res.headers['content-encoding'] || '').toLowerCase());
-                const responseText = rawData.toString('utf8').trim();
-                let json = null;
-                let isHtml = false;
-                
-                // التحقق من نوع الاستجابة
-                if (responseText.startsWith('<!DOCTYPE') || responseText.startsWith('<html')) {
-                    isHtml = true;
+            let rawData = Buffer.concat(chunks);
+            rawData = decodeAlwataniBuffer(rawData, (res.headers['content-encoding'] || '').toLowerCase());
+            const responseText = rawData.toString('utf8').trim();
+            let json = null;
+            let isHtml = false;
+            
+            // التحقق من نوع الاستجابة
+            if (responseText.startsWith('<!DOCTYPE') || responseText.startsWith('<html')) {
+                isHtml = true;
+            }
+            
+            try {
+                if (responseText && !isHtml) {
+                    json = JSON.parse(responseText);
                 }
-                
-                try {
-                    if (responseText && !isHtml) {
-                        json = JSON.parse(responseText);
-                    }
-                } catch (error) {
-                    // لا نطبع خطأ إذا كانت الاستجابة HTML (مقصد)
-                    if (!isHtml) {
-                        // فقط للأخطاء غير المتوقعة
-                        const errorPreview = responseText.substring(0, 100);
-                        if (!errorPreview.includes('<!DOCTYPE') && !errorPreview.includes('<html')) {
-                            console.error(`[ALWATANI] JSON parse error: ${error.message}`);
-                        }
+            } catch (error) {
+                // لا نطبع خطأ إذا كانت الاستجابة HTML (مقصد)
+                if (!isHtml) {
+                    // فقط للأخطاء غير المتوقعة
+                    const errorPreview = responseText.substring(0, 100);
+                    if (!errorPreview.includes('<!DOCTYPE') && !errorPreview.includes('<html')) {
+                        console.error(`[ALWATANI] JSON parse error: ${error.message}`);
                     }
                 }
-                
-                resolve({
-                    statusCode: res.statusCode,
-                    headers: res.headers,
-                    text: responseText,
-                    json,
-                    isHtml
-                });
+            }
+            
+            resolve({
+                statusCode: res.statusCode,
+                headers: res.headers,
+                text: responseText,
+                json,
+                isHtml
+            });
             } catch (error) {
                 if (!hasError) {
                     hasError = true;
@@ -1481,12 +1481,12 @@ function computeCacheStats(rows, hasCustomerData = true) {
         let record;
         if (hasCustomerData && row.customer_data) {
             record = row.customer_data;
-            if (typeof record === 'string') {
-                try {
-                    record = JSON.parse(record);
-                } catch (error) {
-                    continue;
-                }
+        if (typeof record === 'string') {
+            try {
+                record = JSON.parse(record);
+            } catch (error) {
+                continue;
+            }
             }
         } else {
             // بناء record من الأعمدة المنفصلة
@@ -4001,38 +4001,38 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         syncProgressStore.set(id, existing1);
         
         // جلب باقي الصفحات واحدة تلو الأخرى
-        for (let pageNum = 2; pageNum <= totalPages; pageNum++) {
-            if (isSyncCancelled(id)) {
-                cancelled = true;
-                break;
-            }
-            
+                for (let pageNum = 2; pageNum <= totalPages; pageNum++) {
+                    if (isSyncCancelled(id)) {
+                        cancelled = true;
+                        break;
+                    }
+                    
             // تأخير ثانية واحدة قبل كل صفحة
             await delay(1000);
             
             const pageResult = await fetchCustomersPageWithRetry(
-                pageNum,
-                token,
-                account.username,
-                account.password,
-                sortProperty,
-                pageSize,
-                applyTokenFromResponse,
-                'customers_page'
+                            pageNum,
+                            token,
+                            account.username,
+                            account.password,
+                            sortProperty,
+                            pageSize,
+                            applyTokenFromResponse,
+                            'customers_page'
             );
-            
-            if (pageResult.statusCode === 403 && !pageResult.success) {
+                    
+                    if (pageResult.statusCode === 403 && !pageResult.success) {
                 const stage = pageResult.context || `customers_page_${pageNum}`;
-                return res.json({
-                    success: false,
-                    stage,
-                    message: `[${stage}] تم رفض الوصول (403) أثناء جلب صفحات المشتركين. يرجى التحقق من بيانات الدخول.`
-                });
-            }
+                        return res.json({
+                            success: false,
+                            stage,
+                            message: `[${stage}] تم رفض الوصول (403) أثناء جلب صفحات المشتركين. يرجى التحقق من بيانات الدخول.`
+                        });
+                    }
 
-            if (pageResult.success && pageResult.data) {
-                const customersList = normalizeAlwataniCollection(pageResult.data);
-                allCustomers = allCustomers.concat(customersList);
+                    if (pageResult.success && pageResult.data) {
+                        const customersList = normalizeAlwataniCollection(pageResult.data);
+                        allCustomers = allCustomers.concat(customersList);
                 
                 // تحديث progress - فقط الأرقام، الرسالة الرئيسية تبقى ثابتة
                 const current = syncProgressStore.get(id) || { logs: [] };
@@ -4124,7 +4124,7 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                 message: 'لا توجد بيانات مشتركين للعمل عليها'
             });
         }
-        
+
         const accountIds = Array.from(new Set(allCustomers
             .map((customer) => extractAlwataniAccountId(customer))
             .filter((value) => value !== null && value !== undefined)
@@ -4251,11 +4251,28 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                     current.phoneFound = phoneFoundCount;
                     if (!current.logs) current.logs = [];
                     
-                    // إضافة معلومات المشترك إلى logs مع رقم التسلسل (اسم المشترك + رقم الهاتف إن وجد)
-                    const phoneInfo = detailResp.data.phone ? ` - Phone: ${detailResp.data.phone}` : '';
+                    // إضافة معلومات المشترك الكاملة إلى logs مع رقم التسلسل
+                    const customerData = detailResp.data || {};
+                    const fullName = customerData.fullName || customerData.name || subscriberName;
+                    const phone = customerData.phone || item.record?.phone || '';
+                    const region = customerData.region || item.record?.region || '';
+                    const deviceName = customerData.deviceName || item.record?.deviceName || '';
+                    
+                    // بناء رسالة مفصلة
+                    let logMessage = `${i + 1}/${combinedRecords.length} - ${fullName}`;
+                    if (phone) {
+                        logMessage += ` | ${phone}`;
+                    }
+                    if (region) {
+                        logMessage += ` | ${region}`;
+                    }
+                    if (deviceName) {
+                        logMessage += ` | ${deviceName}`;
+                    }
+                    
                     current.logs.push({
                         timestamp: new Date().toISOString(),
-                        message: `${i + 1}/${combinedRecords.length} - ${subscriberName}${phoneInfo}`,
+                        message: logMessage,
                         stage: 'enriching'
                     });
                     // الاحتفاظ بآخر 200 سجل
@@ -4306,22 +4323,22 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
             phoneFoundCount,
             cancelled: false
         };
-        
-        if (enrichResult?.cancelled || isSyncCancelled(id)) {
-            updateSyncProgress(id, {
-                stage: 'cancelled',
-                current: enrichResult?.processed || 0,
+            
+            if (enrichResult?.cancelled || isSyncCancelled(id)) {
+                updateSyncProgress(id, {
+                    stage: 'cancelled',
+                    current: enrichResult?.processed || 0,
                 total: combinedRecords.length,
                 message: `تم إيقاف جلب التفاصيل بعد معالجة ${enrichResult?.processed || 0} من ${combinedRecords.length}`,
-                phoneFound: enrichResult?.phoneFoundCount || 0,
-                cancelRequested: true
-            });
-            return res.json({
-                success: true,
-                cancelled: true,
-                message: 'تم إيقاف جلب التفاصيل حسب الطلب',
-                processed: enrichResult?.processed || 0,
-                phones: enrichResult?.phoneFoundCount || 0
+                    phoneFound: enrichResult?.phoneFoundCount || 0,
+                    cancelRequested: true
+                });
+                return res.json({
+                    success: true,
+                    cancelled: true,
+                    message: 'تم إيقاف جلب التفاصيل حسب الطلب',
+                    processed: enrichResult?.processed || 0,
+                    phones: enrichResult?.phoneFoundCount || 0
             });
         }
         
@@ -5411,11 +5428,11 @@ app.get('/api/alwatani-login/:id/wallet/transactions', async (req, res) => {
                     }
                 });
             } catch (dbError) {
-                return res.json({
-                    success: false,
-                    message: transactionsResp.message || 'فشل جلب الحوالات',
-                    statusCode: transactionsResp.statusCode
-                });
+            return res.json({
+                success: false,
+                message: transactionsResp.message || 'فشل جلب الحوالات',
+                statusCode: transactionsResp.statusCode
+            });
             }
         }
 
@@ -9061,10 +9078,10 @@ app.use((req, res) => {
         `);
     } else {
         // للـ API routes، أرسل JSON
-        res.status(404).json({ 
-            success: false, 
-            message: 'الصفحة غير موجودة'
-        });
+    res.status(404).json({ 
+        success: false, 
+        message: 'الصفحة غير موجودة' 
+    });
     }
 });
 
