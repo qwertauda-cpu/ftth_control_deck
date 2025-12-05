@@ -211,18 +211,10 @@ function updateSyncProgress(userId, progress) {
     if (!existing.logs) {
         existing.logs = [];
     }
-    // Add log entry if message is provided and different from previous
-    if (progress.message && progress.message !== existing.message) {
-        existing.logs.push({
-            timestamp: new Date().toISOString(),
-            message: progress.message,
-            stage: progress.stage || existing.stage
-        });
-        // Keep only last 100 logs to prevent memory issues
-        if (existing.logs.length > 100) {
-            existing.logs = existing.logs.slice(-100);
-        }
-    }
+    // IMPORTANT: Don't auto-add message to logs here - logs should be added explicitly
+    // Only preserve existing logs and merge with any new logs provided in progress
+    const mergedLogs = progress.logs ? [...existing.logs, ...progress.logs] : existing.logs;
+    
     // Always update total and current when provided to avoid stale values
     syncProgressStore.set(userId, {
         ...existing,
@@ -231,8 +223,8 @@ function updateSyncProgress(userId, progress) {
         total: progress.total !== undefined ? progress.total : existing.total,
         current: progress.current !== undefined ? progress.current : existing.current,
         updatedAt: new Date().toISOString(),
-        // Preserve logs
-        logs: existing.logs
+        // Preserve and merge logs - keep last 200
+        logs: mergedLogs.length > 200 ? mergedLogs.slice(-200) : mergedLogs
     });
 }
 
@@ -4030,41 +4022,33 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                         });
                     }
 
-                    if (pageResult.success && pageResult.data) {
-                        const customersList = normalizeAlwataniCollection(pageResult.data);
-                        allCustomers = allCustomers.concat(customersList);
+            if (pageResult.success && pageResult.data) {
+                const customersList = normalizeAlwataniCollection(pageResult.data);
+                allCustomers = allCustomers.concat(customersList);
                 
-                // تحديث progress - فقط الأرقام، الرسالة الرئيسية تبقى ثابتة
-                const current = syncProgressStore.get(id) || { logs: [] };
-                current.current = pageNum;
-                current.total = totalPages;
-                current.message = 'جاري جلب الصفحات...'; // الرسالة الرئيسية تبقى ثابتة
-                if (!current.logs) current.logs = [];
-                // إضافة رسالة جديدة للـ logs مع رقم الصفحة (تراكمي - كل رسالة تحت السابقة)
-                current.logs.push({
-                    timestamp: new Date().toISOString(),
-                    message: `${pageNum}/${totalPages} - FETCH PAGE ${pageNum} COMPLETE (${customersList.length} subscribers)`,
-                    stage: 'fetching_pages'
+                // تحديث progress - إضافة log جديد بشكل تراكمي
+                updateSyncProgress(id, {
+                    current: pageNum,
+                    total: totalPages,
+                    message: 'جاري جلب الصفحات...', // الرسالة الرئيسية تبقى ثابتة
+                    logs: [{
+                        timestamp: new Date().toISOString(),
+                        message: `${pageNum}/${totalPages} - FETCH PAGE ${pageNum} COMPLETE (${customersList.length} subscribers)`,
+                        stage: 'fetching_pages'
+                    }]
                 });
-                // الاحتفاظ بآخر 200 سجل
-                if (current.logs.length > 200) current.logs = current.logs.slice(-200);
-                current.updatedAt = new Date().toISOString();
-                syncProgressStore.set(id, current);
             } else {
-                const current = syncProgressStore.get(id) || { logs: [] };
-                current.current = pageNum - 1;
-                current.total = totalPages;
-                current.message = 'جاري جلب الصفحات...'; // الرسالة الرئيسية تبقى ثابتة
-                if (!current.logs) current.logs = [];
-                // إضافة رسالة خطأ للـ logs
-                current.logs.push({
-                    timestamp: new Date().toISOString(),
-                    message: `${pageNum}/${totalPages} - FAILED TO FETCH PAGE ${pageNum}: ${pageResult.message || 'Unknown error'}`,
-                    stage: 'fetching_pages'
+                // تحديث progress مع رسالة خطأ
+                updateSyncProgress(id, {
+                    current: pageNum - 1,
+                    total: totalPages,
+                    message: 'جاري جلب الصفحات...', // الرسالة الرئيسية تبقى ثابتة
+                    logs: [{
+                        timestamp: new Date().toISOString(),
+                        message: `${pageNum}/${totalPages} - FAILED TO FETCH PAGE ${pageNum}: ${pageResult.message || 'Unknown error'}`,
+                        stage: 'fetching_pages'
+                    }]
                 });
-                if (current.logs.length > 200) current.logs = current.logs.slice(-200);
-                current.updatedAt = new Date().toISOString();
-                syncProgressStore.set(id, current);
             }
         }
 
@@ -4280,38 +4264,32 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                     current.updatedAt = new Date().toISOString();
                     syncProgressStore.set(id, current);
                 } else {
-                    const current = syncProgressStore.get(id) || { logs: [] };
-                    current.current = i + 1;
-                    current.total = combinedRecords.length;
-                    current.message = 'جاري جلب معلومات المشتركين...'; // الرسالة الرئيسية تبقى ثابتة
-                    current.phoneFound = phoneFoundCount;
-                    if (!current.logs) current.logs = [];
-                    // إضافة رسالة خطأ للـ logs مع رقم التسلسل
-                    current.logs.push({
-                        timestamp: new Date().toISOString(),
-                        message: `${i + 1}/${combinedRecords.length} - ${subscriberName} - FAILED`,
-                        stage: 'enriching'
+                    // تحديث progress مع رسالة خطأ
+                    updateSyncProgress(id, {
+                        current: i + 1,
+                        total: combinedRecords.length,
+                        message: 'جاري جلب معلومات المشتركين...', // الرسالة الرئيسية تبقى ثابتة
+                        phoneFound: phoneFoundCount,
+                        logs: [{
+                            timestamp: new Date().toISOString(),
+                            message: `${i + 1}/${combinedRecords.length} - ${subscriberName} - FAILED`,
+                            stage: 'enriching'
+                        }]
                     });
-                    if (current.logs.length > 200) current.logs = current.logs.slice(-200);
-                    current.updatedAt = new Date().toISOString();
-                    syncProgressStore.set(id, current);
                 }
             } catch (error) {
-                const current = syncProgressStore.get(id) || { logs: [] };
-                current.current = i + 1;
-                current.total = combinedRecords.length;
-                current.message = 'جاري جلب معلومات المشتركين...'; // الرسالة الرئيسية تبقى ثابتة
-                current.phoneFound = phoneFoundCount;
-                if (!current.logs) current.logs = [];
-                // إضافة رسالة خطأ للـ logs مع رقم التسلسل
-                current.logs.push({
-                    timestamp: new Date().toISOString(),
-                    message: `${i + 1}/${combinedRecords.length} - ${subscriberName} - ERROR: ${error.message}`,
-                    stage: 'enriching'
+                // تحديث progress مع رسالة خطأ
+                updateSyncProgress(id, {
+                    current: i + 1,
+                    total: combinedRecords.length,
+                    message: 'جاري جلب معلومات المشتركين...', // الرسالة الرئيسية تبقى ثابتة
+                    phoneFound: phoneFoundCount,
+                    logs: [{
+                        timestamp: new Date().toISOString(),
+                        message: `${i + 1}/${combinedRecords.length} - ${subscriberName} - ERROR: ${error.message}`,
+                        stage: 'enriching'
+                    }]
                 });
-                if (current.logs.length > 200) current.logs = current.logs.slice(-200);
-                current.updatedAt = new Date().toISOString();
-                syncProgressStore.set(id, current);
             }
             
             processed++;
