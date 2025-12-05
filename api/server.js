@@ -3978,72 +3978,62 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         console.log(`[SYNC] Total count: ${totalCount || 'unknown'}, Total pages: ${totalPages}`);
         console.log(`[SYNC] 🔄 Starting full sync: Will fetch all ${totalCount} subscribers from API and save to database`);
         
-        // تحديث حالة التقدم بعد معرفة العدد الإجمالي
+        // ========== جلب جميع الصفحات - صفحة واحدة كل ثانية ==========
         updateSyncProgress(id, {
             stage: 'fetching_pages',
             current: 1,
             total: totalPages,
-            message: `جاري جلب جميع الصفحات... الصفحة 1 من ${totalPages}`
+            message: 'FETCH PAGE 1 COMPLETE'
         });
-
-        // جلب الصفحات المتبقية واحدة تلو الأخرى (صفحة واحدة كل ثانية)
-        const remainingPages = totalPages > 1 ? totalPages - 1 : 0;
         
-        if (remainingPages > 0) {
-            // المزامنة الكاملة: جلب جميع الصفحات واحدة تلو الأخرى
-            console.log(`[SYNC] Fetching ${remainingPages} pages sequentially (1 page per second)...`);
+        // جلب باقي الصفحات واحدة تلو الأخرى
+        for (let pageNum = 2; pageNum <= totalPages; pageNum++) {
+            if (isSyncCancelled(id)) {
+                cancelled = true;
+                break;
+            }
             
-            for (let pageNum = 2; pageNum <= totalPages; pageNum++) {
-                if (isSyncCancelled(id)) {
-                    cancelled = true;
-                    console.warn('[SYNC] ⏹️ Cancellation requested during page fetching.');
-                    break;
-                }
-                
-                // تأخير ثانية واحدة قبل جلب كل صفحة (باستثناء الصفحة الأولى)
-                if (pageNum > 2) {
-                    await delay(1000); // ثانية واحدة بين كل صفحة
-                }
-                
-                const pageResult = await fetchCustomersPageWithRetry(
-                    pageNum,
-                    token,
-                    account.username,
-                    account.password,
-                    sortProperty,
-                    pageSize,
-                    applyTokenFromResponse,
-                    'customers_page'
-                );
-                
-                if (pageResult.statusCode === 403 && !pageResult.success) {
-                    console.error('[SYNC] Failed to fetch page due to 403 after retry');
-                    const stage = pageResult.context || `customers_page_${pageNum}`;
-                    return res.json({
-                        success: false,
-                        stage,
-                        message: `[${stage}] تم رفض الوصول (403) أثناء جلب صفحات المشتركين. يرجى التحقق من بيانات الدخول.`
-                    });
-                }
+            // تأخير ثانية واحدة قبل كل صفحة
+            await delay(1000);
+            
+            const pageResult = await fetchCustomersPageWithRetry(
+                pageNum,
+                token,
+                account.username,
+                account.password,
+                sortProperty,
+                pageSize,
+                applyTokenFromResponse,
+                'customers_page'
+            );
+            
+            if (pageResult.statusCode === 403 && !pageResult.success) {
+                const stage = pageResult.context || `customers_page_${pageNum}`;
+                return res.json({
+                    success: false,
+                    stage,
+                    message: `[${stage}] تم رفض الوصول (403) أثناء جلب صفحات المشتركين. يرجى التحقق من بيانات الدخول.`
+                });
+            }
 
-                if (pageResult.success && pageResult.data) {
-                    const customersList = normalizeAlwataniCollection(pageResult.data);
-                    allCustomers = allCustomers.concat(customersList);
-                    console.log(`[SYNC] ✅ Page ${pageNum}/${totalPages}: ${customersList.length} subscribers (Total so far: ${allCustomers.length})`);
-                    
-                    // تحديث progress بعد كل صفحة
-                    updateSyncProgress(id, {
-                        stage: 'fetching_pages',
-                        current: pageNum,
-                        total: totalPages,
-                        message: `جاري جلب جميع الصفحات... ${pageNum}/${totalPages} صفحة (${allCustomers.length} مشترك)`
-                    });
-                } else {
-                    if (isRateLimitRedirect(pageResult)) {
-                        console.warn(`[SYNC] ⚠️ Rate limit prevented fetching page ${pageNum} after retries.`);
-                    }
-                    console.error(`[SYNC] ❌ Failed to fetch page ${pageNum}:`, pageResult.message);
-                }
+            if (pageResult.success && pageResult.data) {
+                const customersList = normalizeAlwataniCollection(pageResult.data);
+                allCustomers = allCustomers.concat(customersList);
+                
+                // تحديث progress مع رسالة واضحة للـ CMD box
+                updateSyncProgress(id, {
+                    stage: 'fetching_pages',
+                    current: pageNum,
+                    total: totalPages,
+                    message: `FETCH PAGE ${pageNum} COMPLETE (${customersList.length} subscribers)`
+                });
+            } else {
+                updateSyncProgress(id, {
+                    stage: 'fetching_pages',
+                    current: pageNum - 1,
+                    total: totalPages,
+                    message: `FAILED TO FETCH PAGE ${pageNum}: ${pageResult.message || 'Unknown error'}`
+                });
             }
         }
 

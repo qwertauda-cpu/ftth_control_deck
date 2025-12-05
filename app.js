@@ -2808,16 +2808,38 @@ async function monitorSyncProgress(userId) {
                 // تحديث مربع CMD-like Console
                 const consoleBox = document.getElementById('sync-console-box');
                 const consoleContent = document.getElementById('sync-console-content');
-                if (consoleBox && consoleContent && progress.logs && Array.isArray(progress.logs)) {
-                    // عرض آخر 20 سجل
-                    const recentLogs = progress.logs.slice(-20);
-                    consoleContent.innerHTML = recentLogs.map(log => {
-                        const time = new Date(log.timestamp).toLocaleTimeString('en-US', { hour12: false });
-                        const message = log.message || '';
-                        return `<div class="text-green-400">[${time}] ${message}</div>`;
-                    }).join('');
-                    // Scroll to bottom
-                    consoleBox.scrollTop = consoleBox.scrollHeight;
+                if (consoleBox && consoleContent) {
+                    // إظهار المربع إذا كان مخفياً
+                    if (consoleBox.parentElement && consoleBox.parentElement.classList.contains('hidden')) {
+                        consoleBox.parentElement.classList.remove('hidden');
+                    }
+                    
+                    if (progress.logs && Array.isArray(progress.logs) && progress.logs.length > 0) {
+                        // عرض آخر 30 سجل
+                        const recentLogs = progress.logs.slice(-30);
+                        consoleContent.innerHTML = recentLogs.map(log => {
+                            const time = new Date(log.timestamp).toLocaleTimeString('en-US', { hour12: false });
+                            const message = log.message || '';
+                            // تحديد لون الرسالة حسب النوع
+                            let color = 'text-green-400';
+                            if (message.includes('FAILED') || message.includes('ERROR')) {
+                                color = 'text-red-400';
+                            } else if (message.includes('COMPLETE')) {
+                                color = 'text-green-300';
+                            } else if (message.includes('FETCHING')) {
+                                color = 'text-yellow-400';
+                            }
+                            return `<div class="${color}">[${time}] ${message}</div>`;
+                        }).join('');
+                        // Scroll to bottom
+                        setTimeout(() => {
+                            consoleBox.scrollTop = consoleBox.scrollHeight;
+                        }, 100);
+                    } else if (progress.message) {
+                        // إذا لم تكن هناك logs، نعرض الرسالة الحالية
+                        const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+                        consoleContent.innerHTML = `<div class="text-green-400">[${time}] ${progress.message}</div>`;
+                    }
                 }
                 
                 // إذا اكتملت المزامنة أو حدث خطأ
