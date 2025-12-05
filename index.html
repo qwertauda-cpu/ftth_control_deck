@@ -1644,8 +1644,14 @@
                                     <div id="sync-progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
                                 </div>
                                 <div class="flex items-center justify-between text-xs text-blue-600">
-                                    <span id="sync-progress-phone-found">0 رقم هاتف تم العثور عليه</span>
-                                    <span id="sync-progress-percentage">0%</span>
+                                    <div class="flex flex-col">
+                                        <span id="sync-progress-phone-found">0 رقم هاتف تم العثور عليه</span>
+                                        <span id="sync-progress-message-text" class="text-blue-500 mt-1">جاري جلب معلومات المشتركين...</span>
+                                    </div>
+                                    <div class="flex flex-col items-end">
+                                        <span id="sync-progress-percentage">0%</span>
+                                        <span id="sync-progress-timer" class="text-blue-500 mt-1">00:00</span>
+                                    </div>
                                 </div>
                                 
                                 <!-- CMD-like Console Box -->

@@ -2805,6 +2805,42 @@ async function monitorSyncProgress(userId) {
                     progressPhoneFound.textContent = `${progress.phoneFound || 0} رقم هاتف تم العثور عليه`;
                 }
                 
+                // تحديث رسالة "جاري جلب معلومات المشتركين..." في مكان عداد الهواتف
+                const progressMessageText = document.getElementById('sync-progress-message-text');
+                if (progressMessageText) {
+                    if (progress.stage === 'enriching') {
+                        progressMessageText.textContent = 'جاري جلب معلومات المشتركين...';
+                    } else if (progress.stage === 'fetching_pages') {
+                        progressMessageText.textContent = 'جاري جلب الصفحات...';
+                    } else if (progress.stage === 'completed') {
+                        progressMessageText.textContent = '✅ اكتملت المزامنة';
+                    } else {
+                        progressMessageText.textContent = progress.message || '';
+                    }
+                }
+                
+                // تحديث Timer
+                const progressTimer = document.getElementById('sync-progress-timer');
+                if (progressTimer && progress.startedAt) {
+                    const startTime = new Date(progress.startedAt);
+                    const currentTime = new Date();
+                    const elapsedMs = currentTime - startTime;
+                    const elapsedSeconds = Math.floor(elapsedMs / 1000);
+                    const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+                    const elapsedHours = Math.floor(elapsedMinutes / 60);
+                    
+                    let timerText = '';
+                    if (elapsedHours > 0) {
+                        timerText = `${elapsedHours}:${String(elapsedMinutes % 60).padStart(2, '0')}:${String(elapsedSeconds % 60).padStart(2, '0')}`;
+                    } else {
+                        timerText = `${elapsedMinutes}:${String(elapsedSeconds % 60).padStart(2, '0')}`;
+                    }
+                    
+                    progressTimer.textContent = timerText;
+                } else if (progressTimer && progress.elapsedTime) {
+                    progressTimer.textContent = progress.elapsedTime;
+                }
+                
                 // تحديث مربع CMD-like Console
                 const consoleBox = document.getElementById('sync-console-box');
                 const consoleContent = document.getElementById('sync-console-content');
@@ -2827,8 +2863,8 @@ async function monitorSyncProgress(userId) {
                                 color = 'text-red-400';
                             } else if (message.includes('COMPLETE')) {
                                 color = 'text-green-300';
-                            } else if (message.includes('FETCHING')) {
-                                color = 'text-yellow-400';
+                            } else if (message.includes('Phone:')) {
+                                color = 'text-cyan-400'; // لون مختلف للمشتركين مع أرقام هواتف
                             }
                             return `<div class="${color}">[${time}] ${message}</div>`;
                         }).join('');

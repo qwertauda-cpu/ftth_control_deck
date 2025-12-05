@@ -4196,12 +4196,16 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         // ========== جلب تفاصيل جميع المشتركين - مشترك واحد كل ثانية ==========
         console.log(`[SYNC] 📊 Starting to fetch details for ${combinedRecords.length} subscribers...`);
         
+        // حفظ وقت بدء العملية
+        const enrichingStartTime = new Date().toISOString();
+        
         // تحديث progress لبدء مرحلة جلب المشتركين - الرسالة الرئيسية تبقى ثابتة
         updateSyncProgress(id, {
             stage: 'enriching',
             current: 0,
             total: combinedRecords.length,
-            message: 'جاري جلب معلومات المشتركين...'
+            message: 'جاري جلب معلومات المشتركين...',
+            startedAt: enrichingStartTime
         });
         
         let processed = 0;
@@ -4246,10 +4250,12 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                     current.message = 'جاري جلب معلومات المشتركين...'; // الرسالة الرئيسية تبقى ثابتة
                     current.phoneFound = phoneFoundCount;
                     if (!current.logs) current.logs = [];
-                    // إضافة رسالة جديدة للـ logs (تراكمي - كل رسالة تحت السابقة)
+                    
+                    // إضافة معلومات المشترك إلى logs (اسم المشترك + رقم الهاتف إن وجد)
+                    const phoneInfo = detailResp.data.phone ? ` - Phone: ${detailResp.data.phone}` : '';
                     current.logs.push({
                         timestamp: new Date().toISOString(),
-                        message: `FETCHING SUBSCRIBER: ${subscriberName}`,
+                        message: `${subscriberName}${phoneInfo}`,
                         stage: 'enriching'
                     });
                     // الاحتفاظ بآخر 200 سجل
@@ -4266,7 +4272,7 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                     // إضافة رسالة خطأ للـ logs
                     current.logs.push({
                         timestamp: new Date().toISOString(),
-                        message: `FAILED TO FETCH: ${subscriberName}`,
+                        message: `${subscriberName} - FAILED`,
                         stage: 'enriching'
                     });
                     if (current.logs.length > 200) current.logs = current.logs.slice(-200);
@@ -4283,7 +4289,7 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                 // إضافة رسالة خطأ للـ logs
                 current.logs.push({
                     timestamp: new Date().toISOString(),
-                    message: `ERROR FETCHING: ${subscriberName} - ${error.message}`,
+                    message: `${subscriberName} - ERROR: ${error.message}`,
                     stage: 'enriching'
                 });
                 if (current.logs.length > 200) current.logs = current.logs.slice(-200);
