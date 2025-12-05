@@ -293,7 +293,22 @@ async function getOwnerPoolFromRequest(req) {
  * Helper: الحصول على username من request
  */
 function getUsernameFromRequest(req) {
-    return req.body?.username || req.query?.username || req.headers['x-username'] || req.body?.owner_username;
+    // البحث في query parameters أولاً (للطلبات GET/DELETE)
+    if (req.query?.username) {
+        return req.query.username;
+    }
+    // البحث في headers
+    if (req.headers['x-username']) {
+        return req.headers['x-username'];
+    }
+    // البحث في body (للطلبات POST/PUT)
+    if (req.body?.username) {
+        return req.body.username;
+    }
+    if (req.body?.owner_username) {
+        return req.body.owner_username;
+    }
+    return null;
 }
 
 /**
