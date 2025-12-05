@@ -2830,9 +2830,9 @@ async function syncCustomers() {
     monitorSyncProgress(userId);
 
     try {
-        // المزامنة الذكية: سيتم جلب المشتركين الناقصين فقط
-        const forceFullSync = false; // السماح للمزامنة الذكية بالعمل
-        console.log('[SYNC] بدء المزامنة الذكية - سيتم جلب المشتركين الناقصين فقط');
+        // المزامنة الكاملة: جلب جميع الصفحات ثم جلب المشتركين
+        const forceFullSync = true; // فرض المزامنة الكاملة
+        console.log('[SYNC] بدء المزامنة الكاملة - سيتم جلب جميع الصفحات ثم المشتركين');
         
         console.log('[SYNC] Starting sync request...');
         const fetchOptions = addUsernameToFetchOptions({
