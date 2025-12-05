@@ -792,43 +792,86 @@ function decodeAlwataniBuffer(buffer, encoding) {
 }
 
 function parseAlwataniResponse(res) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         const chunks = [];
-        res.on('data', (chunk) => chunks.push(chunk));
+        let hasError = false;
+        
+        // معالجة أخطاء قراءة stream
+        res.on('error', (error) => {
+            if (!hasError) {
+                hasError = true;
+                console.error('[ALWATANI] Stream read error:', error.message, error.code);
+                reject(new Error(`Exception while reading from stream: ${error.message || error.code || 'Unknown error'}`));
+            }
+        });
+        
+        res.on('data', (chunk) => {
+            try {
+                chunks.push(chunk);
+            } catch (error) {
+                if (!hasError) {
+                    hasError = true;
+                    console.error('[ALWATANI] Error processing chunk:', error.message);
+                    reject(new Error(`Exception while processing stream data: ${error.message}`));
+                }
+            }
+        });
+        
         res.on('end', () => {
-            let rawData = Buffer.concat(chunks);
-            rawData = decodeAlwataniBuffer(rawData, (res.headers['content-encoding'] || '').toLowerCase());
-            const responseText = rawData.toString('utf8').trim();
-            let json = null;
-            let isHtml = false;
-            
-            // التحقق من نوع الاستجابة
-            if (responseText.startsWith('<!DOCTYPE') || responseText.startsWith('<html')) {
-                isHtml = true;
+            if (hasError) {
+                return; // تم معالجة الخطأ بالفعل
             }
             
             try {
-                if (responseText && !isHtml) {
-                    json = JSON.parse(responseText);
+                let rawData = Buffer.concat(chunks);
+                rawData = decodeAlwataniBuffer(rawData, (res.headers['content-encoding'] || '').toLowerCase());
+                const responseText = rawData.toString('utf8').trim();
+                let json = null;
+                let isHtml = false;
+                
+                // التحقق من نوع الاستجابة
+                if (responseText.startsWith('<!DOCTYPE') || responseText.startsWith('<html')) {
+                    isHtml = true;
                 }
-            } catch (error) {
-                // لا نطبع خطأ إذا كانت الاستجابة HTML (مقصد)
-                if (!isHtml) {
-                    // فقط للأخطاء غير المتوقعة
-                    const errorPreview = responseText.substring(0, 100);
-                    if (!errorPreview.includes('<!DOCTYPE') && !errorPreview.includes('<html')) {
-                        console.error(`[ALWATANI] JSON parse error: ${error.message}`);
+                
+                try {
+                    if (responseText && !isHtml) {
+                        json = JSON.parse(responseText);
+                    }
+                } catch (error) {
+                    // لا نطبع خطأ إذا كانت الاستجابة HTML (مقصد)
+                    if (!isHtml) {
+                        // فقط للأخطاء غير المتوقعة
+                        const errorPreview = responseText.substring(0, 100);
+                        if (!errorPreview.includes('<!DOCTYPE') && !errorPreview.includes('<html')) {
+                            console.error(`[ALWATANI] JSON parse error: ${error.message}`);
+                        }
                     }
                 }
+                
+                resolve({
+                    statusCode: res.statusCode,
+                    headers: res.headers,
+                    text: responseText,
+                    json,
+                    isHtml
+                });
+            } catch (error) {
+                if (!hasError) {
+                    hasError = true;
+                    console.error('[ALWATANI] Error processing response:', error.message);
+                    reject(new Error(`Exception while processing response: ${error.message}`));
+                }
             }
-            
-            resolve({
-                statusCode: res.statusCode,
-                headers: res.headers,
-                text: responseText,
-                json,
-                isHtml
-            });
+        });
+        
+        // معالجة timeout للـ stream
+        res.on('timeout', () => {
+            if (!hasError) {
+                hasError = true;
+                console.error('[ALWATANI] Stream timeout');
+                reject(new Error('Exception while reading from stream: Stream timeout'));
+            }
         });
     });
 }
