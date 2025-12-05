@@ -2462,8 +2462,8 @@ async function verifyAlwataniAccount(username, password, options = {}) {
     const maxAttempts = Math.max(1, parseInt(options.maxAttempts || 5, 10));
     const retryDelay = Math.max(1000, parseInt(options.retryDelay || 10000, 10));
 
-    const attemptVerification = () => new Promise((resolve) => {
-        console.log(`[VERIFY] Attempting to verify account: ${username}`);
+    const attemptVerification = (useNewConnection = false) => new Promise((resolve) => {
+        console.log(`[VERIFY] Attempting to verify account: ${username}${useNewConnection ? ' (using new connection)' : ''}`);
 
         const postData = querystring.stringify({
             grant_type: 'password',
@@ -2473,16 +2473,22 @@ async function verifyAlwataniAccount(username, password, options = {}) {
             password
         });
 
+        // إنشاء agent جديد إذا كان هناك مشكلة في الاتصال السابق
+        const agent = useNewConnection ? new https.Agent({
+            keepAlive: false, // تعطيل keep-alive للاتصال الجديد
+            timeout: 30000
+        }) : httpsAgent;
+
         const req = https.request({
             hostname: ALWATANI_HOST,
             path: '/api/auth/Contractor/token',
             method: 'POST',
-            agent: httpsAgent, // استخدام agent مع keep-alive
+            agent: agent,
             headers: buildAlwataniHeaders({
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'Content-Length': Buffer.byteLength(postData),
                 'Referer': 'https://admin.ftth.iq/auth/login',
-                'Connection': 'keep-alive'
+                'Connection': useNewConnection ? 'close' : 'keep-alive'
             }),
             timeout: 30000, // زيادة timeout إلى 30 ثانية
             rejectUnauthorized: true // السماح بشهادات SSL
@@ -2549,9 +2555,11 @@ async function verifyAlwataniAccount(username, password, options = {}) {
 
     let attempt = 0;
     let lastResult = { success: false, message: 'Unknown error' };
+    let useNewConnection = false; // استخدام اتصال جديد بعد أول فشل
 
     while (attempt < maxAttempts) {
-        const result = await attemptVerification();
+        // استخدام اتصال جديد إذا كان هناك خطأ ECONNRESET في المحاولة السابقة
+        const result = await attemptVerification(useNewConnection);
         if (result.success) {
             return result;
         }
@@ -2571,17 +2579,28 @@ async function verifyAlwataniAccount(username, password, options = {}) {
         }
 
         attempt += 1;
-        // زيادة وقت الانتظار تدريجياً مع كل محاولة
-        const waitTime = Math.min(retryDelay * attempt, 30000); // حد أقصى 30 ثانية
-        console.warn(`[VERIFY] ⚠️ Connection issue while verifying (${result.message}). Retrying ${attempt}/${maxAttempts} after ${waitTime / 1000}s...`);
         
-        // إذا كان الخطأ ECONNRESET، انتظر وقت أطول
-        if (result.errorCode === 'ECONNRESET') {
-            const extraWait = 5000; // انتظار إضافي 5 ثواني
-            console.log(`[VERIFY] ⏳ ECONNRESET detected, waiting extra ${extraWait / 1000}s before retry...`);
-            await delay(extraWait);
+        // إذا كان الخطأ ECONNRESET، استخدم اتصال جديد في المحاولة القادمة
+        if (result.errorCode === 'ECONNRESET' && !useNewConnection) {
+            useNewConnection = true;
+            console.log(`[VERIFY] 🔄 ECONNRESET detected, will use new connection (no keep-alive) for next attempts`);
         }
         
+        // زيادة وقت الانتظار تدريجياً مع كل محاولة
+        const waitTime = Math.min(retryDelay * attempt, 30000); // حد أقصى 30 ثانية
+        
+        // إذا كان الخطأ ECONNRESET، انتظر وقت أطول
+        let extraWait = 0;
+        if (result.errorCode === 'ECONNRESET') {
+            extraWait = 5000; // انتظار إضافي 5 ثواني
+            console.log(`[VERIFY] ⏳ ECONNRESET detected, waiting extra ${extraWait / 1000}s before retry...`);
+        }
+        
+        console.warn(`[VERIFY] ⚠️ Connection issue while verifying (${result.message}). Retrying ${attempt}/${maxAttempts} after ${(waitTime + extraWait) / 1000}s...`);
+        
+        if (extraWait > 0) {
+            await delay(extraWait);
+        }
         await delay(waitTime);
     }
 
