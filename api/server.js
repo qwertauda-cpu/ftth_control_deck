@@ -686,8 +686,8 @@ const DETAIL_FETCH_DELAY_MIN = Math.max(0, parseInt(process.env.DETAIL_FETCH_DEL
 const DETAIL_FETCH_DELAY_MAX = Math.max(0, parseInt(process.env.DETAIL_FETCH_DELAY_MAX || '0', 10));
 const DETAIL_FETCH_MAX_RETRIES = Math.max(1, parseInt(process.env.DETAIL_FETCH_MAX_RETRIES || '3', 10));
 const DETAIL_FETCH_IMMEDIATE_SAVE = (process.env.DETAIL_FETCH_IMMEDIATE_SAVE || 'true').toLowerCase() !== 'false';
-const PAGE_FETCH_BATCH_SIZE = Math.max(1, parseInt(process.env.PAGE_FETCH_BATCH_SIZE || process.env.ALWATANI_PAGE_BATCH_SIZE || '12', 10));
-let PAGE_FETCH_BATCH_DELAY = Math.max(0, parseInt(process.env.PAGE_FETCH_BATCH_DELAY_MS || process.env.ALWATANI_PAGE_BATCH_DELAY || '0', 10));
+const PAGE_FETCH_BATCH_SIZE = Math.max(1, parseInt(process.env.PAGE_FETCH_BATCH_SIZE || process.env.ALWATANI_PAGE_BATCH_SIZE || '6', 10)); // تقليل من 12 إلى 6 لاستقرار أفضل
+let PAGE_FETCH_BATCH_DELAY = Math.max(0, parseInt(process.env.PAGE_FETCH_BATCH_DELAY_MS || process.env.ALWATANI_PAGE_BATCH_DELAY || '1000', 10)); // تأخير ثابت 1 ثانية بين الـ batches
 const PAGE_FETCH_MAX_RETRIES = Math.max(1, parseInt(process.env.PAGE_FETCH_MAX_RETRIES || '4', 10));
 const PAGE_FETCH_RATE_LIMIT_BACKOFF = Math.max(1000, parseInt(process.env.PAGE_FETCH_RATE_BACKOFF_MS || '15000', 10));
 
@@ -3902,6 +3902,8 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                 const pageResults = await Promise.all(pagePromises);
                 
                 let pagesFetchedInBatch = 0;
+                let totalCustomersInBatch = 0;
+                
                 for (let i = 0; i < pageResults.length; i++) {
                     const pageResult = pageResults[i];
                     const currentPageNum = startPage + i;
@@ -3919,27 +3921,40 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                     if (pageResult.success && pageResult.data) {
                         const customersList = normalizeAlwataniCollection(pageResult.data);
                         allCustomers = allCustomers.concat(customersList);
-                        console.log(`[SYNC] Fetched page ${currentPageNum}: ${customersList.length} subscribers`);
+                        totalCustomersInBatch += customersList.length;
+                        console.log(`[SYNC] ✅ Page ${currentPageNum}/${totalPages}: ${customersList.length} subscribers (Total so far: ${allCustomers.length})`);
                         pagesFetchedInBatch++;
+                        
+                        // تحديث progress بعد كل صفحة لاستقرار أفضل
+                        updateSyncProgress(id, {
+                            stage: 'fetching_pages',
+                            current: currentPageNum,
+                            total: totalPages,
+                            message: `جاري جلب الصفحات... الصفحة ${currentPageNum} من ${totalPages} (${allCustomers.length} مشترك حتى الآن)`
+                        });
                     } else {
                         if (isRateLimitRedirect(pageResult)) {
-                            console.warn(`[SYNC] Rate limit prevented fetching page ${currentPageNum} after retries.`);
+                            console.warn(`[SYNC] ⚠️ Rate limit prevented fetching page ${currentPageNum} after retries.`);
                         }
-                        console.error(`[SYNC] Failed to fetch page ${currentPageNum}:`, pageResult.message);
+                        console.error(`[SYNC] ❌ Failed to fetch page ${currentPageNum}:`, pageResult.message);
                     }
                 }
                 
                 // تحديث حالة التقدم بعد جلب كل batch
                 const lastPageInBatch = Math.min(startPage + pageResults.length - 1, totalPages);
+                console.log(`[SYNC] 📦 Batch complete: Pages ${startPage}-${lastPageInBatch} (${pagesFetchedInBatch} pages, ${totalCustomersInBatch} subscribers)`);
+                
                 updateSyncProgress(id, {
                     stage: 'fetching_pages',
                     current: lastPageInBatch,
                     total: totalPages,
-                    message: `جاري جلب جميع الصفحات... الصفحة ${lastPageInBatch} من ${totalPages}`
+                    message: `جاري جلب الصفحات... ${lastPageInBatch}/${totalPages} (${allCustomers.length} مشترك حتى الآن)`
                 });
                 
+                // تأخير ثابت بين الـ batches لتجنب rate limiting
                 const currentPageDelay = getPageFetchBatchDelay();
-                if (currentPageDelay > 0 && lastPageInBatch < totalPages) {
+                if (lastPageInBatch < totalPages) {
+                    console.log(`[SYNC] ⏳ Waiting ${currentPageDelay}ms before next batch...`);
                     await delay(currentPageDelay);
                 }
             }
