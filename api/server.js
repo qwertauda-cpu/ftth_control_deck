@@ -3544,14 +3544,36 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
 
         const account = accounts[0];
         
+        // إنشاء progress فوراً عند بدء المزامنة
+        updateSyncProgress(id, {
+            stage: 'initializing',
+            current: 0,
+            total: 0,
+            message: 'جاري تهيئة المزامنة...',
+            startedAt: new Date().toISOString(),
+            phoneFound: 0
+        });
+        
         // الحصول على pool لقاعدة بيانات الوطني
         const alwataniPool = await dbManager.getAlwataniPool(account.username);
         
         // تأخير أولي للسماح للاتصال بالاستقرار
         console.log('[SYNC] Waiting 5 seconds before starting verification to ensure connection stability...');
+        updateSyncProgress(id, {
+            stage: 'waiting',
+            current: 0,
+            total: 0,
+            message: 'جاري الانتظار قبل بدء التحقق من الحساب...'
+        });
         await delay(5000);
         
         console.log('[SYNC] Starting account verification...');
+        updateSyncProgress(id, {
+            stage: 'verifying',
+            current: 0,
+            total: 0,
+            message: 'جاري التحقق من الحساب...'
+        });
         const verification = await verifyAlwataniAccount(account.username, account.password, {
             maxAttempts: 5,
             retryDelay: 10000
@@ -4136,10 +4158,16 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
 app.post('/api/alwatani-login/:id/customers/sync/stop', (req, res) => {
     const { id } = req.params;
     const progress = getSyncProgress(id);
+    
+    // إذا لم يكن هناك progress، قد تكون المزامنة لم تبدأ بعد أو انتهت
+    // في هذه الحالة، نسمح بالإيقاف على أي حال (لإعادة تعيين الحالة)
     if (!progress) {
+        console.log(`[STOP SYNC] No progress found for id ${id}, but allowing stop request to reset state`);
+        // إنشاء progress مؤقت للإيقاف
+        requestSyncCancellation(id, 'تم طلب إيقاف المزامنة');
         return res.json({
-            success: false,
-            message: 'لا توجد عملية مزامنة جارية لهذا الحساب'
+            success: true,
+            message: 'تم إيقاف المزامنة (لم تكن هناك عملية نشطة)'
         });
     }
     
@@ -4151,6 +4179,7 @@ app.post('/api/alwatani-login/:id/customers/sync/stop', (req, res) => {
     }
     
     requestSyncCancellation(id, 'تم طلب إيقاف المزامنة من الواجهة');
+    console.log(`[STOP SYNC] Stop requested for id ${id}`);
     return res.json({
         success: true,
         message: 'سيتم إيقاف جلب البيانات خلال لحظات ويتم حفظ ما تم جمعه.'
