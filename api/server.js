@@ -211,9 +211,20 @@ function updateSyncProgress(userId, progress) {
     if (!existing.logs) {
         existing.logs = [];
     }
+    
     // IMPORTANT: Don't auto-add message to logs here - logs should be added explicitly
     // Only preserve existing logs and merge with any new logs provided in progress
-    const mergedLogs = progress.logs ? [...existing.logs, ...progress.logs] : existing.logs;
+    let mergedLogs = existing.logs || [];
+    
+    // If new logs are provided, add them to existing logs
+    if (progress.logs && Array.isArray(progress.logs) && progress.logs.length > 0) {
+        mergedLogs = [...mergedLogs, ...progress.logs];
+    }
+    
+    // Keep only last 200 logs to prevent memory issues
+    if (mergedLogs.length > 200) {
+        mergedLogs = mergedLogs.slice(-200);
+    }
     
     // Always update total and current when provided to avoid stale values
     syncProgressStore.set(userId, {
@@ -223,8 +234,8 @@ function updateSyncProgress(userId, progress) {
         total: progress.total !== undefined ? progress.total : existing.total,
         current: progress.current !== undefined ? progress.current : existing.current,
         updatedAt: new Date().toISOString(),
-        // Preserve and merge logs - keep last 200
-        logs: mergedLogs.length > 200 ? mergedLogs.slice(-200) : mergedLogs
+        // Preserve and merge logs
+        logs: mergedLogs
     });
 }
 
