@@ -1269,9 +1269,10 @@ async function deletePage(userId, button) {
     
     try {
         // Delete from alwatani_login table
-        const response = await fetch(`${API_URL}/alwatani-login/${userId}`, {
+        const url = addUsernameToUrl(`${API_URL}/alwatani-login/${userId}`);
+        const response = await fetch(url, addUsernameToFetchOptions({
             method: 'DELETE'
-        });
+        }));
         
         const data = await response.json();
         
@@ -1283,7 +1284,7 @@ async function deletePage(userId, button) {
         }
     } catch (error) {
         console.error('Error deleting page:', error);
-        alert('حدث خطأ أثناء حذف الصفحة');
+        alert('حدث خطأ أثناء حذف الصفحة: ' + (error.message || 'خطأ غير معروف'));
     }
 }
 
