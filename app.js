@@ -1380,7 +1380,19 @@ function openExpiringScreen() {
 }
 
 function closeExpiringScreen() {
-    scrollToSection('section-subscribers');
+    // إعادة فتح page-detail-screen أولاً
+    if (currentUserId) {
+        hideAllMainScreens();
+        showScreen('page-detail-screen');
+        // الانتقال إلى قسم المشتركين أو لوحة التحكم
+        setTimeout(() => {
+            navigateToSection('section-dashboard');
+        }, 100);
+    } else {
+        // إذا لم يكن هناك مستخدم محدد، الرجوع للوحة الرئيسية
+        hideAllMainScreens();
+        showScreen('dashboard-screen');
+    }
 }
 
 function openTicketDashboardScreen() {
@@ -1392,7 +1404,19 @@ function openTicketDashboardScreen() {
 }
 
 function closeTicketDashboardScreen() {
-    scrollToSection('section-subscribers');
+    // إعادة فتح page-detail-screen أولاً
+    if (currentUserId) {
+        hideAllMainScreens();
+        showScreen('page-detail-screen');
+        // الانتقال إلى قسم المشتركين أو لوحة التحكم
+        setTimeout(() => {
+            navigateToSection('section-dashboard');
+        }, 100);
+    } else {
+        // إذا لم يكن هناك مستخدم محدد، الرجوع للوحة الرئيسية
+        hideAllMainScreens();
+        showScreen('dashboard-screen');
+    }
 }
 
 function openGeneralSettingsScreen() {
@@ -1405,7 +1429,19 @@ function openGeneralSettingsScreen() {
 }
 
 function closeGeneralSettingsScreen() {
-    scrollToSection('section-subscribers');
+    // إعادة فتح page-detail-screen أولاً
+    if (currentUserId) {
+        hideAllMainScreens();
+        showScreen('page-detail-screen');
+        // الانتقال إلى قسم المشتركين أو لوحة التحكم
+        setTimeout(() => {
+            navigateToSection('section-dashboard');
+        }, 100);
+    } else {
+        // إذا لم يكن هناك مستخدم محدد، الرجوع للوحة الرئيسية
+        hideAllMainScreens();
+        showScreen('dashboard-screen');
+    }
 }
 
 // ================= Employee Management System =================
@@ -2141,6 +2177,23 @@ function closeWalletScreen() {
         walletAutoRefreshInterval = null;
     }
     // إلغاء تفعيل toggle
+    const toggle = document.getElementById('wallet-auto-refresh-toggle');
+    if (toggle) {
+        toggle.checked = false;
+    }
+    // إعادة فتح page-detail-screen أولاً
+    if (currentUserId) {
+        hideAllMainScreens();
+        showScreen('page-detail-screen');
+        // الانتقال إلى قسم المشتركين أو لوحة التحكم
+        setTimeout(() => {
+            navigateToSection('section-dashboard');
+        }, 100);
+    } else {
+        // إذا لم يكن هناك مستخدم محدد، الرجوع للوحة الرئيسية
+        hideAllMainScreens();
+        showScreen('dashboard-screen');
+    }
     const toggle = document.getElementById('wallet-auto-refresh-toggle');
     if (toggle) {
         toggle.checked = false;
