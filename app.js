@@ -1380,6 +1380,8 @@ function openExpiringScreen() {
 }
 
 function closeExpiringScreen() {
+    // إزالة التفعيل من القائمة الجانبية أولاً
+    setSideMenuActive(null);
     // إعادة فتح page-detail-screen أولاً
     if (currentUserId) {
         hideAllMainScreens();
@@ -1404,6 +1406,8 @@ function openTicketDashboardScreen() {
 }
 
 function closeTicketDashboardScreen() {
+    // إزالة التفعيل من القائمة الجانبية أولاً
+    setSideMenuActive(null);
     // إعادة فتح page-detail-screen أولاً
     if (currentUserId) {
         hideAllMainScreens();
@@ -1429,6 +1433,8 @@ function openGeneralSettingsScreen() {
 }
 
 function closeGeneralSettingsScreen() {
+    // إزالة التفعيل من القائمة الجانبية أولاً
+    setSideMenuActive(null);
     // إعادة فتح page-detail-screen أولاً
     if (currentUserId) {
         hideAllMainScreens();
@@ -2181,6 +2187,8 @@ function closeWalletScreen() {
     if (toggle) {
         toggle.checked = false;
     }
+    // إزالة التفعيل من القائمة الجانبية أولاً
+    setSideMenuActive(null);
     // إعادة فتح page-detail-screen أولاً
     if (currentUserId) {
         hideAllMainScreens();
