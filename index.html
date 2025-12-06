@@ -1816,6 +1816,13 @@
                             </div>
                             <div class="flex flex-col sm:flex-row lg:items-center gap-3 w-full xl:w-auto">
                                 <div class="flex flex-col">
+                                    <label for="expiring-filter-select" class="text-xs text-slate-500 mb-1">نوع القائمة</label>
+                                    <select id="expiring-filter-select" class="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200 bg-slate-50">
+                                        <option value="expiring">القريبين على الانتهاء (خلال 7 أيام)</option>
+                                        <option value="expired">المنتهين</option>
+                                    </select>
+                                </div>
+                                <div class="flex flex-col">
                                     <label for="expiring-sort-select" class="text-xs text-slate-500 mb-1">ترتيب القائمة</label>
                                     <select id="expiring-sort-select" class="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200 bg-slate-50">
                                         <option value="asc">الأقرب للانتهاء</option>

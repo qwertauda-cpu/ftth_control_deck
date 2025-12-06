@@ -163,6 +163,7 @@ const subscriberStatusBadgeClasses = {
 let subscribersCache = [];
 let activeSubscriberFilter = 'all';
 let expiringSortOrder = 'asc';
+let expiringFilterType = 'expiring'; // 'expiring' أو 'expired'
 let currentFilteredSubscribers = [];
 let subscriberPagination = {
     pageSize: 10000, // بلا حدود - عرض جميع المشتركين
@@ -1375,6 +1376,8 @@ function openAdminDashboard() {
 function openExpiringScreen() {
     hideAllMainScreens();
     showScreen('expiring-screen');
+    // تهيئة عناصر التحكم (الفلترة والترتيب)
+    initExpiringSortControl();
     renderExpiringSoonList();
     setSideMenuActiveByScreen('expiring');
     currentScreen = 'expiring';
@@ -4517,38 +4520,82 @@ function renderExpiringSoonList() {
     const listEl = document.getElementById('expiring-subscribers-list');
     if (!listEl) return;
     
-    let soon = subscribersCache
-        .filter((sub) => sub._meta?.isExpiringSoon)
-        .sort((a, b) => {
-            const aDays = a._meta?.daysLeft ?? Number.MAX_SAFE_INTEGER;
-            const bDays = b._meta?.daysLeft ?? Number.MAX_SAFE_INTEGER;
-            return aDays - bDays;
-        });
-    
-    if (expiringSortOrder === 'desc') {
-        soon = soon.reverse();
+    // تحديث العنوان والوصف حسب نوع الفلتر
+    const titleEl = document.querySelector('#expiring-screen h3');
+    const descEl = document.querySelector('#expiring-screen .text-xs.text-slate-500.mt-1');
+    if (titleEl && descEl) {
+        if (expiringFilterType === 'expired') {
+            titleEl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>المشتركين المنتهي الصلاحية';
+            descEl.textContent = 'قائمة مخصصة للمشتركين الذين انتهت صلاحيتهم.';
+        } else {
+            titleEl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>المشتركين على وشك الانتهاء';
+            descEl.textContent = 'قائمة مخصصة للمشتركين الذين تنتهي صلاحيتهم خلال 7 أيام.';
+        }
     }
     
-    const limit = 8;
-    soon = soon.slice(0, limit);
+    // فلترة حسب النوع المختار
+    let filtered = subscribersCache.filter((sub) => {
+        const meta = sub._meta || buildSubscriberMeta(sub);
+        sub._meta = meta;
+        
+        if (expiringFilterType === 'expired') {
+            // المنتهين: daysLeft < 0
+            return meta.isExpired || (meta.daysLeft !== null && meta.daysLeft < 0);
+        } else {
+            // القريبين على الانتهاء: 0 <= daysLeft <= 7
+            return meta.isExpiringSoon || (meta.daysLeft !== null && meta.daysLeft >= 0 && meta.daysLeft <= 7);
+        }
+    });
     
-    if (soon.length === 0) {
-        listEl.innerHTML = '<div class="py-6 text-center text-slate-400 text-sm">لا يوجد مشتركين على وشك انتهاء الصلاحية</div>';
+    // ترتيب حسب الأيام المتبقية
+    filtered = filtered.sort((a, b) => {
+        const aDays = a._meta?.daysLeft ?? Number.MAX_SAFE_INTEGER;
+        const bDays = b._meta?.daysLeft ?? Number.MAX_SAFE_INTEGER;
+        
+        if (expiringSortOrder === 'desc') {
+            // الأبعد للانتهاء أولاً
+            return bDays - aDays;
+        } else {
+            // الأقرب للانتهاء أولاً
+            return aDays - bDays;
+        }
+    });
+    
+    // إزالة الحد الأقصى - عرض جميع النتائج
+    // لا نستخدم slice(0, limit) بعد الآن
+    
+    if (filtered.length === 0) {
+        const emptyMessage = expiringFilterType === 'expired' 
+            ? 'لا يوجد مشتركين منتهي الصلاحية'
+            : 'لا يوجد مشتركين على وشك انتهاء الصلاحية';
+        listEl.innerHTML = `<div class="py-6 text-center text-slate-400 text-sm">${emptyMessage}</div>`;
         return;
     }
     
-    listEl.innerHTML = soon.map((sub) => `
-        <div class="flex items-center justify-between py-3">
-            <div>
+    listEl.innerHTML = filtered.map((sub) => {
+        const daysLeft = sub._meta?.daysLeft ?? 0;
+        const isExpired = daysLeft < 0;
+        const daysText = isExpired 
+            ? `منتهي منذ ${Math.abs(daysLeft)} يوم`
+            : `${daysLeft} يوم متبقي`;
+        const daysColor = isExpired ? 'text-red-500' : 'text-orange-500';
+        
+        return `
+        <div class="flex items-center justify-between py-3 hover:bg-slate-50 rounded-lg px-2 transition-colors">
+            <div class="flex-1">
                 <p class="font-bold text-slate-800">${sub.name || '--'}</p>
-                <span class="text-xs text-slate-500">ينتهي في ${formatDate(sub.end_date)}</span>
+                <div class="flex items-center gap-2 mt-1">
+                    <span class="text-xs text-slate-500">ينتهي في ${formatDate(sub.end_date || sub.endDate)}</span>
+                    ${sub.phone ? `<span class="text-xs text-slate-400">• ${sub.phone}</span>` : ''}
+                </div>
             </div>
-            <div class="text-right">
-                <span class="text-sm font-bold text-orange-500">${Math.max(sub._meta?.daysLeft ?? 0, 0)} يوم</span>
-                <p class="text-[11px] text-slate-400">${sub.zone || ''}</p>
+            <div class="text-right ml-4">
+                <span class="text-sm font-bold ${daysColor}">${daysText}</span>
+                ${sub.zone ? `<p class="text-[11px] text-slate-400 mt-1">${sub.zone}</p>` : ''}
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 }
 
 function exportSubscribersToExcel() {
@@ -4814,12 +4861,22 @@ function navigateToSection(sectionId) {
 
 function initExpiringSortControl() {
     const sortSelect = document.getElementById('expiring-sort-select');
-    if (!sortSelect) return;
-    sortSelect.value = expiringSortOrder;
-    sortSelect.addEventListener('change', (event) => {
-        expiringSortOrder = event.target.value || 'asc';
-        renderExpiringSoonList();
-    });
+    if (sortSelect) {
+        sortSelect.value = expiringSortOrder;
+        sortSelect.addEventListener('change', (event) => {
+            expiringSortOrder = event.target.value || 'asc';
+            renderExpiringSoonList();
+        });
+    }
+    
+    const filterSelect = document.getElementById('expiring-filter-select');
+    if (filterSelect) {
+        filterSelect.value = expiringFilterType;
+        filterSelect.addEventListener('change', (event) => {
+            expiringFilterType = event.target.value || 'expiring';
+            renderExpiringSoonList();
+        });
+    }
 }
 
 function initSideMenuToggle() {
