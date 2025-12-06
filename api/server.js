@@ -6124,17 +6124,43 @@ app.get('/api/alwatani-login/:id/wallet/transactions/db', async (req, res) => {
         
         // التحقق من وجود عمود partner_id في الجدول
         let hasPartnerId = false;
-        if (partnerId) {
-            try {
-                await alwataniPool.query(
-                    'SELECT partner_id FROM wallet_transactions LIMIT 1'
-                );
-                hasPartnerId = true;
-                console.log('[WALLET] Table has partner_id column');
-            } catch (e) {
-                hasPartnerId = false;
-                console.log('[WALLET] Table does not have partner_id column, using old structure');
+        try {
+            // التحقق أولاً من وجود الجدول
+            const [tableCheck] = await alwataniPool.query(
+                "SHOW TABLES LIKE 'wallet_transactions'"
+            );
+            
+            if (tableCheck.length === 0) {
+                console.log('[WALLET] Table wallet_transactions does not exist');
+                return res.json({
+                    success: true,
+                    data: {
+                        items: [],
+                        totalCount: 0
+                    },
+                    partnerId,
+                    fromCache: true,
+                    message: 'لا توجد معاملات محفوظة في قاعدة البيانات'
+                });
             }
+            
+            // التحقق من وجود عمود partner_id
+            if (partnerId) {
+                try {
+                    const [columnCheck] = await alwataniPool.query(
+                        "SHOW COLUMNS FROM wallet_transactions LIKE 'partner_id'"
+                    );
+                    hasPartnerId = columnCheck.length > 0;
+                    console.log(`[WALLET] Table has partner_id column: ${hasPartnerId}`);
+                } catch (e) {
+                    hasPartnerId = false;
+                    console.log('[WALLET] Error checking for partner_id column:', e.message);
+                }
+            }
+        } catch (tableError) {
+            console.error('[WALLET] Error checking table structure:', tableError);
+            // في حالة الخطأ، نتابع بدون partner_id
+            hasPartnerId = false;
         }
         
         let query = 'SELECT transaction_data, occured_at, synced_at FROM wallet_transactions WHERE 1=1';
@@ -6185,8 +6211,25 @@ app.get('/api/alwatani-login/:id/wallet/transactions/db', async (req, res) => {
             [countResult] = await alwataniPool.query(countQuery, countParams);
         } catch (countError) {
             console.error('[WALLET] Error executing count query:', countError);
-            // في حالة الخطأ، نستخدم عدد الصفوف المسترجعة
-            countResult = [{ total: transactions.length }];
+            console.error('[WALLET] Count query:', countQuery);
+            console.error('[WALLET] Count params:', countParams);
+            
+            // إذا كان الخطأ بسبب عدم وجود عمود، نجرب بدون partner_id
+            if (countError.code === 'ER_BAD_FIELD_ERROR' && hasPartnerId) {
+                console.log('[WALLET] Retrying count query without partner_id filter');
+                countQuery = 'SELECT COUNT(*) as total FROM wallet_transactions WHERE 1=1';
+                countParams.length = 0;
+                try {
+                    [countResult] = await alwataniPool.query(countQuery, countParams);
+                } catch (retryCountError) {
+                    console.error('[WALLET] Retry count query also failed:', retryCountError);
+                    // في حالة الخطأ، نستخدم عدد الصفوف المسترجعة
+                    countResult = [{ total: transactions.length }];
+                }
+            } else {
+                // في حالة الخطأ، نستخدم عدد الصفوف المسترجعة
+                countResult = [{ total: transactions.length }];
+            }
         }
         const totalCount = countResult[0]?.total || 0;
 
