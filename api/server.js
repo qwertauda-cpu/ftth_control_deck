@@ -3,6 +3,7 @@ const cors = require('cors');
 const mysql = require('mysql2/promise');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 // Load .env file BEFORE requiring config
 // Try multiple locations
@@ -1655,7 +1656,147 @@ function isRateLimitRedirect(resp) {
     return false;
 }
 
-async function fetchCustomersPageWithRetry(pageNumber, token, username, password, sortProperty, pageSize, applyToken, context = 'customers_page') {
+// دالة لإنشاء hash من account_ids في الصفحة
+function createPageHash(accountIds) {
+    if (!Array.isArray(accountIds) || accountIds.length === 0) {
+        return null;
+    }
+    // ترتيب account_ids ودمجها في string
+    const sortedIds = accountIds.map(id => String(id)).sort().join(',');
+    return crypto.createHash('md5').update(sortedIds).digest('hex');
+}
+
+// دالة للتحقق من وجود الصفحة في cache وتحديد ما إذا كانت تغيرت
+async function checkPageCache(alwataniPool, partnerId, pageNumber, pageSize, sortProperty) {
+    try {
+        // التحقق من وجود جدول cache
+        const [tables] = await alwataniPool.query(`
+            SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'alwatani_pages_cache'
+        `);
+        
+        if (tables.length === 0) {
+            // إنشاء الجدول إذا لم يكن موجوداً
+            await alwataniPool.query(`
+                CREATE TABLE IF NOT EXISTS alwatani_pages_cache (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    partner_id INT NULL,
+                    page_number INT NOT NULL,
+                    page_size INT NOT NULL,
+                    sort_property VARCHAR(255) NOT NULL,
+                    page_hash VARCHAR(32) NOT NULL,
+                    account_ids JSON NOT NULL,
+                    cached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY unique_page (partner_id, page_number, page_size, sort_property),
+                    INDEX idx_partner_page (partner_id, page_number)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            `);
+            console.log('[PAGE CACHE] Created alwatani_pages_cache table');
+            return null; // لا يوجد cache بعد
+        }
+        
+        // البحث عن الصفحة في cache
+        let cacheQuery;
+        let cacheParams;
+        
+        if (partnerId !== null && partnerId !== undefined) {
+            cacheQuery = 'SELECT page_hash, account_ids FROM alwatani_pages_cache WHERE partner_id = ? AND page_number = ? AND page_size = ? AND sort_property = ?';
+            cacheParams = [partnerId, pageNumber, pageSize, sortProperty];
+        } else {
+            cacheQuery = 'SELECT page_hash, account_ids FROM alwatani_pages_cache WHERE partner_id IS NULL AND page_number = ? AND page_size = ? AND sort_property = ?';
+            cacheParams = [pageNumber, pageSize, sortProperty];
+        }
+        
+        const [cacheRows] = await alwataniPool.query(cacheQuery, cacheParams);
+        
+        if (cacheRows.length > 0) {
+            const cachedPage = cacheRows[0];
+            const cachedAccountIds = typeof cachedPage.account_ids === 'string' 
+                ? JSON.parse(cachedPage.account_ids) 
+                : cachedPage.account_ids;
+            
+            return {
+                exists: true,
+                hash: cachedPage.page_hash,
+                accountIds: Array.isArray(cachedAccountIds) ? cachedAccountIds.map(id => String(id)) : []
+            };
+        }
+        
+        return null; // لا يوجد cache
+    } catch (error) {
+        console.warn(`[PAGE CACHE] Error checking cache for page ${pageNumber}:`, error.message);
+        return null; // في حالة الخطأ، نعيد null لنستمر في جلب الصفحة
+    }
+}
+
+// دالة لحفظ الصفحة في cache
+async function savePageCache(alwataniPool, partnerId, pageNumber, pageSize, sortProperty, accountIds) {
+    try {
+        if (!Array.isArray(accountIds) || accountIds.length === 0) {
+            return; // لا نحفظ صفحات فارغة
+        }
+        
+        const pageHash = createPageHash(accountIds);
+        if (!pageHash) {
+            return;
+        }
+        
+        const accountIdsJson = JSON.stringify(accountIds);
+        
+        if (partnerId !== null && partnerId !== undefined) {
+            await alwataniPool.query(`
+                INSERT INTO alwatani_pages_cache (partner_id, page_number, page_size, sort_property, page_hash, account_ids, cached_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                ON DUPLICATE KEY UPDATE
+                    page_hash = VALUES(page_hash),
+                    account_ids = VALUES(account_ids),
+                    updated_at = CURRENT_TIMESTAMP
+            `, [partnerId, pageNumber, pageSize, sortProperty, pageHash, accountIdsJson]);
+        } else {
+            await alwataniPool.query(`
+                INSERT INTO alwatani_pages_cache (partner_id, page_number, page_size, sort_property, page_hash, account_ids, cached_at, updated_at)
+                VALUES (NULL, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                ON DUPLICATE KEY UPDATE
+                    page_hash = VALUES(page_hash),
+                    account_ids = VALUES(account_ids),
+                    updated_at = CURRENT_TIMESTAMP
+            `, [pageNumber, pageSize, sortProperty, pageHash, accountIdsJson]);
+        }
+    } catch (error) {
+        console.warn(`[PAGE CACHE] Error saving cache for page ${pageNumber}:`, error.message);
+        // لا نوقف العملية في حالة فشل حفظ cache
+    }
+}
+
+async function fetchCustomersPageWithRetry(pageNumber, token, username, password, sortProperty, pageSize, applyToken, context = 'customers_page', alwataniPool = null, partnerId = null, existingAccountIds = null) {
+    // التحقق من cache أولاً إذا كان متاحاً
+    if (alwataniPool && existingAccountIds) {
+        const cacheInfo = await checkPageCache(alwataniPool, partnerId, pageNumber, pageSize, sortProperty);
+        
+        if (cacheInfo && cacheInfo.exists) {
+            // التحقق من أن جميع account_ids في الصفحة موجودة في DB
+            const allCachedIdsExist = cacheInfo.accountIds.every(id => existingAccountIds.has(String(id)));
+            
+            if (allCachedIdsExist && cacheInfo.accountIds.length > 0) {
+                console.log(`[PAGE CACHE] ✅ Page ${pageNumber} found in cache and all subscribers exist - skipping fetch`);
+                // إرجاع بيانات وهمية تشير إلى أن الصفحة من cache
+                return {
+                    success: true,
+                    fromCache: true,
+                    data: {
+                        items: cacheInfo.accountIds.map(id => ({ accountId: id })),
+                        totalCount: null, // لا نعرف العدد الإجمالي من cache
+                        total: null
+                    },
+                    message: `Page ${pageNumber} loaded from cache`
+                };
+            } else {
+                console.log(`[PAGE CACHE] ⚠️ Page ${pageNumber} found in cache but some subscribers missing - fetching from API`);
+            }
+        }
+    }
+    
     let attempt = 0;
     let backoff = PAGE_FETCH_RATE_LIMIT_BACKOFF;
 
@@ -1699,6 +1840,23 @@ async function fetchCustomersPageWithRetry(pageNumber, token, username, password
         }
 
         if (resp.success) {
+            // حفظ الصفحة في cache بعد جلبها بنجاح
+            if (alwataniPool && resp.data) {
+                try {
+                    const customersList = normalizeAlwataniCollection(resp.data);
+                    const accountIds = customersList
+                        .map(customer => extractAlwataniAccountId(customer))
+                        .filter(id => id !== null && id !== undefined)
+                        .map(id => String(id));
+                    
+                    if (accountIds.length > 0) {
+                        await savePageCache(alwataniPool, partnerId, pageNumber, pageSize, sortProperty, accountIds);
+                    }
+                } catch (cacheError) {
+                    console.warn(`[PAGE CACHE] Error saving page ${pageNumber} to cache:`, cacheError.message);
+                }
+            }
+            
             return resp;
         }
 
@@ -4135,7 +4293,10 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
             sortProperty,
             pageSize,
             applyTokenFromResponse,
-            'customers_first_page'
+            'customers_first_page',
+            alwataniPool,
+            partnerId,
+            existingAccountIds
         );
 
         if (!firstPageResp.success || !firstPageResp.data) {
@@ -4232,7 +4393,10 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                             sortProperty,
                             pageSize,
                             applyTokenFromResponse,
-                            'customers_page'
+                            'customers_page',
+                            alwataniPool,
+                            partnerId,
+                            existingAccountIds
             );
                     
                     if (pageResult.statusCode === 403 && !pageResult.success) {
@@ -4245,6 +4409,26 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                     }
 
             if (pageResult.success && pageResult.data) {
+                // إذا كانت الصفحة من cache وليس فيها مشتركين ناقصين، نتخطاها
+                if (pageResult.fromCache) {
+                    console.log(`[SYNC] Page ${pageNum} loaded from cache - all subscribers exist, skipping`);
+                    const remainingAfterThisPage = missingCount - allCustomers.length;
+                    const progressMessage = `جاري جلب الصفحات... (${pageNum}/${totalPages} صفحة) - تم تخطي الصفحة (من cache) - متبقي ${remainingAfterThisPage} مشترك`;
+                    updateSyncProgress(id, {
+                        current: pageNum,
+                        total: totalPages,
+                        remaining: remainingAfterThisPage,
+                        existing: existingCount,
+                        message: progressMessage,
+                        logs: [{
+                            timestamp: new Date().toISOString(),
+                            message: `${pageNum}/${totalPages} - SKIPPED PAGE ${pageNum} (from cache, all subscribers exist, ${remainingAfterThisPage} remaining)`,
+                            stage: 'fetching_pages'
+                        }]
+                    });
+                    continue; // تخطي هذه الصفحة
+                }
+                
                 const customersList = normalizeAlwataniCollection(pageResult.data);
                 
                 // فلترة المشتركين الناقصين فقط من هذه الصفحة
