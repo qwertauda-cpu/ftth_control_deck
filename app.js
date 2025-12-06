@@ -2903,8 +2903,37 @@ async function monitorSyncProgress(userId) {
                     }
                 }
                 
+                // عند إيقاف المزامنة، تحميل البيانات من قاعدة البيانات
+                if (progress.stage === 'cancelled' || progress.cancelRequested) {
+                    console.log('[MONITOR] Sync cancelled, loading data from database...');
+                    // تحميل البيانات بعد ثانيتين لضمان حفظها
+                    setTimeout(async () => {
+                        let retryCount = 0;
+                        const maxRetries = 3;
+                        
+                        while (retryCount < maxRetries) {
+                            await loadSubscribersFromDB();
+                            
+                            if (subscribersCache.length > 0) {
+                                console.log(`[MONITOR] Successfully loaded ${subscribersCache.length} subscribers after ${retryCount + 1} attempt(s)`);
+                                break;
+                            }
+                            
+                            retryCount++;
+                            if (retryCount < maxRetries) {
+                                console.log(`[MONITOR] No data loaded, retrying in 2 seconds... (attempt ${retryCount + 1}/${maxRetries})`);
+                                await new Promise(resolve => setTimeout(resolve, 2000));
+                            }
+                        }
+                        
+                        if (subscribersCache.length === 0) {
+                            console.warn('[MONITOR] No data loaded after all retries');
+                        }
+                    }, 2000);
+                }
+                
                 // إذا اكتملت المزامنة أو حدث خطأ
-                if (progress.stage === 'completed' || progress.stage === 'error') {
+                if (progress.stage === 'completed' || progress.stage === 'error' || progress.cancelRequested) {
                     // تحديث شريط التقدم إلى 100% عند اكتمال المزامنة
                     if (progressBar && progress.stage === 'completed') {
                         progressBar.style.width = '100%';
