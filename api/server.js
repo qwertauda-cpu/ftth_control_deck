@@ -6897,12 +6897,30 @@ app.get('/api/tickets', async (req, res) => {
         }
         
         const alwataniPool = await getAlwataniPoolFromRequestHelper(req);
+        
+        // التحقق من وجود الجدول أولاً
+        try {
+            const [tableCheck] = await alwataniPool.query("SHOW TABLES LIKE 'tickets'");
+            if (tableCheck.length === 0) {
+                console.log('[TICKETS] Table tickets does not exist, returning empty array');
+                return res.json([]);
+            }
+        } catch (tableError) {
+            console.warn('[TICKETS] Error checking for tickets table:', tableError.message);
+            return res.json([]);
+        }
+        
         const [rows] = await alwataniPool.query(
             'SELECT * FROM tickets ORDER BY created_at DESC'
         );
         res.json(rows || []);
     } catch (error) {
         console.error('Get tickets error:', error);
+        // إذا كان الجدول غير موجود، أعد مصفوفة فارغة
+        if (error.code === 'ER_NO_SUCH_TABLE') {
+            console.warn('[TICKETS] Table does not exist, returning empty array');
+            return res.json([]);
+        }
         res.status(500).json({ error: 'خطأ في جلب التكتات: ' + error.message });
     }
 });
@@ -7536,12 +7554,30 @@ app.get('/api/teams', async (req, res) => {
         
         // استخدام alwataniPool للحصول على الفرق من قاعدة بيانات الوطني
         const alwataniPool = await getAlwataniPoolFromRequestHelper(req);
+        
+        // التحقق من وجود الجدول أولاً
+        try {
+            const [tableCheck] = await alwataniPool.query("SHOW TABLES LIKE 'teams'");
+            if (tableCheck.length === 0) {
+                console.log('[TEAMS] Table teams does not exist, returning empty array');
+                return res.json([]);
+            }
+        } catch (tableError) {
+            console.warn('[TEAMS] Error checking for teams table:', tableError.message);
+            return res.json([]);
+        }
+        
         const [rows] = await alwataniPool.query(
             'SELECT * FROM teams ORDER BY created_at DESC'
         );
         res.json(rows || []);
     } catch (error) {
         console.error('Get teams error:', error);
+        // إذا كان الجدول غير موجود، أعد مصفوفة فارغة
+        if (error.code === 'ER_NO_SUCH_TABLE') {
+            console.warn('[TEAMS] Table does not exist, returning empty array');
+            return res.json([]);
+        }
         res.status(500).json({ error: 'خطأ في جلب الفرق: ' + error.message });
     }
 });
