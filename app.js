@@ -134,7 +134,7 @@ const subscriberStatusConfig = [
     {
         key: 'expiring',
         label: 'انتهاء الصلاحية عن قريب',
-        description: 'خلال 7 أيام',
+        description: 'خلال 3 أيام',
         ringColor: '#f59e0b',
         match: (meta) => meta?.tags?.has('expiring')
     }
