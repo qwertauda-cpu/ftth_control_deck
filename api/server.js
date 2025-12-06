@@ -9702,6 +9702,362 @@ app.delete('/api/control/flowchart/:id', requireControlAuth, async (req, res) =>
     }
 });
 
+// ==================== Expiring Subscriptions API ====================
+
+// Get expiring subscribers from database (must be before the API endpoint)
+app.get('/api/alwatani-login/:id/expiring-subscriptions/db', async (req, res) => {
+    try {
+        console.log('[EXPIRING DB] Request received:', req.method, req.path, req.query);
+        const { id } = req.params;
+        const { fromExpirationDate, toExpirationDate, filterType = 'expiring' } = req.query;
+        
+        console.log('[EXPIRING DB] Params:', { id, fromExpirationDate, toExpirationDate, filterType });
+        
+        const alwataniPool = await getAlwataniPoolFromRequestHelper(req);
+        
+        // التحقق من وجود الجدول
+        const [tables] = await alwataniPool.query(`
+            SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'expiring_subscribers'
+        `);
+        
+        if (tables.length === 0) {
+            return res.json({
+                success: true,
+                data: [],
+                total: 0,
+                message: 'لا توجد بيانات محفوظة بعد'
+            });
+        }
+        
+        // بناء الاستعلام
+        let query = `
+            SELECT 
+                id,
+                subscription_id,
+                account_id,
+                customer_name as name,
+                phone,
+                zone,
+                device_name,
+                username,
+                start_date as startDate,
+                end_date as endDate,
+                expiration_date as expirationDate,
+                status,
+                subscription_data,
+                customer_data,
+                synced_at,
+                created_at,
+                updated_at
+            FROM expiring_subscribers
+            WHERE alwatani_login_id = ?
+        `;
+        
+        const params = [id];
+        
+        // إضافة فلترة حسب النوع
+        if (filterType === 'expired') {
+            query += ` AND (expiration_date < CURDATE() OR end_date < CURDATE())`;
+        } else {
+            // القريبين على الانتهاء: من اليوم حتى 3 أيام
+            query += ` AND (expiration_date >= CURDATE() AND expiration_date <= DATE_ADD(CURDATE(), INTERVAL 3 DAY)) 
+                       OR (end_date >= CURDATE() AND end_date <= DATE_ADD(CURDATE(), INTERVAL 3 DAY))`;
+        }
+        
+        // إضافة فلترة حسب التواريخ إذا كانت موجودة
+        if (fromExpirationDate) {
+            query += ` AND (expiration_date >= ? OR end_date >= ?)`;
+            params.push(fromExpirationDate, fromExpirationDate);
+        }
+        if (toExpirationDate) {
+            query += ` AND (expiration_date <= ? OR end_date <= ?)`;
+            params.push(toExpirationDate, toExpirationDate);
+        }
+        
+        query += ` ORDER BY expiration_date ASC, end_date ASC`;
+        
+        const [rows] = await alwataniPool.query(query, params);
+        
+        // تحويل البيانات إلى التنسيق المطلوب
+        const subscribers = rows.map(row => {
+            const subscriptionData = row.subscription_data ? 
+                (typeof row.subscription_data === 'string' ? JSON.parse(row.subscription_data) : row.subscription_data) : {};
+            const customerData = row.customer_data ? 
+                (typeof row.customer_data === 'string' ? JSON.parse(row.customer_data) : row.customer_data) : {};
+            
+            return {
+                id: row.subscription_id || row.account_id,
+                subscriptionId: row.subscription_id,
+                account_id: row.account_id,
+                accountId: row.account_id,
+                name: row.name,
+                fullName: row.name,
+                phone: row.phone,
+                zone: row.zone,
+                deviceName: row.device_name,
+                username: row.username,
+                start_date: row.startDate,
+                startDate: row.startDate,
+                end_date: row.endDate || row.expirationDate,
+                endDate: row.endDate || row.expirationDate,
+                expirationDate: row.expirationDate,
+                status: row.status,
+                subscription: subscriptionData,
+                customer: customerData,
+                raw: {
+                    subscription: subscriptionData,
+                    customer: customerData
+                },
+                _fromDB: true
+            };
+        });
+        
+        res.json({
+            success: true,
+            data: subscribers,
+            total: subscribers.length,
+            fromDB: true
+        });
+        
+    } catch (error) {
+        console.error('[EXPIRING SUBSCRIBERS DB] Error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error: ' + error.message
+        });
+    }
+});
+
+// Get expiring subscriptions from admin.ftth.iq
+app.get('/api/alwatani-login/:id/expiring-subscriptions', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { fromExpirationDate, toExpirationDate, status = 'Active', pageSize = 10000, pageNumber = 1 } = req.query;
+        
+        if (!fromExpirationDate || !toExpirationDate) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'fromExpirationDate and toExpirationDate are required' 
+            });
+        }
+        
+        // Get alwatani login details
+        const alwataniPool = await getAlwataniPoolFromRequestHelper(req);
+        const [accounts] = await alwataniPool.query(
+            'SELECT username, password FROM alwatani_login WHERE id = ?',
+            [id]
+        );
+        
+        if (accounts.length === 0) {
+            return res.status(404).json({ success: false, error: 'Account not found' });
+        }
+        
+        const { username, password } = accounts[0];
+        
+        // Verify account to get access token
+        const verification = await verifyAlwataniAccount(username, password);
+        if (!verification.success || !verification.data?.access_token) {
+            return res.status(401).json({ 
+                success: false, 
+                error: 'Failed to authenticate with admin.ftth.iq' 
+            });
+        }
+        
+        const accessToken = verification.data.access_token;
+        
+        // Build API URL
+        const apiUrl = `https://admin.ftth.iq/api/subscriptions?pageSize=${pageSize}&pageNumber=${pageNumber}&sortCriteria.property=expires&sortCriteria.direction=asc&status=${status}&fromExpirationDate=${fromExpirationDate}&toExpirationDate=${toExpirationDate}&hierarchyLevel=0`;
+        
+        // Make request to admin.ftth.iq
+        const headers = buildAlwataniHeaders({
+            'Authorization': `Bearer ${accessToken}`,
+            'x-client-app': '53d57a7f-3f89-4e9d-873b-3d071bc6dd9f',
+            'x-user-role': '0'
+        }, accessToken);
+        
+        const https = require('https');
+        const url = require('url');
+        const parsedUrl = url.parse(apiUrl);
+        
+        const options = {
+            hostname: parsedUrl.hostname,
+            path: parsedUrl.path,
+            method: 'GET',
+            headers: headers
+        };
+        
+        const response = await new Promise((resolve, reject) => {
+            const req = https.request(options, (res) => {
+                let data = '';
+                res.on('data', (chunk) => {
+                    data += chunk;
+                });
+                res.on('end', () => {
+                    try {
+                        const jsonData = JSON.parse(data);
+                        resolve({
+                            statusCode: res.statusCode,
+                            data: jsonData
+                        });
+                    } catch (error) {
+                        resolve({
+                            statusCode: res.statusCode,
+                            data: data
+                        });
+                    }
+                });
+            });
+            
+            req.on('error', (error) => {
+                reject(error);
+            });
+            
+            req.on('timeout', () => {
+                req.destroy();
+                reject(new Error('Request timeout'));
+            });
+            
+            req.setTimeout(30000);
+            req.end();
+        });
+        
+        if (response.statusCode !== 200) {
+            return res.status(response.statusCode).json({
+                success: false,
+                error: `API returned status ${response.statusCode}`,
+                data: response.data
+            });
+        }
+        
+        const subscriptions = response.data?.data || response.data || [];
+        
+        // حفظ البيانات في قاعدة البيانات
+        if (Array.isArray(subscriptions) && subscriptions.length > 0) {
+            try {
+                // التحقق من وجود الجدول وإنشاؤه إذا لم يكن موجوداً
+                await alwataniPool.query(`
+                    CREATE TABLE IF NOT EXISTS expiring_subscribers (
+                        id INT PRIMARY KEY AUTO_INCREMENT,
+                        alwatani_login_id INT NOT NULL,
+                        subscription_id INT,
+                        account_id INT,
+                        customer_name VARCHAR(255),
+                        phone VARCHAR(50),
+                        zone VARCHAR(255),
+                        device_name VARCHAR(255),
+                        username VARCHAR(255),
+                        start_date DATE,
+                        end_date DATE,
+                        expiration_date DATE,
+                        status VARCHAR(50),
+                        subscription_data JSON,
+                        customer_data JSON,
+                        synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        UNIQUE KEY unique_subscription (alwatani_login_id, subscription_id),
+                        INDEX idx_alwatani_login_id (alwatani_login_id),
+                        INDEX idx_expiration_date (expiration_date),
+                        INDEX idx_end_date (end_date),
+                        INDEX idx_status (status)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                `);
+                
+                // حفظ كل subscription
+                for (const sub of subscriptions) {
+                    const subscriptionId = sub.id || sub.subscriptionId;
+                    const accountId = sub.accountId || sub.account_id || sub.customer?.accountId;
+                    const customer = sub.customer || sub.raw?.customer || {};
+                    const customerName = customer.name || customer.fullName || customer.displayValue || '';
+                    const phone = customer.phone || customer.phoneNumber || '';
+                    const zone = customer.zone || customer.address?.zone || '';
+                    const deviceName = sub.deviceName || sub.device?.name || '';
+                    const username = sub.username || customer.username || '';
+                    const startDate = sub.startDate || sub.start_date || sub.contractStart || null;
+                    const endDate = sub.endDate || sub.end_date || sub.expires || null;
+                    const expirationDate = sub.expirationDate || sub.expires || endDate || null;
+                    const status = sub.status || 'Active';
+                    
+                    await alwataniPool.query(`
+                        INSERT INTO expiring_subscribers (
+                            alwatani_login_id, subscription_id, account_id, customer_name, phone, zone,
+                            device_name, username, start_date, end_date, expiration_date, status,
+                            subscription_data, customer_data
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON DUPLICATE KEY UPDATE
+                            account_id = VALUES(account_id),
+                            customer_name = VALUES(customer_name),
+                            phone = VALUES(phone),
+                            zone = VALUES(zone),
+                            device_name = VALUES(device_name),
+                            username = VALUES(username),
+                            start_date = VALUES(start_date),
+                            end_date = VALUES(end_date),
+                            expiration_date = VALUES(expiration_date),
+                            status = VALUES(status),
+                            subscription_data = VALUES(subscription_data),
+                            customer_data = VALUES(customer_data),
+                            updated_at = CURRENT_TIMESTAMP
+                    `, [
+                        id, subscriptionId, accountId, customerName, phone, zone,
+                        deviceName, username, startDate, endDate, expirationDate, status,
+                        JSON.stringify(sub), JSON.stringify(customer)
+                    ]);
+                }
+                
+                console.log(`[EXPIRING SUBSCRIBERS] Saved ${subscriptions.length} subscriptions to database`);
+            } catch (dbError) {
+                console.error('[EXPIRING SUBSCRIBERS] Error saving to database:', dbError);
+                // لا نرمي خطأ، نكمل ونرجع البيانات
+            }
+        }
+        
+        // تحويل البيانات إلى التنسيق المطلوب
+        const formattedSubscriptions = subscriptions.map(sub => {
+            const customer = sub.customer || sub.raw?.customer || {};
+            return {
+                id: sub.id || sub.subscriptionId,
+                subscriptionId: sub.id || sub.subscriptionId,
+                account_id: sub.accountId || sub.account_id || customer.accountId,
+                accountId: sub.accountId || sub.account_id || customer.accountId,
+                name: customer.name || customer.fullName || customer.displayValue || '',
+                fullName: customer.name || customer.fullName || customer.displayValue || '',
+                phone: customer.phone || customer.phoneNumber || '',
+                zone: customer.zone || customer.address?.zone || '',
+                deviceName: sub.deviceName || sub.device?.name || '',
+                username: sub.username || customer.username || '',
+                start_date: sub.startDate || sub.start_date || sub.contractStart,
+                startDate: sub.startDate || sub.start_date || sub.contractStart,
+                end_date: sub.endDate || sub.end_date || sub.expires,
+                endDate: sub.endDate || sub.end_date || sub.expires,
+                expirationDate: sub.expirationDate || sub.expires || sub.endDate || sub.end_date,
+                status: sub.status || 'Active',
+                subscription: sub,
+                customer: customer,
+                raw: {
+                    subscription: sub,
+                    customer: customer
+                }
+            };
+        });
+        
+        res.json({
+            success: true,
+            data: formattedSubscriptions,
+            total: formattedSubscriptions.length,
+            fromAPI: true
+        });
+        
+    } catch (error) {
+        console.error('[EXPIRING SUBSCRIBERS] Error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error: ' + error.message
+        });
+    }
+});
+
 // 404 handler (only for API routes, not for static files)
 // NOTE: This MUST be the last route handler!
 app.use((req, res) => {
