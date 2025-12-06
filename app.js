@@ -1081,6 +1081,9 @@ async function handleCreateAccount(e) {
 }
 
 function logout() {
+    // إيقاف التحديث التلقائي المخفي للمحفظة
+    stopWalletSilentSync();
+    
     ['dashboard-screen', 'page-detail-screen', 'ticket-management-screen', 'team-management-screen', 'team-tickets-screen'].forEach(id => {
         const el = document.getElementById(id);
         if(el) {
@@ -1325,6 +1328,9 @@ function openPageDetail(username, password, userId) {
     switchScreen('dashboard-screen', 'page-detail-screen');
     showSideMenu(); // إظهار القائمة الجانبية عند فتح صفحة تفاصيل المستخدم
     
+    // بدء التحديث التلقائي المخفي للمحفظة
+    startWalletSilentSync();
+    
     // إظهار section-dashboard وإخفاء section-subscribers بشكل افتراضي
     const sectionDashboard = document.getElementById('section-dashboard');
     const sectionSubscribers = document.getElementById('section-subscribers');
@@ -1345,6 +1351,18 @@ function openPageDetail(username, password, userId) {
                 console.error('[OPEN PAGE] ❌ Error loading subscribers:', error);
             }
         }, 500); // تأخير بسيط لضمان تحميل الصفحة أولاً
+    }
+    
+    // تحميل ومزامنة بيانات المحفظة تلقائياً عند فتح الصفحة
+    if (currentUserId) {
+        setTimeout(async () => {
+            try {
+                console.log('[WALLET] Auto-loading wallet data on page open...');
+                await syncWalletSilently();
+            } catch (error) {
+                console.error('[WALLET] Error auto-loading wallet:', error);
+            }
+        }, 1000); // تأخير بسيط بعد تحميل المشتركين
     }
 }
 
@@ -3412,6 +3430,7 @@ let walletTransactionsPage = 1;
 const walletTransactionsPageSize = 100; // زيادة حجم الصفحة لجلب المزيد من الحوالات
 let allWalletTransactions = []; // تخزين جميع الحوالات
 let walletAutoRefreshInterval = null; // للتحديث التلقائي
+let walletSilentSyncInterval = null; // للتحديث التلقائي المخفي كل دقيقتين
 let isLoadingAllTransactions = false; // لتجنب طلبات متعددة متزامنة
 
 async function loadWalletBalance() {
@@ -3774,6 +3793,68 @@ async function syncWalletTransactionsInBackground() {
     } catch (error) {
         console.error('[WALLET] Error in background sync:', error);
         // لا نعرض خطأ للمستخدم، هذا تحديث خلفي
+    }
+}
+
+// مزامنة المحفظة بشكل صامت (مخفي تماماً - بدون أي logs أو تحديثات UI)
+async function syncWalletSilently() {
+    if (!currentUserId) return;
+    
+    try {
+        // مزامنة الرصيد
+        const balanceResponse = await fetch(addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/wallet/balance`), addUsernameToFetchOptions());
+        if (balanceResponse.ok) {
+            const balanceData = await balanceResponse.json();
+            if (balanceData.success && balanceData.data) {
+                // تحديث بطاقة الرصيد في لوحة التحكم فقط (بدون إظهار أي شيء)
+                const walletBalanceEl = document.getElementById('dashboard-wallet-balance');
+                if (walletBalanceEl) {
+                    const balance = balanceData.data.balance || balanceData.data.availableBalance || balanceData.data.totalBalance || 0;
+                    walletBalanceEl.textContent = formatNumber(balance);
+                }
+            }
+        }
+        
+        // مزامنة الحوالات (يضيف فقط الناقص)
+        const syncResponse = await fetch(addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/wallet/transactions/sync?maxPages=100`), addUsernameToFetchOptions({
+            method: 'POST'
+        }));
+        
+        if (syncResponse.ok) {
+            const syncData = await syncResponse.json();
+            // لا نطبع أي logs - هذا تحديث مخفي تماماً
+            // السيرفر سيتحقق من البيانات الموجودة ويضيف فقط الناقص
+        }
+    } catch (error) {
+        // لا نطبع أي errors - هذا تحديث مخفي تماماً
+        // فقط في حالة الخطأ الشديد
+    }
+}
+
+// بدء التحديث التلقائي المخفي للمحفظة (كل دقيقتين)
+function startWalletSilentSync() {
+    // إيقاف أي interval سابق
+    if (walletSilentSyncInterval) {
+        clearInterval(walletSilentSyncInterval);
+        walletSilentSyncInterval = null;
+    }
+    
+    // بدء التحديث التلقائي كل دقيقتين (120000ms)
+    walletSilentSyncInterval = setInterval(async () => {
+        if (currentUserId) {
+            await syncWalletSilently();
+        }
+    }, 120000); // 2 دقائق = 120000ms
+    
+    console.log('[WALLET] Silent sync started (every 2 minutes)');
+}
+
+// إيقاف التحديث التلقائي المخفي للمحفظة
+function stopWalletSilentSync() {
+    if (walletSilentSyncInterval) {
+        clearInterval(walletSilentSyncInterval);
+        walletSilentSyncInterval = null;
+        console.log('[WALLET] Silent sync stopped');
     }
 }
 
