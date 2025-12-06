@@ -4938,10 +4938,8 @@ async function renderExpiringSoonList() {
         const fromDateISO = fromDate.toISOString();
         const toDateISO = toDate.toISOString();
         
-        // بناء API URL
-        const apiUrl = `https://admin.ftth.iq/api/subscriptions?pageSize=10000&pageNumber=1&sortCriteria.property=expires&sortCriteria.direction=asc&status=Active&fromExpirationDate=${fromDateISO}&toExpirationDate=${toDateISO}&hierarchyLevel=0`;
-        
-        const apiData = await loadExpiringFromApi(apiUrl);
+        // استخدام endpoint السيرفر
+        const apiData = await loadExpiringFromApi(fromDateISO, toDateISO);
         if (apiData && Array.isArray(apiData) && apiData.length > 0) {
             dataSource = apiData;
         } else {
