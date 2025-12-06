@@ -134,7 +134,7 @@ const subscriberStatusConfig = [
     {
         key: 'expiring',
         label: 'انتهاء الصلاحية عن قريب',
-        description: 'خلال 3 أيام',
+        description: 'خلال 7 أيام',
         ringColor: '#f59e0b',
         match: (meta) => meta?.tags?.has('expiring')
     }
@@ -4476,7 +4476,7 @@ function buildSubscriberMeta(subscriber) {
                 tags.add('expired');
                 meta.isExpired = true;
             }
-            if (diffDays >= 0 && diffDays <= 3) {
+            if (diffDays >= 0 && diffDays <= 7) {
                 tags.add('expiring');
                 meta.isExpiringSoon = true;
             }
@@ -4896,104 +4896,15 @@ async function renderExpiringSoonList() {
     const listEl = document.getElementById('expiring-subscribers-list');
     if (!listEl) return;
     
-    // تحديث العنوان والوصف حسب نوع الفلتر
-    const titleEl = document.querySelector('#expiring-screen h3');
-    const descEl = document.querySelector('#expiring-screen .text-xs.text-slate-500.mt-1');
-    if (titleEl && descEl) {
-        if (expiringFilterType === 'expired') {
-            titleEl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>المشتركين المنتهي الصلاحية';
-            descEl.textContent = 'قائمة مخصصة للمشتركين الذين انتهت صلاحيتهم.';
-        } else {
-            titleEl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>المشتركين على وشك الانتهاء';
-            descEl.textContent = 'قائمة مخصصة للمشتركين الذين تنتهي صلاحيتهم خلال 3 أيام.';
-        }
-    }
-    
-    // استخدام API مباشرة من admin.ftth.iq
-    let dataSource = subscribersCache;
-    try {
-        listEl.innerHTML = '<div class="py-6 text-center text-slate-400 text-sm">جاري التحميل...</div>';
-        
-        // حساب التواريخ ديناميكياً
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        
-        let fromDate, toDate;
-        if (expiringFilterType === 'expired') {
-            // المنتهين: من تاريخ قديم جداً حتى اليوم
-            fromDate = new Date(today);
-            fromDate.setFullYear(2020); // تاريخ قديم
-            toDate = new Date(today);
-            toDate.setHours(23, 59, 59, 999);
-        } else {
-            // القريبين على الانتهاء: من اليوم حتى 3 أيام من الآن
-            fromDate = new Date(today);
-            fromDate.setHours(0, 0, 0, 0);
-            toDate = new Date(today);
-            toDate.setDate(toDate.getDate() + 3);
-            toDate.setHours(23, 59, 59, 999);
-        }
-        
-        // تحويل التواريخ إلى ISO format مع UTC
-        const fromDateISO = fromDate.toISOString();
-        const toDateISO = toDate.toISOString();
-        
-        // محاولة جلب البيانات من قاعدة البيانات أولاً
-        let dataSource = subscribersCache;
-        try {
-            const dbUrl = addAlwataniLoginIdToUrl(`${API_URL}/alwatani-login/${currentUserId}/expiring-subscriptions/db?fromExpirationDate=${fromDateISO}&toExpirationDate=${toDateISO}&filterType=${expiringFilterType}`);
-            const dbResponse = await fetch(dbUrl, addUsernameToFetchOptions({
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json, text/plain, */*'
-                }
-            }));
-            
-            if (dbResponse.ok) {
-                const dbData = await dbResponse.json();
-                if (dbData.success && Array.isArray(dbData.data) && dbData.data.length > 0) {
-                    console.log(`[EXPIRING] Loaded ${dbData.data.length} subscribers from database`);
-                    dataSource = dbData.data;
-                }
-            }
-        } catch (dbError) {
-            console.error('[EXPIRING] Error loading from database:', dbError);
-        }
-        
-        // إذا لم تكن هناك بيانات في قاعدة البيانات، جلب من API وحفظها
-        if (!dataSource || dataSource.length === 0 || (dataSource === subscribersCache && subscribersCache.length === 0)) {
-            try {
-                const apiData = await loadExpiringFromApi(fromDateISO, toDateISO);
-                if (apiData && Array.isArray(apiData) && apiData.length > 0) {
-                    dataSource = apiData;
-                    console.log(`[EXPIRING] Loaded ${apiData.length} subscribers from API`);
-                } else {
-                    dataSource = subscribersCache;
-                }
-            } catch (apiError) {
-                console.error('[EXPIRING] Error loading from API:', apiError);
-                dataSource = subscribersCache;
-            }
-        }
-    } catch (error) {
-        console.error('[EXPIRING API] Error loading from API:', error);
-        addLogToConsoleBox(`❌ خطأ في جلب البيانات من API: ${error.message}`, 'text-red-400');
-        // في حالة الخطأ، استخدم البيانات المحلية
-        dataSource = subscribersCache;
-    }
-    
     // فلترة حسب النوع المختار
-    let filtered = dataSource.filter((sub) => {
+    let filtered = subscribersCache.filter((sub) => {
         const meta = sub._meta || buildSubscriberMeta(sub);
         sub._meta = meta;
         
         if (expiringFilterType === 'expired') {
-            // المنتهين: daysLeft < 0
             return meta.isExpired || (meta.daysLeft !== null && meta.daysLeft < 0);
         } else {
-            // القريبين على الانتهاء: 0 <= daysLeft <= 3
-            return meta.isExpiringSoon || (meta.daysLeft !== null && meta.daysLeft >= 0 && meta.daysLeft <= 3);
+            return meta.isExpiringSoon || (meta.daysLeft !== null && meta.daysLeft >= 0 && meta.daysLeft <= 7);
         }
     });
     
@@ -5003,16 +4914,11 @@ async function renderExpiringSoonList() {
         const bDays = b._meta?.daysLeft ?? Number.MAX_SAFE_INTEGER;
         
         if (expiringSortOrder === 'desc') {
-            // الأبعد للانتهاء أولاً
             return bDays - aDays;
         } else {
-            // الأقرب للانتهاء أولاً
             return aDays - bDays;
         }
     });
-    
-    // إزالة الحد الأقصى - عرض جميع النتائج
-    // لا نستخدم slice(0, limit) بعد الآن
     
     if (filtered.length === 0) {
         const emptyMessage = expiringFilterType === 'expired' 
@@ -5023,73 +4929,21 @@ async function renderExpiringSoonList() {
     }
     
     listEl.innerHTML = filtered.map((sub) => {
-        // حساب الوقت المتبقي مباشرة من التاريخ
-        const endDateValue = sub.end_date || sub.endDate;
+        const meta = sub._meta || buildSubscriberMeta(sub);
+        const daysLeft = meta.daysLeft;
         let timeText = '';
         let daysColor = 'text-orange-500';
         
-        if (endDateValue) {
-            // معالجة أفضل للتاريخ - دعم تنسيقات مختلفة
-            let endDate;
-            if (typeof endDateValue === 'string') {
-                // إذا كان التاريخ بصيغة "YYYY-MM-DD" أو "YYYY/MM/DD"
-                if (endDateValue.match(/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/)) {
-                    endDate = new Date(endDateValue.replace(/\//g, '-'));
-                } else if (endDateValue.match(/^\d{1,2}[-/]\d{1,2}[-/]\d{4}/)) {
-                    // تنسيق "DD/MM/YYYY" أو "DD-MM-YYYY"
-                    const parts = endDateValue.split(/[-/]/);
-                    if (parts.length === 3) {
-                        // افتراض DD/MM/YYYY
-                        endDate = new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
-                    } else {
-                        endDate = new Date(endDateValue);
-                    }
-                } else {
-                    endDate = new Date(endDateValue);
-                }
-            } else {
-                endDate = new Date(endDateValue);
-            }
-            
-            // التحقق من صحة التاريخ
-            if (isNaN(endDate.getTime())) {
-                timeText = 'تاريخ غير صحيح';
-                daysColor = 'text-slate-400';
-            } else {
-                const now = new Date();
-                const diffMs = endDate - now;
-                const diffHours = diffMs / (1000 * 60 * 60);
-                const diffDays = diffMs / (1000 * 60 * 60 * 24);
-                
-                if (diffMs <= 0) {
-                    // منتهي
-                    const daysAgo = Math.abs(Math.floor(diffDays));
-                    timeText = daysAgo > 0 ? `منتهي منذ ${daysAgo} يوم` : 'منتهي';
-                    daysColor = 'text-red-500';
-                } else {
-                    // عرض بالساعات لجميع المشتركين في قسم "القريبين على الانتهاء"
-                    const totalHours = Math.floor(diffHours);
-                    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                    
-                    if (totalHours > 0) {
-                        // عرض إجمالي الساعات
-                        if (minutes > 0) {
-                            timeText = `${totalHours} ساعة و ${minutes} دقيقة متبقية`;
-                        } else {
-                            timeText = `${totalHours} ساعة متبقية`;
-                        }
-                    } else if (minutes > 0) {
-                        // أقل من ساعة
-                        timeText = `${minutes} دقيقة متبقية`;
-                    } else {
-                        timeText = 'أقل من دقيقة';
-                    }
-                    daysColor = 'text-orange-500';
-                }
-            }
-        } else {
+        if (daysLeft === null) {
             timeText = 'تاريخ غير معروف';
             daysColor = 'text-slate-400';
+        } else if (daysLeft < 0) {
+            const daysAgo = Math.abs(Math.ceil(daysLeft));
+            timeText = daysAgo > 0 ? `منتهي منذ ${daysAgo} يوم` : 'منتهي';
+            daysColor = 'text-red-500';
+        } else {
+            timeText = `متبقي ${Math.ceil(daysLeft)} يوم`;
+            daysColor = daysLeft <= 3 ? 'text-red-500' : 'text-orange-500';
         }
         
         return `
@@ -5438,85 +5292,6 @@ function initExpiringSortControl() {
         });
     }
 }
-
-// دالة لجلب البيانات من API مخصص
-async function loadExpiringFromApi(fromDateISO, toDateISO) {
-    try {
-        const loginId = currentUserId || 1;
-        
-        // استخدام endpoint السيرفر بدلاً من جلب البيانات مباشرة
-        const apiUrl = `${API_URL}/alwatani-login/${loginId}/expiring-subscriptions?fromExpirationDate=${fromDateISO}&toExpirationDate=${toDateISO}&status=Active&pageSize=10000&pageNumber=1`;
-        
-        const options = addUsernameToFetchOptions({
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        const response = await fetch(apiUrl, options);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        
-        if (!result.success) {
-            throw new Error(result.error || 'Failed to fetch subscriptions');
-        }
-        
-        const subscribers = result.data || [];
-        
-        // تطبيع البيانات لتكون متوافقة مع التنسيق المتوقع
-        return subscribers.map((sub, index) => {
-            // استخراج البيانات من تنسيق subscription
-            const subscription = sub.subscription || sub;
-            const customer = sub.customer || subscription?.customer || {};
-            
-            // استخراج التواريخ
-            const expiresDate = subscription?.expires || sub.expires || subscription?.expirationDate || sub.expirationDate;
-            const startDate = subscription?.starts || sub.starts || subscription?.startDate || sub.startDate;
-            
-            // استخراج المعلومات الأساسية
-            const accountId = subscription?.id || sub.id || customer?.id || subscription?.subscriptionId || sub.subscriptionId;
-            const name = customer?.name || customer?.displayValue || customer?.fullName || sub.name || '--';
-            const phone = customer?.phone || customer?.phoneNumber || customer?.contactPhone || sub.phone || null;
-            const zone = customer?.zone || customer?.area || subscription?.zone || sub.zone || null;
-            const deviceName = subscription?.username || subscription?.deviceName || customer?.deviceName || sub.deviceName || null;
-            
-            const normalized = {
-                id: accountId || `exp-${index + 1}`,
-                account_id: accountId,
-                accountId: accountId,
-                name: name,
-                fullName: name,
-                phone: phone,
-                zone: zone,
-                deviceName: deviceName,
-                username: deviceName,
-                start_date: startDate,
-                startDate: startDate,
-                end_date: expiresDate,
-                endDate: expiresDate,
-                status: subscription?.status || sub.status || 'Active',
-                raw: sub,
-                rawCustomer: customer,
-                rawSubscription: subscription
-            };
-            
-            const meta = buildSubscriberMeta(normalized);
-            return {
-                ...normalized,
-                _meta: meta
-            };
-        });
-    } catch (error) {
-        console.error('[EXPIRING API] Error fetching from API:', error);
-        throw error;
-    }
-}
-
 
 function initSideMenuToggle() {
     const menus = document.querySelectorAll('.side-menu');
