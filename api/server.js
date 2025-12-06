@@ -6188,10 +6188,23 @@ app.get('/api/alwatani-login/:id/wallet/transactions/db', async (req, res) => {
         // تحويل البيانات من JSON إلى objects
         const transactions = rows.map(row => {
             try {
-                const transactionData = typeof row.transaction_data === 'string' 
-                    ? JSON.parse(row.transaction_data) 
-                    : row.transaction_data;
-                return transactionData;
+                // إذا كان هناك عمود transaction_data، استخدمه
+                if (hasTransactionData && row.transaction_data) {
+                    const transactionData = typeof row.transaction_data === 'string' 
+                        ? JSON.parse(row.transaction_data) 
+                        : row.transaction_data;
+                    return transactionData;
+                } else {
+                    // إذا لم يكن هناك transaction_data، استخدم البيانات من الأعمدة الأخرى
+                    // أو أعد كائن يحتوي على البيانات المتاحة
+                    const transactionObj = {};
+                    tableColumns.forEach(col => {
+                        if (row[col] !== undefined) {
+                            transactionObj[col] = row[col];
+                        }
+                    });
+                    return transactionObj;
+                }
             } catch (e) {
                 console.error('[WALLET] Error parsing transaction data:', e);
                 return null;
