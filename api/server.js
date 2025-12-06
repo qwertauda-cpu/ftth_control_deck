@@ -10322,8 +10322,11 @@ app.delete('/api/control/flowchart/:id', requireControlAuth, async (req, res) =>
 // Get expiring subscribers from database (must be before the API endpoint)
 app.get('/api/alwatani-login/:id/expiring-subscriptions/db', async (req, res) => {
     try {
+        console.log('[EXPIRING DB] Request received:', req.method, req.path, req.query);
         const { id } = req.params;
         const { fromExpirationDate, toExpirationDate, filterType = 'expiring' } = req.query;
+        
+        console.log('[EXPIRING DB] Params:', { id, fromExpirationDate, toExpirationDate, filterType });
         
         const alwataniPool = await getAlwataniPoolFromRequestHelper(req);
         
