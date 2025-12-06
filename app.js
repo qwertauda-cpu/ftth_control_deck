@@ -164,6 +164,7 @@ let subscribersCache = [];
 let activeSubscriberFilter = 'all';
 let expiringSortOrder = 'asc';
 let expiringFilterType = 'expiring'; // 'expiring' أو 'expired'
+let expiringApiEndpoint = localStorage.getItem('expiringApiEndpoint') || ''; // API endpoint مخصص للأكسباير
 let currentFilteredSubscribers = [];
 let subscriberPagination = {
     pageSize: 10000, // بلا حدود - عرض جميع المشتركين
@@ -4892,7 +4893,7 @@ function goToNextPage() {
     renderSubscribersTablePage();
 }
 
-function renderExpiringSoonList() {
+async function renderExpiringSoonList() {
     const listEl = document.getElementById('expiring-subscribers-list');
     if (!listEl) return;
     
@@ -4909,8 +4910,28 @@ function renderExpiringSoonList() {
         }
     }
     
+    // إذا كان هناك API endpoint مخصص، استخدمه
+    let dataSource = subscribersCache;
+    if (expiringApiEndpoint && expiringApiEndpoint.trim()) {
+        try {
+            listEl.innerHTML = '<div class="py-6 text-center text-slate-400 text-sm">جاري التحميل...</div>';
+            const apiData = await loadExpiringFromApi(expiringApiEndpoint);
+            if (apiData && Array.isArray(apiData) && apiData.length > 0) {
+                dataSource = apiData;
+            } else {
+                // إذا فشل API، استخدم البيانات المحلية
+                dataSource = subscribersCache;
+            }
+        } catch (error) {
+            console.error('[EXPIRING API] Error loading from custom API:', error);
+            addLogToConsoleBox(`❌ خطأ في جلب البيانات من API: ${error.message}`, 'text-red-400');
+            // في حالة الخطأ، استخدم البيانات المحلية
+            dataSource = subscribersCache;
+        }
+    }
+    
     // فلترة حسب النوع المختار
-    let filtered = subscribersCache.filter((sub) => {
+    let filtered = dataSource.filter((sub) => {
         const meta = sub._meta || buildSubscriberMeta(sub);
         sub._meta = meta;
         
@@ -5362,6 +5383,149 @@ function initExpiringSortControl() {
             expiringFilterType = event.target.value || 'expiring';
             renderExpiringSoonList();
         });
+    }
+    
+    // تحميل API endpoint المحفوظ
+    const apiInput = document.getElementById('expiring-api-input');
+    if (apiInput) {
+        apiInput.value = expiringApiEndpoint;
+    }
+}
+
+// دالة لجلب البيانات من API مخصص
+async function loadExpiringFromApi(apiUrl) {
+    try {
+        // إذا كان API من admin.ftth.iq، نحتاج للحصول على access token أولاً
+        let headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json, text/plain, */*'
+        };
+        
+        // إذا كان API من admin.ftth.iq، نحتاج للحصول على access token
+        if (apiUrl.includes('admin.ftth.iq')) {
+            try {
+                // جلب access token من السيرفر
+                const tokenResponse = await fetch(`/api/alwatani-login/${currentAlwataniLoginId || 1}/verify`, addUsernameToFetchOptions({
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                }));
+                
+                if (tokenResponse.ok) {
+                    const tokenData = await tokenResponse.json();
+                    if (tokenData.access_token) {
+                        headers['Authorization'] = `Bearer ${tokenData.access_token}`;
+                        headers['x-client-app'] = '53d57a7f-3f89-4e9d-873b-3d071bc6dd9f';
+                        headers['x-user-role'] = '0';
+                    }
+                }
+            } catch (tokenError) {
+                console.warn('[EXPIRING API] Could not get access token, proceeding without it:', tokenError);
+            }
+        }
+        
+        const options = addUsernameToFetchOptions({
+            method: 'GET',
+            headers: headers
+        });
+        
+        const response = await fetch(apiUrl, options);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // دعم تنسيقات مختلفة للاستجابة
+        let subscribers = [];
+        if (Array.isArray(data)) {
+            subscribers = data;
+        } else if (data.data && Array.isArray(data.data)) {
+            subscribers = data.data;
+        } else if (data.subscribers && Array.isArray(data.subscribers)) {
+            subscribers = data.subscribers;
+        } else if (data.results && Array.isArray(data.results)) {
+            subscribers = data.results;
+        } else if (data.items && Array.isArray(data.items)) {
+            subscribers = data.items;
+        }
+        
+        // تطبيع البيانات لتكون متوافقة مع التنسيق المتوقع
+        return subscribers.map((sub, index) => {
+            // استخراج البيانات من تنسيق subscription
+            const subscription = sub.subscription || sub;
+            const customer = sub.customer || subscription?.customer || {};
+            
+            // استخراج التواريخ
+            const expiresDate = subscription?.expires || sub.expires || subscription?.expirationDate || sub.expirationDate;
+            const startDate = subscription?.starts || sub.starts || subscription?.startDate || sub.startDate;
+            
+            // استخراج المعلومات الأساسية
+            const accountId = subscription?.id || sub.id || customer?.id || subscription?.subscriptionId || sub.subscriptionId;
+            const name = customer?.name || customer?.displayValue || customer?.fullName || sub.name || '--';
+            const phone = customer?.phone || customer?.phoneNumber || customer?.contactPhone || sub.phone || null;
+            const zone = customer?.zone || customer?.area || subscription?.zone || sub.zone || null;
+            const deviceName = subscription?.username || subscription?.deviceName || customer?.deviceName || sub.deviceName || null;
+            
+            const normalized = {
+                id: accountId || `exp-${index + 1}`,
+                account_id: accountId,
+                accountId: accountId,
+                name: name,
+                fullName: name,
+                phone: phone,
+                zone: zone,
+                deviceName: deviceName,
+                username: deviceName,
+                start_date: startDate,
+                startDate: startDate,
+                end_date: expiresDate,
+                endDate: expiresDate,
+                status: subscription?.status || sub.status || 'Active',
+                raw: sub,
+                rawCustomer: customer,
+                rawSubscription: subscription
+            };
+            
+            const meta = buildSubscriberMeta(normalized);
+            return {
+                ...normalized,
+                _meta: meta
+            };
+        });
+    } catch (error) {
+        console.error('[EXPIRING API] Error fetching from API:', error);
+        throw error;
+    }
+}
+
+// دالة لحفظ API endpoint
+function saveExpiringApi() {
+    const apiInput = document.getElementById('expiring-api-input');
+    if (!apiInput) return;
+    
+    const apiUrl = apiInput.value.trim();
+    
+    if (apiUrl) {
+        // التحقق من صحة URL
+        try {
+            new URL(apiUrl);
+            expiringApiEndpoint = apiUrl;
+            localStorage.setItem('expiringApiEndpoint', apiUrl);
+            addLogToConsoleBox(`✅ تم حفظ API endpoint: ${apiUrl}`, 'text-green-300');
+            // إعادة تحميل القائمة
+            renderExpiringSoonList();
+        } catch (error) {
+            alert('يرجى إدخال رابط صحيح');
+            console.error('[EXPIRING API] Invalid URL:', error);
+        }
+    } else {
+        // حذف API endpoint
+        expiringApiEndpoint = '';
+        localStorage.removeItem('expiringApiEndpoint');
+        addLogToConsoleBox('✅ تم إزالة API endpoint، سيتم استخدام البيانات المحلية', 'text-green-300');
+        // إعادة تحميل القائمة
+        renderExpiringSoonList();
     }
 }
 

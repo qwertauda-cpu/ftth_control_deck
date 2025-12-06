@@ -1951,6 +1951,14 @@
                                         <option value="desc">الأبعد للانتهاء</option>
                                     </select>
                                 </div>
+                                <div class="flex flex-col">
+                                    <label for="expiring-api-input" class="text-xs text-slate-500 mb-1">API Endpoint (اختياري)</label>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="expiring-api-input" placeholder="https://example.com/api/expiring" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200 bg-slate-50" />
+                                        <button onclick="saveExpiringApi()" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-medium transition-colors">حفظ</button>
+                                    </div>
+                                    <p class="text-[10px] text-slate-400 mt-1">اتركه فارغاً لاستخدام البيانات المحلية</p>
+                                </div>
                                 <button onclick="applySubscriberFilter('expiring')" class="px-4 py-2 rounded-xl text-sm font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 transition-colors">
                                     عرض كل المشتركين
                                 </button>
