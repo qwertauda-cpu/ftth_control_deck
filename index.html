@@ -28,6 +28,103 @@
             transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
         }
         
+        /* Enhanced button styles */
+        button:not(.side-menu-link):not(.side-menu-link-sub) {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* Improved card shadows */
+        .bg-white.rounded-xl,
+        .bg-white.rounded-2xl {
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+            transition: box-shadow 0.3s ease;
+        }
+        
+        .bg-white.rounded-xl:hover,
+        .bg-white.rounded-2xl:hover {
+            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.08), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
+        }
+        
+        /* Enhanced input focus states */
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            ring: 2px;
+            ring-color: #26466D;
+            ring-opacity: 0.2;
+        }
+        
+        /* Better table styling */
+        table thead {
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+        }
+        
+        table tbody tr {
+            transition: background-color 0.2s ease;
+        }
+        
+        table tbody tr:hover {
+            background-color: #f8fafc;
+        }
+        
+        /* Improved badge styles */
+        .badge,
+        [class*="badge"] {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        /* Enhanced loading states */
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Smooth scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #cbd5e1 0%, #94a3b8 100%);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #94a3b8 0%, #64748b 100%);
+        }
+        
+        /* Glass morphism effect for modals */
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        
+        /* Gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #26466D 0%, #3b82f6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
         /* Exclude SVG and images from transitions */
         svg, img, video, canvas {
             transition: none !important;
@@ -148,19 +245,40 @@
         .status-card {
             border: 1px solid #e2e8f0;
             border-radius: 1rem;
-            padding: 1rem;
-            background-color: #fff;
+            padding: 1.25rem;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
             text-align: left;
-            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .status-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #26466D, #3b82f6);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
         }
         .status-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12), 0 8px 16px rgba(38, 70, 109, 0.08);
             border-color: #cbd5f5;
+        }
+        .status-card:hover::before {
+            transform: scaleX(1);
         }
         .status-card.active {
             border-color: #26466D;
-            box-shadow: 0 18px 35px rgba(38, 70, 109, 0.15);
+            box-shadow: 0 20px 40px rgba(38, 70, 109, 0.2), 0 8px 16px rgba(38, 70, 109, 0.15);
+            background: linear-gradient(135deg, #ffffff 0%, #f0f7ff 100%);
+        }
+        .status-card.active::before {
+            transform: scaleX(1);
+            background: linear-gradient(90deg, #26466D, #3b82f6, #60a5fa);
         }
         .status-progress {
             width: 56px;
@@ -953,7 +1071,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
                     <span>بيانات الدخول غير صحيحة</span>
                 </div>
-                <button type="submit" id="submit-btn" class="w-full custom-blue custom-blue-hover text-white font-bold py-3.5 px-4 rounded-xl transition duration-300 shadow-lg flex justify-center items-center gap-2 mt-4">
+                <button type="submit" id="submit-btn" class="w-full bg-gradient-to-r from-[#26466D] to-[#1e3a5f] hover:from-[#1e3a5f] hover:to-[#26466D] text-white font-bold py-3.5 px-4 rounded-xl transition-all duration-300 shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300 transform hover:-translate-y-0.5 active:translate-y-0 flex justify-center items-center gap-2 mt-4">
                     <span>دخول</span>
                 </button>
             </form>
@@ -1103,7 +1221,7 @@
                     <button type="button" onclick="closeCreateAccountModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-colors">
                         إلغاء
                     </button>
-                    <button type="submit" id="create-account-btn" class="flex-1 bg-[#26466D] hover:bg-[#1e3a5f] text-white font-bold py-3 rounded-xl transition-colors shadow-md">
+                    <button type="submit" id="create-account-btn" class="flex-1 bg-gradient-to-r from-[#26466D] to-[#1e3a5f] hover:from-[#1e3a5f] hover:to-[#26466D] text-white font-bold py-3 rounded-xl transition-all duration-300 shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300 transform hover:-translate-y-0.5 active:translate-y-0">
                         إنشاء الحساب
                     </button>
                 </div>
@@ -1211,30 +1329,33 @@
         <main class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
             <!-- ملخص التكتات -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="bg-white p-5 rounded-xl border border-orange-100 shadow-sm flex items-center justify-between">
+                <div class="bg-white p-5 rounded-xl border border-orange-100 shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between group relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-1 h-full bg-gradient-to-b from-orange-400 to-orange-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                     <div>
                         <p class="text-sm text-slate-500">التكتات المفتوحة</p>
                         <h3 class="text-2xl font-bold text-slate-800" id="open-tickets-count">0</h3>
                     </div>
-                    <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-100 to-orange-200 text-orange-600 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </div>
                 </div>
-                <div class="bg-white p-5 rounded-xl border border-blue-100 shadow-sm flex items-center justify-between">
+                <div class="bg-white p-5 rounded-xl border border-blue-100 shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between group relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-1 h-full bg-gradient-to-b from-blue-400 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                     <div>
                         <p class="text-sm text-slate-500">قيد المعالجة</p>
                         <h3 class="text-2xl font-bold text-slate-800" id="pending-tickets-count">0</h3>
                     </div>
-                    <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 text-blue-600 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
                     </div>
                 </div>
-                <div class="bg-white p-5 rounded-xl border border-green-100 shadow-sm flex items-center justify-between">
+                <div class="bg-white p-5 rounded-xl border border-green-100 shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between group relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-1 h-full bg-gradient-to-b from-green-400 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                     <div>
                         <p class="text-sm text-slate-500">تم الحل</p>
                         <h3 class="text-2xl font-bold text-slate-800" id="closed-tickets-count">0</h3>
                     </div>
-                    <div class="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-100 to-green-200 text-green-600 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </div>
                 </div>
@@ -1248,7 +1369,7 @@
                     <button onclick="filterTickets('pending')" class="px-4 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-slate-50 transition-all filter-btn" data-filter="pending">قيد المعالجة</button>
                     <button onclick="filterTickets('closed')" class="px-4 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-slate-50 transition-all filter-btn" data-filter="closed">مغلق</button>
                 </div>
-                <button onclick="openAddTicketModal()" class="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-orange-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0">
+                <button onclick="openAddTicketModal()" class="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-orange-200 hover:shadow-xl hover:shadow-orange-300 transition-all duration-300 transform hover:-translate-y-0.5 hover:scale-105 active:translate-y-0 active:scale-100">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                     </svg>
@@ -1319,7 +1440,7 @@
                 <form onsubmit="handleAddTeam(event)" class="flex flex-col md:flex-row gap-4">
                     <input type="text" id="new-team-name" required placeholder="اسم الفريق (مثال: فريق الصيانة B)" class="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
                     <input type="text" id="new-team-desc" required placeholder="وصف الفريق / التخصص" class="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
-                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-colors">إضافة الفريق</button>
+                    <button type="submit" class="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300 transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0">إضافة الفريق</button>
                 </form>
             </div>
 
@@ -1355,7 +1476,7 @@
                                 </div>
                             </div>
                         </div>
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-colors mt-6 md:mt-0">إضافة العضو</button>
+                        <button type="submit" class="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300 transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0 mt-6 md:mt-0">إضافة العضو</button>
                     </div>
                 </form>
             </div>
@@ -1393,7 +1514,7 @@
                     <button type="button" onclick="closeEditTeamModal()" class="flex-1 px-4 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-medium">
                         إلغاء
                     </button>
-                    <button type="submit" class="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-bold">
+                    <button type="submit" class="flex-1 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-lg shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300 transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0 font-bold">
                         حفظ التعديلات
                     </button>
                 </div>
@@ -1565,7 +1686,7 @@
                                     <p class="text-xs text-slate-500 mt-1">اضغط على أي حالة لعرض المشتركين المرتبطين بها</p>
                                 </div>
                                 <div class="flex items-center gap-2 flex-wrap">
-                                    <button id="sync-customers-btn" onclick="syncCustomers()" class="flex items-center gap-2 px-4 py-2 rounded-xl border border-green-200 bg-green-50 text-sm font-bold text-green-700 hover:bg-green-100 transition-colors">
+                                    <button id="sync-customers-btn" onclick="syncCustomers()" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm font-bold shadow-lg shadow-green-200 hover:shadow-xl hover:shadow-green-300 transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0 hover:scale-105">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                         </svg>
