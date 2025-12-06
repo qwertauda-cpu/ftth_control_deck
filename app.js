@@ -4820,7 +4820,7 @@ function initSideMenuNavigation() {
     });
 }
 
-function scrollToSection(sectionId, options = {}) {
+async function scrollToSection(sectionId, options = {}) {
     if (!sectionId) return;
     
     // التأكد من أن page-detail-screen مرئي
