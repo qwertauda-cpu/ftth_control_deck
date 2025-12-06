@@ -4995,23 +4995,14 @@ function renderExpiringSoonList() {
                 } else {
                     // عرض بالساعات لجميع المشتركين في قسم "القريبين على الانتهاء"
                     const totalHours = Math.floor(diffHours);
-                    const days = Math.floor(totalHours / 24);
-                    const hours = totalHours % 24;
                     const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
                     
-                    if (days > 0) {
-                        // إذا كان أكثر من يوم، نعرض الأيام والساعات
-                        if (hours > 0) {
-                            timeText = `${days} يوم و ${hours} ساعة متبقية`;
-                        } else {
-                            timeText = `${days} يوم متبقي`;
-                        }
-                    } else if (hours > 0) {
-                        // أقل من يوم ولكن أكثر من ساعة
+                    if (totalHours > 0) {
+                        // عرض إجمالي الساعات
                         if (minutes > 0) {
-                            timeText = `${hours} ساعة و ${minutes} دقيقة متبقية`;
+                            timeText = `${totalHours} ساعة و ${minutes} دقيقة متبقية`;
                         } else {
-                            timeText = `${hours} ساعة متبقية`;
+                            timeText = `${totalHours} ساعة متبقية`;
                         }
                     } else if (minutes > 0) {
                         // أقل من ساعة
