@@ -2560,20 +2560,29 @@ async function loadSubscribersFromDB(pageNumber = 1, pageSize = ALWATANI_CUSTOME
             
             subscribersCache = combinedList.map((sub, index) => {
                 // Normalize data structure from database
+                // في البنية القديمة، الاسم قد يكون في username، وفي البنية الجديدة في name أو fullName
+                const extractedName = sub.name || 
+                                     sub.fullName || 
+                                     sub.username || 
+                                     sub.displayValue ||
+                                     sub.customerName ||
+                                     null;
+                
                 const normalized = {
                     id: sub.id || sub.accountId || sub.account_id || null,
                     account_id: sub.account_id || sub.accountId || null,
                     accountId: sub.accountId || sub.account_id || null,
                     username: sub.username || null,
                     deviceName: sub.deviceName || sub.device_name || null,
-                    name: sub.name || '--',
+                    name: extractedName || '--',
+                    fullName: sub.fullName || extractedName || null,
                     phone: sub.phone || null,
                     zone: sub.zone || null,
                     page_url: sub.page_url || (sub.accountId || sub.account_id ? `https://admin.ftth.iq/customer-details/${sub.accountId || sub.account_id}/details/view` : '#'),
-                    start_date: sub.start_date || sub.startDate || null,
-                    startDate: sub.startDate || sub.start_date || null,
-                    end_date: sub.end_date || sub.endDate || null,
-                    endDate: sub.endDate || sub.end_date || null,
+                    start_date: sub.start_date || sub.startDate || sub.startDate || null,
+                    startDate: sub.startDate || sub.start_date || sub.startDate || null,
+                    end_date: sub.end_date || sub.endDate || sub.endDate || null,
+                    endDate: sub.endDate || sub.end_date || sub.endDate || null,
                     status: sub.status || null,
                     raw: sub.raw || {},
                     rawCustomer: sub.rawCustomer || null,

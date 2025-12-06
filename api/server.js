@@ -1425,13 +1425,13 @@ async function saveCustomerRecordImmediate(item, alwataniPool) {
                     updated_at = CURRENT_TIMESTAMP`,
                 [
                     item.accountId,
-                    record.username || record.name || null,
+                    record.fullName || record.name || record.username || record.displayValue || record.customerName || null,
                     record.deviceName || null,
                     record.phone || null,
                     record.zone || record.region || null,
                     record.page_url || (item.accountId ? `https://admin.ftth.iq/customer-details/${item.accountId}/details/view` : null),
-                    record.start_date || record.startDate || null,
-                    record.end_date || record.endDate || null,
+                    record.start_date || record.startDate || record.contractStart || null,
+                    record.end_date || record.endDate || record.contractEnd || record.expires || null,
                     record.status || null
                 ]
             );
@@ -1902,10 +1902,24 @@ function parseCustomerDetailsHtml(html) {
 
 function mergeCustomerDetails(record, details) {
     if (!record || !details) return;
+    
+    // تحديث الاسم - نبحث في عدة أماكن
+    const fullName = details.fullName || 
+                     details.name || 
+                     details.displayValue || 
+                     details.customerName ||
+                     details.username ||
+                     null;
+    if (fullName) {
+        record.name = fullName;
+        record.fullName = fullName;
+    }
+    
     // تحديث username بشكل منفصل
     if (details.username) {
         record.username = details.username;
     }
+    
     // تحديث deviceName بشكل منفصل - لا نستخدم deviceName كـ username
     if (details.deviceName) {
         record.deviceName = details.deviceName;
@@ -1913,14 +1927,30 @@ function mergeCustomerDetails(record, details) {
     if (details.phone) record.phone = details.phone;
     if (details.zone) record.zone = details.zone;
     if (details.status) record.status = details.status;
-    if (details.startDate) {
-        record.startDate = details.startDate;
-        record.start_date = details.startDate;
+    
+    // تحديث تاريخ البدء - نبحث في عدة أماكن
+    const startDate = details.startDate || 
+                      details.start_date || 
+                      details.contractStart ||
+                      details.startsAt ||
+                      null;
+    if (startDate) {
+        record.startDate = startDate;
+        record.start_date = startDate;
     }
-    if (details.endDate) {
-        record.endDate = details.endDate;
-        record.end_date = details.endDate;
+    
+    // تحديث تاريخ الانتهاء
+    const endDate = details.endDate || 
+                    details.end_date || 
+                    details.contractEnd ||
+                    details.expires ||
+                    details.endsAt ||
+                    null;
+    if (endDate) {
+        record.endDate = endDate;
+        record.end_date = endDate;
     }
+    
     if (record.accountId) {
         record.page_url = `https://admin.ftth.iq/customer-details/${record.accountId}/details/view`;
     }
@@ -3796,16 +3826,21 @@ app.get('/api/alwatani-login/:id/customers/db', async (req, res) => {
                     return customerData;
                 } else {
                     // البنية القديمة: أعمدة منفصلة
+                    // في البنية القديمة، الاسم محفوظ في username
                     return {
                         accountId: row.account_id,
                         account_id: row.account_id,
                         username: row.username || null,
+                        name: row.username || null, // الاسم محفوظ في username في البنية القديمة
+                        fullName: row.username || null,
                         deviceName: row.device_name || null,
                         phone: row.phone || null,
                         zone: row.region || null,
                         page_url: row.page_url || null,
                         start_date: row.start_date || null,
+                        startDate: row.start_date || null,
                         end_date: row.end_date || null,
+                        endDate: row.end_date || null,
                         status: row.status || null
                     };
                 }
