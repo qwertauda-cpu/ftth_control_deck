@@ -2692,6 +2692,13 @@ async function loadSubscribersFromDB(pageNumber = 1, pageSize = ALWATANI_CUSTOME
             renderExpiringSoonList();
             applySubscriberFilter(activeSubscriberFilter || 'all');
             // Throw error to allow retry mechanism to work
+        }
+    } catch (error) {
+        console.error('[LOAD DB] ❌ Error loading subscribers from database:', error);
+        addLogToConsoleBox(`❌ خطأ في تحميل المشتركين: ${error.message}`, 'text-red-400');
+        showSubscribersTableMessage(`خطأ في تحميل البيانات: ${error.message}`);
+    } finally {
+        isLoadingSubscribers = false;
             throw new Error('لا توجد بيانات في الاستجابة من قاعدة البيانات');
         }
     } catch (error) {
