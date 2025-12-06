@@ -4926,11 +4926,11 @@ async function renderExpiringSoonList() {
             toDate = new Date(today);
             toDate.setHours(23, 59, 59, 999);
         } else {
-            // القريبين على الانتهاء: من اليوم حتى 7 أيام من الآن
+            // القريبين على الانتهاء: من اليوم حتى 3 أيام من الآن
             fromDate = new Date(today);
             fromDate.setHours(0, 0, 0, 0);
             toDate = new Date(today);
-            toDate.setDate(toDate.getDate() + 7);
+            toDate.setDate(toDate.getDate() + 3);
             toDate.setHours(23, 59, 59, 999);
         }
         
