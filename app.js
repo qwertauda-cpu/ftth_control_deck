@@ -3768,9 +3768,24 @@ async function loadOpenTicketsCount() {
     if (!currentUserId) return;
     
     try {
-        const response = await fetch(addUsernameToUrl(`${API_URL}/tickets?status=open`), addUsernameToFetchOptions());
-        const data = await response.json();
+        // إضافة alwatani_login_id إلى URL
+        const url = addAlwataniLoginIdToUrl(addUsernameToUrl(`${API_URL}/tickets`));
+        const response = await fetch(url, addUsernameToFetchOptions());
         
+        if (!response.ok) {
+            // إذا كان الخطأ 400 أو 500، نعرض 0 بدلاً من الخطأ
+            if (response.status === 400 || response.status === 500) {
+                console.warn('[DASHBOARD] Could not load tickets count:', response.status);
+                const openTicketsEl = document.getElementById('dashboard-open-tickets');
+                if (openTicketsEl) {
+                    openTicketsEl.textContent = '0';
+                }
+                return;
+            }
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
         const tickets = Array.isArray(data) ? data : (data.tickets || []);
         const openTickets = tickets.filter(ticket => ticket.status === 'open');
         
@@ -3780,6 +3795,11 @@ async function loadOpenTicketsCount() {
         }
     } catch (error) {
         console.error('[DASHBOARD] Error loading open tickets count:', error);
+        // في حالة الخطأ، نعرض 0
+        const openTicketsEl = document.getElementById('dashboard-open-tickets');
+        if (openTicketsEl) {
+            openTicketsEl.textContent = '0';
+        }
     }
 }
 
@@ -5500,7 +5520,22 @@ async function loadActiveTeamsCount() {
     if (!currentUserId) return;
     
     try {
-        const response = await fetch(addAlwataniLoginIdToUrl(addUsernameToUrl(`${API_URL}/teams`)), addUsernameToFetchOptions());
+        const url = addAlwataniLoginIdToUrl(addUsernameToUrl(`${API_URL}/teams`));
+        const response = await fetch(url, addUsernameToFetchOptions());
+        
+        if (!response.ok) {
+            // إذا كان الخطأ 400 أو 500، نعرض 0 بدلاً من الخطأ
+            if (response.status === 400 || response.status === 500) {
+                console.warn('[DASHBOARD] Could not load teams count:', response.status);
+                const activeTeamsEl = document.getElementById('dashboard-active-teams');
+                if (activeTeamsEl) {
+                    activeTeamsEl.textContent = '0';
+                }
+                return;
+            }
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const teamsData = await response.json();
         const teams = Array.isArray(teamsData) ? teamsData : (teamsData.error ? [] : []);
         
@@ -5514,7 +5549,11 @@ async function loadActiveTeamsCount() {
         }
     } catch (error) {
         console.error('[DASHBOARD] Error loading active teams count:', error);
-        // في حالة الخطأ، نترك القيمة الحالية
+        // في حالة الخطأ، نعرض 0
+        const activeTeamsEl = document.getElementById('dashboard-active-teams');
+        if (activeTeamsEl) {
+            activeTeamsEl.textContent = '0';
+        }
     }
 }
 
