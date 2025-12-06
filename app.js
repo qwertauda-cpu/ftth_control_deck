@@ -3602,14 +3602,12 @@ async function loadWalletBalance() {
             }).format(balance);
             
             container.innerHTML = `
-                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
-                    <div class="text-center">
-                        <p class="text-sm text-slate-600 mb-2">الرصيد المتاح</p>
-                        <p class="text-3xl font-bold text-[#26466D]">${formattedBalance}</p>
-                        <button onclick="openWalletScreen()" class="mt-4 px-4 py-2 bg-[#26466D] text-white rounded-lg text-sm font-medium hover:bg-[#1e3a5f] transition-colors">
-                            عرض الحوالات
-                        </button>
-                    </div>
+                <div class="text-center py-4">
+                    <p class="text-3xl font-bold text-[#26466D] mb-2">${formattedBalance}</p>
+                    <p class="text-sm text-slate-500 mb-4">دينار عراقي</p>
+                    <button onclick="openWalletScreen()" class="px-4 py-2 bg-[#26466D] text-white rounded-lg text-sm font-medium hover:bg-[#1e3a5f] transition-colors">
+                        عرض الحوالات
+                    </button>
                 </div>
             `;
         } else {
@@ -3632,14 +3630,11 @@ async function loadWalletBalance() {
             }
             
             container.innerHTML = `
-                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
-                    <div class="text-center">
-                        <p class="text-sm text-slate-600 mb-2">الرصيد المتاح</p>
-                        <p class="text-lg text-slate-400 mb-4">${displayMsg}</p>
-                        <button onclick="openWalletScreen()" class="px-4 py-2 bg-[#26466D] text-white rounded-lg text-sm font-medium hover:bg-[#1e3a5f] transition-colors">
-                            عرض الحوالات
-                        </button>
-                    </div>
+                <div class="text-center py-4">
+                    <p class="text-lg text-slate-400 mb-4">${displayMsg}</p>
+                    <button onclick="openWalletScreen()" class="px-4 py-2 bg-[#26466D] text-white rounded-lg text-sm font-medium hover:bg-[#1e3a5f] transition-colors">
+                        عرض الحوالات
+                    </button>
                 </div>
             `;
         }
