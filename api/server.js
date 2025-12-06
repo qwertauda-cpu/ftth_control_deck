@@ -708,7 +708,7 @@ const DETAIL_FETCH_DELAY_MAX = Math.max(0, parseInt(process.env.DETAIL_FETCH_DEL
 const DETAIL_FETCH_MAX_RETRIES = Math.max(1, parseInt(process.env.DETAIL_FETCH_MAX_RETRIES || '3', 10));
 const DETAIL_FETCH_IMMEDIATE_SAVE = (process.env.DETAIL_FETCH_IMMEDIATE_SAVE || 'true').toLowerCase() !== 'false';
 const PAGE_FETCH_BATCH_SIZE = 1; // صفحة واحدة فقط في كل مرة
-let PAGE_FETCH_BATCH_DELAY = 1000; // ثانية واحدة بين كل صفحة
+let PAGE_FETCH_BATCH_DELAY = 1500; // ثانية ونصف بين كل صفحة
 const PAGE_FETCH_MAX_RETRIES = Math.max(1, parseInt(process.env.PAGE_FETCH_MAX_RETRIES || '4', 10));
 const PAGE_FETCH_RATE_LIMIT_BACKOFF = Math.max(1000, parseInt(process.env.PAGE_FETCH_RATE_BACKOFF_MS || '15000', 10));
 
@@ -4123,8 +4123,8 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                         break;
                     }
                     
-            // تأخير ثانية واحدة قبل كل صفحة
-            await delay(1000);
+            // تأخير ثانية ونصف قبل كل صفحة
+            await delay(1500);
             
             const pageResult = await fetchCustomersPageWithRetry(
                             pageNum,
