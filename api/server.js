@@ -3991,7 +3991,7 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         });
         
         // إضافة رسالة الصفحة الأولى إلى logs
-        const firstPageCustomers = normalizeAlwataniCollection(firstPageResult.data);
+        const firstPageCustomers = normalizeAlwataniCollection(firstPageResp.data);
         const existing1 = syncProgressStore.get(id) || { logs: [] };
         if (!existing1.logs) existing1.logs = [];
         existing1.logs.push({
