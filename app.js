@@ -1311,8 +1311,10 @@ function openPageDetail(username, password, userId) {
     console.log('[OPEN PAGE] Opening page detail:', { 
         alwataniUsername: username, 
         currentDetailUser: currentDetailUser,
-        userId: userId 
+        userId: userId,
+        skipAutoLoad: arguments[3] || false
     });
+    const skipAutoLoad = arguments[3] || false;
     currentDetailPass = password; // فقط password من alwatani_login
     currentUserId = userId;
     // التأكد من أن currentDetailUser لا يزال admin@domain
@@ -1331,8 +1333,8 @@ function openPageDetail(username, password, userId) {
     // تحميل تفاصيل الوطني
     loadAlwataniDetails();
     
-    // تحميل المشتركين تلقائياً من قاعدة البيانات عند فتح الصفحة
-    if (currentUserId) {
+    // تحميل المشتركين تلقائياً من قاعدة البيانات عند فتح الصفحة (فقط إذا لم يتم تخطيه)
+    if (currentUserId && !skipAutoLoad) {
         console.log('[OPEN PAGE] Loading subscribers from database automatically...');
         setTimeout(async () => {
             try {
