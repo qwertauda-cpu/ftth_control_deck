@@ -2291,25 +2291,32 @@ async function enrichCustomersWithDetails(records, tokenRef, username, password,
         });
     }
     
-    // جلب مشترك واحد في كل مرة مع تأخير ثانية واحدة بين كل مشترك
-    const concurrency = 1; // مشترك واحد فقط في كل مرة
-    const delayBetweenSubscribers = 1000; // ثانية واحدة بين كل مشترك
+    // نظام ذكي متكيف: يبدأ بحذر ثم يزيد السرعة تدريجياً
+    let currentConcurrency = 2; // نبدأ بـ 2 مشتركين متوازيين
+    let currentDelay = 600; // 600ms بين كل batch (أسرع من قبل)
     let delayMin = DETAIL_FETCH_DELAY_MIN;
     let delayMax = DETAIL_FETCH_DELAY_MAX;
-    console.log(`[ENRICH] Starting detail fetching: 1 subscriber every ${delayBetweenSubscribers / 1000} second`);
+    const minDelay = 400; // الحد الأدنى للتأخير
+    const maxDelay = 2000; // الحد الأقصى للتأخير
+    const minConcurrency = 1; // الحد الأدنى للتوازي
+    const maxConcurrency = 3; // الحد الأقصى للتوازي
+    
+    console.log(`[ENRICH] Starting smart adaptive fetching: ${currentConcurrency} subscribers in parallel, ${currentDelay}ms delay between batches`);
     
     let processed = 0;
     let successCount = 0;
     let phoneFoundCount = 0;
     let rateLimitErrors = 0;
     let consecutiveErrors = 0;
+    let consecutiveSuccesses = 0; // عدد النجاحات المتتالية
     let totalErrors = 0;
     const maxConsecutiveErrors = 3; // تقليل العدد للاستجابة السريعة للحظر
-    const errorRateThreshold = 0.3; // إذا كان معدل الخطأ > 30%، نزيد التأخير
+    const errorRateThreshold = 0.25; // إذا كان معدل الخطأ > 25%، نزيد التأخير
+    const successStreakForSpeedup = 10; // بعد 10 نجاحات متتالية، نزيد السرعة
     
     let cancelled = false;
     
-    for (let i = 0; i < records.length; i += concurrency) {
+    for (let i = 0; i < records.length; i += currentConcurrency) {
         if (userId && isSyncCancelled(userId)) {
             cancelled = true;
             console.warn('[ENRICH] ⏹️ Cancellation requested - stopping detail fetching loop.');
@@ -2319,22 +2326,37 @@ async function enrichCustomersWithDetails(records, tokenRef, username, password,
         // حساب معدل الخطأ
         const errorRate = processed > 0 ? totalErrors / processed : 0;
         
-        // إذا كان معدل الخطأ عالي جداً أو أخطاء متتالية كثيرة، نزيد التأخير
+        // إذا كان معدل الخطأ عالي جداً أو أخطاء متتالية كثيرة، نبطئ
         if (consecutiveErrors >= maxConsecutiveErrors || (errorRate > errorRateThreshold && processed > 10)) {
-            const waitTime = errorRate > errorRateThreshold ? 15000 : 10000; // 15s إذا كان المعدل عالي، 10s للأخطاء المتتالية
-            console.log(`[ENRICH] ⚠️ High error rate detected! Error rate: ${(errorRate * 100).toFixed(1)}%, consecutive errors: ${consecutiveErrors} - Waiting ${waitTime/1000} seconds before continuing...`);
+            const waitTime = errorRate > errorRateThreshold ? 12000 : 8000; // 12s إذا كان المعدل عالي، 8s للأخطاء المتتالية
+            console.log(`[ENRICH] ⚠️ High error rate detected! Error rate: ${(errorRate * 100).toFixed(1)}%, consecutive errors: ${consecutiveErrors} - Slowing down...`);
             await delay(waitTime);
             consecutiveErrors = Math.floor(consecutiveErrors / 2); // تقليل العدد بعد الانتظار
-            // زيادة التأخير مؤقتاً (لكن نبقى على ثانية واحدة كحد أدنى)
-            delayMin = Math.min(delayMin * 1.5, 5000);
-            delayMax = Math.min(delayMax * 1.5, 8000);
+            consecutiveSuccesses = 0; // إعادة تعيين النجاحات المتتالية
+            
+            // تقليل السرعة: تقليل التوازي وزيادة التأخير
+            currentConcurrency = Math.max(minConcurrency, currentConcurrency - 1);
+            currentDelay = Math.min(maxDelay, currentDelay * 1.3);
+            console.log(`[ENRICH] 🔻 Reduced speed: ${currentConcurrency} parallel, ${currentDelay}ms delay`);
+        }
+        // إذا كانت هناك نجاحات متتالية كثيرة، نزيد السرعة تدريجياً
+        else if (consecutiveSuccesses >= successStreakForSpeedup && errorRate < 0.1 && processed > 20) {
+            // زيادة السرعة تدريجياً
+            if (currentConcurrency < maxConcurrency) {
+                currentConcurrency = Math.min(maxConcurrency, currentConcurrency + 1);
+                console.log(`[ENRICH] ⬆️ Increased concurrency to ${currentConcurrency} (${successStreakForSpeedup} consecutive successes)`);
+            } else if (currentDelay > minDelay) {
+                currentDelay = Math.max(minDelay, currentDelay * 0.9); // تقليل التأخير بنسبة 10%
+                console.log(`[ENRICH] ⬆️ Reduced delay to ${currentDelay}ms (${successStreakForSpeedup} consecutive successes)`);
+            }
+            consecutiveSuccesses = 0; // إعادة تعيين بعد زيادة السرعة
         }
         
-        const batch = records.slice(i, i + concurrency);
+        const batch = records.slice(i, i + currentConcurrency);
         
-        // تأخير ثانية واحدة قبل جلب كل مشترك (باستثناء الأول)
+        // تأخير قبل جلب كل batch (باستثناء الأول)
         if (i > 0) {
-            await delay(delayBetweenSubscribers);
+            await delay(currentDelay);
         }
         
         const batchResults = await Promise.all(batch.map(async (item, index) => {
@@ -2458,10 +2480,13 @@ async function enrichCustomersWithDetails(records, tokenRef, username, password,
         // تحديث عداد الأخطاء المتتالية بناءً على نسبة النجاح في الـ batch
         if (batchSuccesses === 0) {
             consecutiveErrors += batchErrors; // زيادة أكبر إذا فشل الـ batch كاملاً
+            consecutiveSuccesses = 0; // إعادة تعيين النجاحات المتتالية
         } else if (batchSuccesses < batch.length * 0.5) {
             consecutiveErrors += Math.floor(batchErrors / 2); // زيادة متوسطة إذا كان النجاح < 50%
+            consecutiveSuccesses = 0; // إعادة تعيين النجاحات المتتالية
         } else {
             consecutiveErrors = Math.max(0, consecutiveErrors - batchSuccesses); // تقليل عند النجاح
+            consecutiveSuccesses += batchSuccesses; // زيادة النجاحات المتتالية
         }
         
         processed += batch.length;
@@ -4320,121 +4345,193 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         let successCount = 0;
         let phoneFoundCount = 0;
         
-        for (let i = 0; i < combinedRecords.length; i++) {
+        // نظام ذكي متكيف: يبدأ بحذر ثم يزيد السرعة تدريجياً
+        let currentConcurrency = 2; // نبدأ بـ 2 مشتركين متوازيين
+        let currentDelay = 600; // 600ms بين كل batch
+        const minDelay = 400; // الحد الأدنى للتأخير
+        const maxDelay = 2000; // الحد الأقصى للتأخير
+        const minConcurrency = 1; // الحد الأدنى للتوازي
+        const maxConcurrency = 3; // الحد الأقصى للتوازي
+        
+        let consecutiveErrors = 0;
+        let consecutiveSuccesses = 0;
+        let totalErrors = 0;
+        const maxConsecutiveErrors = 3;
+        const errorRateThreshold = 0.25;
+        const successStreakForSpeedup = 10;
+        
+        console.log(`[SYNC] Starting smart adaptive fetching: ${currentConcurrency} subscribers in parallel, ${currentDelay}ms delay between batches`);
+        
+        for (let i = 0; i < combinedRecords.length; i += currentConcurrency) {
             if (isSyncCancelled(id)) {
                 break;
             }
             
-            // تأخير ثانية واحدة قبل كل مشترك (باستثناء الأول)
-            if (i > 0) {
-                await delay(1000);
-            }
+            // حساب معدل الخطأ
+            const errorRate = processed > 0 ? totalErrors / processed : 0;
             
-            const item = combinedRecords[i];
-            const subscriberName = item.record?.username || 
-                                 item.record?.deviceName || 
-                                 item.record?.name || 
-                                 item.accountId || 
-                                 'Unknown';
-            
-            try {
-                const detailResp = await fetchAlwataniCustomerDetails(
-                    item.accountId, tokenRef, account.username, account.password
-                );
+            // إذا كان معدل الخطأ عالي جداً أو أخطاء متتالية كثيرة، نبطئ
+            if (consecutiveErrors >= maxConsecutiveErrors || (errorRate > errorRateThreshold && processed > 10)) {
+                const waitTime = errorRate > errorRateThreshold ? 12000 : 8000;
+                console.log(`[SYNC] ⚠️ High error rate detected! Error rate: ${(errorRate * 100).toFixed(1)}%, consecutive errors: ${consecutiveErrors} - Slowing down...`);
+                await delay(waitTime);
+                consecutiveErrors = Math.floor(consecutiveErrors / 2);
+                consecutiveSuccesses = 0;
                 
-                if (detailResp.success && detailResp.data) {
-                    const beforePhone = item.record.phone;
-                    const beforeStartDate = item.record.startDate || item.record.start_date;
-                    mergeCustomerDetails(item.record, detailResp.data);
-                    successCount++;
-                    
-                    if (detailResp.data.phone && detailResp.data.phone !== beforePhone) {
-                        phoneFoundCount++;
-                    }
-                    
-                    // Log startDate if found
-                    const afterStartDate = item.record.startDate || item.record.start_date;
-                    if (afterStartDate && !beforeStartDate) {
-                        console.log(`[SYNC] ✅ Found startDate for ${item.accountId}: ${afterStartDate}`);
-                    } else if (!afterStartDate && parseInt(item.accountId) % 10 === 0) {
-                        console.log(`[SYNC] ⚠️ No startDate found for ${item.accountId}. Details keys:`, Object.keys(detailResp.data || {}));
-                    }
-                    
-                    // حفظ المشترك فوراً في الداتابيس
-                    try {
-                        await saveCustomerRecordImmediate(item, alwataniPool);
-                        console.log(`[SYNC] ✅ Saved subscriber ${item.accountId} to database immediately`);
-                    } catch (saveError) {
-                        console.error(`[SYNC] ❌ Error saving subscriber ${item.accountId} immediately:`, saveError.message);
-                    }
-                    
-                    // تحديث progress - فقط الأرقام وlogs، الرسالة الرئيسية تبقى ثابتة
-                    const current = syncProgressStore.get(id) || { logs: [] };
-                    current.current = i + 1;
-                    current.total = combinedRecords.length;
-                    current.message = 'جاري جلب معلومات المشتركين...'; // الرسالة الرئيسية تبقى ثابتة
-                    current.phoneFound = phoneFoundCount;
-                    if (!current.logs) current.logs = [];
-                    
-                    // إضافة معلومات المشترك الكاملة إلى logs مع رقم التسلسل
-                    const customerData = detailResp.data || {};
-                    const fullName = customerData.fullName || customerData.name || subscriberName;
-                    const phone = customerData.phone || item.record?.phone || '';
-                    const region = customerData.zone || item.record?.zone || '';
-                    const deviceName = customerData.deviceName || item.record?.deviceName || '';
-                    
-                    // بناء رسالة مفصلة
-                    let logMessage = `${i + 1}/${combinedRecords.length} - ${fullName}`;
-                    if (phone) {
-                        logMessage += ` | ${phone}`;
-                    }
-                    if (region) {
-                        logMessage += ` | ${region}`;
-                    }
-                    if (deviceName) {
-                        logMessage += ` | ${deviceName}`;
-                    }
-                    
-                    current.logs.push({
-                        timestamp: new Date().toISOString(),
-                        message: logMessage,
-                        stage: 'enriching'
-                    });
-                    // الاحتفاظ بآخر 200 سجل
-                    if (current.logs.length > 200) current.logs = current.logs.slice(-200);
-                    current.updatedAt = new Date().toISOString();
-                    syncProgressStore.set(id, current);
-                } else {
-                    // تحديث progress مع رسالة خطأ
-                    updateSyncProgress(id, {
-                        current: i + 1,
-                        total: combinedRecords.length,
-                        message: 'جاري جلب معلومات المشتركين...', // الرسالة الرئيسية تبقى ثابتة
-                        phoneFound: phoneFoundCount,
-                        logs: [{
-                            timestamp: new Date().toISOString(),
-                            message: `${i + 1}/${combinedRecords.length} - ${subscriberName} - FAILED`,
-                            stage: 'enriching'
-                        }]
-                    });
+                // تقليل السرعة
+                currentConcurrency = Math.max(minConcurrency, currentConcurrency - 1);
+                currentDelay = Math.min(maxDelay, currentDelay * 1.3);
+                console.log(`[SYNC] 🔻 Reduced speed: ${currentConcurrency} parallel, ${currentDelay}ms delay`);
+            }
+            // إذا كانت هناك نجاحات متتالية كثيرة، نزيد السرعة تدريجياً
+            else if (consecutiveSuccesses >= successStreakForSpeedup && errorRate < 0.1 && processed > 20) {
+                if (currentConcurrency < maxConcurrency) {
+                    currentConcurrency = Math.min(maxConcurrency, currentConcurrency + 1);
+                    console.log(`[SYNC] ⬆️ Increased concurrency to ${currentConcurrency} (${successStreakForSpeedup} consecutive successes)`);
+                } else if (currentDelay > minDelay) {
+                    currentDelay = Math.max(minDelay, currentDelay * 0.9);
+                    console.log(`[SYNC] ⬆️ Reduced delay to ${currentDelay}ms (${successStreakForSpeedup} consecutive successes)`);
                 }
-            } catch (error) {
-                // تحديث progress مع رسالة خطأ
-                updateSyncProgress(id, {
-                    current: i + 1,
-                    total: combinedRecords.length,
-                    message: 'جاري جلب معلومات المشتركين...', // الرسالة الرئيسية تبقى ثابتة
-                    phoneFound: phoneFoundCount,
-                    logs: [{
-                        timestamp: new Date().toISOString(),
-                        message: `${i + 1}/${combinedRecords.length} - ${subscriberName} - ERROR: ${error.message}`,
-                        stage: 'enriching'
-                    }]
-                });
+                consecutiveSuccesses = 0;
             }
             
-            processed++;
+            // تأخير قبل جلب كل batch (باستثناء الأول)
+            if (i > 0) {
+                await delay(currentDelay);
+            }
+            
+            // جلب batch من المشتركين بشكل متوازي
+            const batch = combinedRecords.slice(i, i + currentConcurrency);
+            const batchResults = await Promise.all(batch.map(async (item, batchIndex) => {
+                const itemIndex = i + batchIndex;
+                const subscriberName = item.record?.username || 
+                                     item.record?.deviceName || 
+                                     item.record?.name || 
+                                     item.accountId || 
+                                     'Unknown';
+                
+                try {
+                    const detailResp = await fetchAlwataniCustomerDetails(
+                        item.accountId, tokenRef, account.username, account.password
+                    );
+                    
+                    if (detailResp.success && detailResp.data) {
+                        const beforePhone = item.record.phone;
+                        const beforeStartDate = item.record.startDate || item.record.start_date;
+                        mergeCustomerDetails(item.record, detailResp.data);
+                        
+                        if (detailResp.data.phone && detailResp.data.phone !== beforePhone) {
+                            phoneFoundCount++;
+                        }
+                        
+                        // Log startDate if found
+                        const afterStartDate = item.record.startDate || item.record.start_date;
+                        if (afterStartDate && !beforeStartDate) {
+                            console.log(`[SYNC] ✅ Found startDate for ${item.accountId}: ${afterStartDate}`);
+                        } else if (!afterStartDate && parseInt(item.accountId) % 10 === 0) {
+                            console.log(`[SYNC] ⚠️ No startDate found for ${item.accountId}. Details keys:`, Object.keys(detailResp.data || {}));
+                        }
+                        
+                        // حفظ المشترك فوراً في الداتابيس
+                        try {
+                            await saveCustomerRecordImmediate(item, alwataniPool);
+                            console.log(`[SYNC] ✅ Saved subscriber ${item.accountId} to database immediately`);
+                        } catch (saveError) {
+                            console.error(`[SYNC] ❌ Error saving subscriber ${item.accountId} immediately:`, saveError.message);
+                        }
+                        
+                        // تحديث progress - فقط الأرقام وlogs، الرسالة الرئيسية تبقى ثابتة
+                        const current = syncProgressStore.get(id) || { logs: [] };
+                        current.current = itemIndex + 1;
+                        current.total = combinedRecords.length;
+                        current.message = 'جاري جلب معلومات المشتركين...'; // الرسالة الرئيسية تبقى ثابتة
+                        current.phoneFound = phoneFoundCount;
+                        if (!current.logs) current.logs = [];
+                        
+                        // إضافة معلومات المشترك الكاملة إلى logs مع رقم التسلسل
+                        const customerData = detailResp.data || {};
+                        const fullName = customerData.fullName || customerData.name || subscriberName;
+                        const phone = customerData.phone || item.record?.phone || '';
+                        const region = customerData.zone || item.record?.zone || '';
+                        const deviceName = customerData.deviceName || item.record?.deviceName || '';
+                        
+                        // بناء رسالة مفصلة
+                        let logMessage = `${itemIndex + 1}/${combinedRecords.length} - ${fullName}`;
+                        if (phone) {
+                            logMessage += ` | ${phone}`;
+                        }
+                        if (region) {
+                            logMessage += ` | ${region}`;
+                        }
+                        if (deviceName) {
+                            logMessage += ` | ${deviceName}`;
+                        }
+                        
+                        current.logs.push({
+                            timestamp: new Date().toISOString(),
+                            message: logMessage,
+                            type: 'success'
+                        });
+                        
+                        // الحفاظ على آخر 100 log فقط
+                        if (current.logs.length > 100) {
+                            current.logs = current.logs.slice(-100);
+                        }
+                        
+                        current.updatedAt = new Date().toISOString();
+                        syncProgressStore.set(id, current);
+                        
+                        return { success: true };
+                    } else {
+                        totalErrors++;
+                        return { success: false };
+                    }
+                } catch (error) {
+                    totalErrors++;
+                    console.error(`[SYNC] ❌ Error fetching details for ${item.accountId}:`, error.message);
+                    return { success: false };
+                }
+            }));
+            
+            // تحديث العدادات بناءً على نتائج الـ batch
+            const batchSuccesses = batchResults.filter(r => r.success).length;
+            const batchErrors = batch.length - batchSuccesses;
+            successCount += batchSuccesses;
+            processed += batch.length;
+            
+            // تحديث عداد الأخطاء والنجاحات المتتالية
+            if (batchSuccesses === 0) {
+                consecutiveErrors += batchErrors;
+                consecutiveSuccesses = 0;
+            } else if (batchSuccesses < batch.length * 0.5) {
+                consecutiveErrors += Math.floor(batchErrors / 2);
+                consecutiveSuccesses = 0;
+            } else {
+                consecutiveErrors = Math.max(0, consecutiveErrors - batchSuccesses);
+                consecutiveSuccesses += batchSuccesses;
+            }
+            
+            // تحديث progress
+            const current = syncProgressStore.get(id) || {};
+            current.current = Math.min(processed, combinedRecords.length);
+            current.total = combinedRecords.length;
+            current.phoneFound = phoneFoundCount;
+            current.updatedAt = new Date().toISOString();
+            syncProgressStore.set(id, current);
+            
+            // تسجيل التقدم
+            if (processed % 10 === 0 || processed === combinedRecords.length) {
+                console.log(`[SYNC] Progress: ${processed}/${combinedRecords.length} (${successCount} success, ${phoneFoundCount} phones, ${totalErrors} errors, ${currentConcurrency} parallel, ${currentDelay}ms delay)`);
+            }
         }
+        
+        // تحديث نهائي للـ progress
+        const finalProgress = syncProgressStore.get(id) || {};
+        finalProgress.current = processed;
+        finalProgress.total = combinedRecords.length;
+        finalProgress.phoneFound = phoneFoundCount;
+        finalProgress.updatedAt = new Date().toISOString();
+        syncProgressStore.set(id, finalProgress);
         
         const enrichResult = {
             processed,
