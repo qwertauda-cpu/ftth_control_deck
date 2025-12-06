@@ -4746,7 +4746,7 @@ function navigateToSection(sectionId) {
         if (currentUserId && currentDetailUser) {
             console.log('[navigateToSection] Opening page-detail-screen from dashboard-screen');
             isNavigating = true;
-            openPageDetail(currentDetailUser, currentDetailPass, currentUserId);
+            openPageDetail(currentDetailUser, currentDetailPass, currentUserId, true);
             setTimeout(() => {
                 isNavigating = false;
                 navigateToSection(sectionId);
@@ -4774,13 +4774,15 @@ function navigateToSection(sectionId) {
     if (isInOtherScreen && currentUserId && currentDetailUser) {
         console.log('[navigateToSection] Opening page-detail-screen first from another screen');
         isNavigating = true;
-        // فتح صفحة تفاصيل المستخدم
-        openPageDetail(currentDetailUser, currentDetailPass, currentUserId);
+        // إخفاء الشاشة الأخرى أولاً
+        hideAllMainScreens();
+        // فتح صفحة تفاصيل المستخدم (بدون تحميل تلقائي للمشتركين)
+        openPageDetail(currentDetailUser, currentDetailPass, currentUserId, true);
         // الانتظار قليلاً ثم الانتقال للقسم المطلوب
         setTimeout(() => {
             isNavigating = false;
             navigateToSection(sectionId);
-        }, 400);
+        }, 300);
         return;
     }
     
@@ -4839,7 +4841,7 @@ function navigateToSection(sectionId) {
         // إذا لم نكن في page-detail-screen وليس لدينا معلومات المستخدم، نحتاج لفتحها أولاً
         if (currentUserId && currentDetailUser) {
             console.log('[navigateToSection] Opening page-detail-screen first');
-            openPageDetail(currentDetailUser, currentDetailPass, currentUserId);
+            openPageDetail(currentDetailUser, currentDetailPass, currentUserId, true);
             setTimeout(() => {
                 isNavigating = false;
                 navigateToSection(sectionId);
