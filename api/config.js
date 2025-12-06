@@ -71,8 +71,11 @@ module.exports = {
         password: process.env.DB_PASSWORD || '',
         database: process.env.DB_NAME || 'ftth_control_deck',
         waitForConnections: true,
-        connectionLimit: 10,
-        queueLimit: 0
+        connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT) || 20, // زيادة من 10 إلى 20 لتحسين الأداء
+        queueLimit: 0,
+        // إعدادات إضافية لتحسين الأداء
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 0
     },
     master: {
         // قاعدة البيانات الرئيسية - تخزن معلومات جميع المالكين
