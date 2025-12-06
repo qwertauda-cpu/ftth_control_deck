@@ -267,6 +267,15 @@ async function handleLogin(e) {
                 hideSideMenu(); // إخفاء القائمة الجانبية في لوحة التحكم الرئيسية
                 await loadPages();
                 currentScreen = 'dashboard';
+                
+                // تحميل بيانات لوحة التحكم عند الدخول
+                if (currentUserId) {
+                    loadWalletBalance(); // تحميل رصيد المحفظة
+                    loadRecentActivities(); // تحميل النشاطات الأخيرة
+                    loadActiveTeamsCount(); // تحميل عدد الفرق النشطة
+                    loadOpenTicketsCount(); // تحميل عدد التذاكر المفتوحة
+                }
+                
                 startAutoRefresh(); // بدء التحديث التلقائي
             
             // Apply dark mode if saved
