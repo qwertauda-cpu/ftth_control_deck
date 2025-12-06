@@ -3646,14 +3646,11 @@ async function loadWalletBalance() {
     } catch (error) {
         console.error('[WALLET] Error loading balance:', error);
         container.innerHTML = `
-            <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
-                <div class="text-center">
-                    <p class="text-sm text-slate-600 mb-2">الرصيد المتاح</p>
-                    <p class="text-lg text-slate-400 mb-4">غير متوفر</p>
-                    <button onclick="openWalletScreen()" class="px-4 py-2 bg-[#26466D] text-white rounded-lg text-sm font-medium hover:bg-[#1e3a5f] transition-colors">
-                        عرض الحوالات
-                    </button>
-                </div>
+            <div class="text-center py-4">
+                <p class="text-lg text-slate-400 mb-4">غير متوفر</p>
+                <button onclick="openWalletScreen()" class="px-4 py-2 bg-[#26466D] text-white rounded-lg text-sm font-medium hover:bg-[#1e3a5f] transition-colors">
+                    عرض الحوالات
+                </button>
             </div>
         `;
     }
@@ -3829,23 +3826,9 @@ async function loadWalletBalanceInScreen() {
             }).format(balance);
             
             display.innerHTML = `
-                <div class="relative">
-                    <div class="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-8 shadow-xl text-white relative overflow-hidden">
-                        <div class="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-2xl -mr-20 -mt-20"></div>
-                        <div class="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full blur-xl -ml-16 -mb-16"></div>
-                        <div class="relative z-10">
-                            <div class="flex items-center justify-center gap-3 mb-4">
-                                <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                                    </svg>
-                                </div>
-                            </div>
-                            <p class="text-sm text-white/90 mb-2 text-center">الرصيد المتاح</p>
-                            <p class="text-5xl font-bold text-center mb-2">${formattedBalance}</p>
-                            <p class="text-xs text-white/70 text-center">دينار عراقي</p>
-                        </div>
-                    </div>
+                <div class="text-center">
+                    <p class="text-4xl font-bold text-[#26466D] mb-2">${formattedBalance}</p>
+                    <p class="text-sm text-slate-500">دينار عراقي</p>
                 </div>
             `;
         } else {
@@ -4336,11 +4319,7 @@ function renderWalletTransactions(transactions, totalCount) {
         `;
     }).join('');
     
-    container.innerHTML = `
-        <div class="bg-white rounded-xl border border-slate-200/50 overflow-hidden shadow-sm">
-            ${transactionsHtml || '<div class="text-center text-slate-400 text-sm py-12">لا توجد حوالات</div>'}
-        </div>
-    `;
+    container.innerHTML = transactionsHtml || '<div class="text-center text-slate-400 text-sm py-8">لا توجد حوالات</div>';
 }
 
 async function refreshWalletTransactions() {
