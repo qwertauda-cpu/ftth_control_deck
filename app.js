@@ -1328,9 +1328,21 @@ function openPageDetail(username, password, userId) {
     if (sectionDashboard) sectionDashboard.classList.remove('hidden');
     if (sectionSubscribers) sectionSubscribers.classList.add('hidden');
     
-    // لا يتم جلب المشتركين تلقائياً - فقط عند الضغط على مزامنة
+    // تحميل تفاصيل الوطني
     loadAlwataniDetails();
-    // تم إزالة updateSyncStatus() لأننا لم نعد نستخدم sync
+    
+    // تحميل المشتركين تلقائياً من قاعدة البيانات عند فتح الصفحة
+    if (currentUserId) {
+        console.log('[OPEN PAGE] Loading subscribers from database automatically...');
+        setTimeout(async () => {
+            try {
+                await loadSubscribersFromDB();
+                console.log('[OPEN PAGE] ✅ Loaded', subscribersCache.length, 'subscribers from database');
+            } catch (error) {
+                console.error('[OPEN PAGE] ❌ Error loading subscribers:', error);
+            }
+        }, 500); // تأخير بسيط لضمان تحميل الصفحة أولاً
+    }
 }
 
 async function updateSyncStatus() {
@@ -2050,10 +2062,15 @@ function startAutoRefresh() {
         try {
             switch (currentScreen) {
                 case 'dashboard':
-                    // لا يتم تحديث بيانات المشتركين تلقائياً - فقط عند الضغط على مزامنة
-                    // if (currentUserId) {
-                    //     await loadRemoteSubscribers(currentCustomersPage || 1, ALWATANI_CUSTOMERS_PAGE_SIZE);
-                    // }
+                    // تحديث بيانات المشتركين تلقائياً من قاعدة البيانات كل دقيقة
+                    if (currentUserId) {
+                        try {
+                            await loadSubscribersFromDB();
+                            console.log('[AUTO-REFRESH] ✅ Refreshed', subscribersCache.length, 'subscribers from database');
+                        } catch (error) {
+                            console.error('[AUTO-REFRESH] ❌ Error refreshing subscribers:', error);
+                        }
+                    }
                     break;
                     
                 case 'expiring':
@@ -2456,6 +2473,40 @@ async function loadLocalSubscribers() {
     }
 }
 
+// دالة لإضافة log إلى الـ CMD box
+function addLogToConsoleBox(message, color = 'text-green-400') {
+    const consoleBox = document.getElementById('sync-console-box');
+    const consoleContent = document.getElementById('sync-console-content');
+    
+    if (!consoleBox || !consoleContent) {
+        return;
+    }
+    
+    // إظهار الـ CMD box إذا كان مخفياً
+    if (consoleBox.parentElement && consoleBox.parentElement.classList.contains('hidden')) {
+        consoleBox.parentElement.classList.remove('hidden');
+    }
+    
+    // إضافة log جديد
+    const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const logEntry = document.createElement('div');
+    logEntry.className = color;
+    logEntry.textContent = `[${time}] ${message}`;
+    
+    consoleContent.appendChild(logEntry);
+    
+    // الاحتفاظ بآخر 200 log فقط
+    const logs = consoleContent.children;
+    if (logs.length > 200) {
+        consoleContent.removeChild(logs[0]);
+    }
+    
+    // Scroll to bottom تلقائياً
+    setTimeout(() => {
+        consoleBox.scrollTop = consoleBox.scrollHeight;
+    }, 50);
+}
+
 // Load subscribers from local database (alwatani_customers_cache)
 async function loadSubscribersFromDB(pageNumber = 1, pageSize = ALWATANI_CUSTOMERS_PAGE_SIZE) {
     if (!currentUserId) {
@@ -2469,22 +2520,45 @@ async function loadSubscribersFromDB(pageNumber = 1, pageSize = ALWATANI_CUSTOME
         showSubscribersTableMessage('جاري تحميل البيانات من قاعدة البيانات المحلية...');
         console.log('[LOAD DB] Fetching subscribers from local database for userId:', userId, 'page:', pageNumber);
         
+        // إضافة log في الـ CMD box
+        addLogToConsoleBox('جاري تحميل المشتركين من قاعدة البيانات...', 'text-yellow-400');
+        
         const apiUrl = `${API_URL}/alwatani-login/${userId}/customers/db?username=${encodeURIComponent(currentDetailUser || '')}&pageNumber=${pageNumber}&pageSize=${pageSize}`;
+        console.log('[LOAD DB] API URL:', apiUrl);
+        
         const response = await fetch(apiUrl, addUsernameToFetchOptions());
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[LOAD DB] ❌ HTTP Error:', response.status, response.statusText, errorText);
+            addLogToConsoleBox(`❌ خطأ في جلب البيانات: HTTP ${response.status}`, 'text-red-400');
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const data = await response.json();
         
         console.log('[LOAD DB] Response:', {
             success: data.success,
             hasData: !!data.data,
             combinedLength: data.data?.combined?.length || 0,
-            total: data.pagination?.total || 0
+            total: data.pagination?.total || 0,
+            message: data.message || 'No message'
         });
+        
+        if (!data.success) {
+            console.error('[LOAD DB] ❌ API returned success: false. Message:', data.message);
+            addLogToConsoleBox(`❌ فشل جلب البيانات: ${data.message || 'خطأ غير معروف'}`, 'text-red-400');
+            throw new Error(data.message || 'فشل جلب البيانات من قاعدة البيانات');
+        }
         
         if (data.success && data.data && data.data.combined && Array.isArray(data.data.combined)) {
             const combinedList = data.data.combined;
             console.log('[LOAD DB] Processing', combinedList.length, 'subscribers from database');
             
-            subscribersCache = combinedList.map((sub) => {
+            // إضافة log عن عدد المشتركين
+            addLogToConsoleBox(`تم العثور على ${combinedList.length} مشترك في قاعدة البيانات`, 'text-green-300');
+            
+            subscribersCache = combinedList.map((sub, index) => {
                 // Normalize data structure from database
                 const normalized = {
                     id: sub.id || sub.accountId || sub.account_id || null,
@@ -2513,6 +2587,9 @@ async function loadSubscribersFromDB(pageNumber = 1, pageSize = ALWATANI_CUSTOME
             
             console.log('[LOAD DB] Successfully loaded', subscribersCache.length, 'subscribers from database');
             
+            // إضافة log نهائي
+            addLogToConsoleBox(`✅ تم تحميل ${subscribersCache.length} مشترك بنجاح من قاعدة البيانات`, 'text-green-300');
+            
             renderSubscriberStatusCards();
             renderExpiringSoonList();
             
@@ -2531,20 +2608,37 @@ async function loadSubscribersFromDB(pageNumber = 1, pageSize = ALWATANI_CUSTOME
             
             showSubscribersTableMessage(`✅ تم تحميل ${subscribersCache.length} مشترك من قاعدة البيانات المحلية`);
         } else {
-            console.warn('[LOAD DB] No data in response:', data);
+            console.warn('[LOAD DB] ⚠️ No data in response or invalid structure:', {
+                success: data.success,
+                hasData: !!data.data,
+                hasCombined: !!data.data?.combined,
+                isArray: Array.isArray(data.data?.combined),
+                dataKeys: data.data ? Object.keys(data.data) : []
+            });
             subscribersCache = [];
+            addLogToConsoleBox('⚠️ لا توجد بيانات في قاعدة البيانات المحلية. يرجى المزامنة أولاً.', 'text-yellow-400');
             showSubscribersTableMessage('لا توجد بيانات في قاعدة البيانات المحلية. يرجى المزامنة أولاً.');
             renderSubscriberStatusCards();
             renderExpiringSoonList();
             applySubscriberFilter(activeSubscriberFilter || 'all');
+            // Throw error to allow retry mechanism to work
+            throw new Error('لا توجد بيانات في الاستجابة من قاعدة البيانات');
         }
     } catch (error) {
-        console.error('[LOAD DB] Error loading subscribers from database:', error);
+        console.error('[LOAD DB] ❌ Error loading subscribers from database:', error);
+        console.error('[LOAD DB] Error details:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+        });
         subscribersCache = [];
-        showSubscribersTableMessage('❌ حدث خطأ في تحميل البيانات من قاعدة البيانات المحلية');
+        addLogToConsoleBox(`❌ خطأ في تحميل البيانات: ${error.message || 'خطأ غير معروف'}`, 'text-red-400');
+        showSubscribersTableMessage('❌ حدث خطأ في تحميل البيانات من قاعدة البيانات المحلية: ' + (error.message || 'خطأ غير معروف'));
         renderSubscriberStatusCards();
         renderExpiringSoonList();
         applySubscriberFilter(activeSubscriberFilter || 'all');
+        // Re-throw error to allow retry mechanism to catch it
+        throw error;
     }
 }
 
@@ -2727,27 +2821,40 @@ async function stopSync() {
                 // تحديث البيانات بعد الإيقاف - جلب من الداتابيس مع retry mechanism
                 console.log('[STOP SYNC] Loading subscribers from database after stop...');
                 let retryCount = 0;
-                const maxRetries = 3;
+                const maxRetries = 5; // زيادة عدد المحاولات
+                let lastError = null;
                 
                 while (retryCount < maxRetries) {
-                    await loadSubscribersFromDB();
-                    
-                    // إذا تم تحميل البيانات بنجاح، نخرج من الحلقة
-                    if (subscribersCache.length > 0) {
-                        console.log(`[STOP SYNC] Successfully loaded ${subscribersCache.length} subscribers after ${retryCount + 1} attempt(s)`);
-                        break;
+                    try {
+                        await loadSubscribersFromDB();
+                        
+                        // إذا تم تحميل البيانات بنجاح، نخرج من الحلقة
+                        if (subscribersCache.length > 0) {
+                            console.log(`[STOP SYNC] ✅ Successfully loaded ${subscribersCache.length} subscribers after ${retryCount + 1} attempt(s)`);
+                            showSubscribersTableMessage(`✅ تم تحميل ${subscribersCache.length} مشترك من قاعدة البيانات`);
+                            break;
+                        } else {
+                            console.log(`[STOP SYNC] ⚠️ No data loaded (attempt ${retryCount + 1}/${maxRetries}). subscribersCache.length = ${subscribersCache.length}`);
+                        }
+                    } catch (error) {
+                        lastError = error;
+                        console.error(`[STOP SYNC] ❌ Error loading subscribers (attempt ${retryCount + 1}/${maxRetries}):`, error);
                     }
                     
                     retryCount++;
                     if (retryCount < maxRetries) {
-                        console.log(`[STOP SYNC] No data loaded, retrying in 2 seconds... (attempt ${retryCount + 1}/${maxRetries})`);
-                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        const delay = 2000 * retryCount; // زيادة الـ delay تدريجياً (2s, 4s, 6s, 8s)
+                        console.log(`[STOP SYNC] Retrying in ${delay / 1000} seconds... (attempt ${retryCount + 1}/${maxRetries})`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
                     }
                 }
                 
                 // إذا لم يتم تحميل أي بيانات بعد جميع المحاولات
                 if (subscribersCache.length === 0) {
-                    console.warn('[STOP SYNC] No data loaded after all retries');
+                    console.warn('[STOP SYNC] ❌ No data loaded after all retries');
+                    if (lastError) {
+                        console.error('[STOP SYNC] Last error:', lastError);
+                    }
                     showSubscribersTableMessage('⚠️ لم يتم العثور على بيانات محفوظة. قد تحتاج لإعادة المزامنة.');
                 }
             }, 3000);
@@ -2909,25 +3016,39 @@ async function monitorSyncProgress(userId) {
                     // تحميل البيانات بعد ثانيتين لضمان حفظها
                     setTimeout(async () => {
                         let retryCount = 0;
-                        const maxRetries = 3;
+                        const maxRetries = 5; // زيادة عدد المحاولات
+                        let lastError = null;
                         
                         while (retryCount < maxRetries) {
-                            await loadSubscribersFromDB();
-                            
-                            if (subscribersCache.length > 0) {
-                                console.log(`[MONITOR] Successfully loaded ${subscribersCache.length} subscribers after ${retryCount + 1} attempt(s)`);
-                                break;
+                            try {
+                                await loadSubscribersFromDB();
+                                
+                                if (subscribersCache.length > 0) {
+                                    console.log(`[MONITOR] ✅ Successfully loaded ${subscribersCache.length} subscribers after ${retryCount + 1} attempt(s)`);
+                                    showSubscribersTableMessage(`✅ تم تحميل ${subscribersCache.length} مشترك من قاعدة البيانات`);
+                                    break;
+                                } else {
+                                    console.log(`[MONITOR] ⚠️ No data loaded (attempt ${retryCount + 1}/${maxRetries}). subscribersCache.length = ${subscribersCache.length}`);
+                                }
+                            } catch (error) {
+                                lastError = error;
+                                console.error(`[MONITOR] ❌ Error loading subscribers (attempt ${retryCount + 1}/${maxRetries}):`, error);
                             }
                             
                             retryCount++;
                             if (retryCount < maxRetries) {
-                                console.log(`[MONITOR] No data loaded, retrying in 2 seconds... (attempt ${retryCount + 1}/${maxRetries})`);
-                                await new Promise(resolve => setTimeout(resolve, 2000));
+                                const delay = 2000 * retryCount; // زيادة الـ delay تدريجياً (2s, 4s, 6s, 8s)
+                                console.log(`[MONITOR] Retrying in ${delay / 1000} seconds... (attempt ${retryCount + 1}/${maxRetries})`);
+                                await new Promise(resolve => setTimeout(resolve, delay));
                             }
                         }
                         
                         if (subscribersCache.length === 0) {
-                            console.warn('[MONITOR] No data loaded after all retries');
+                            console.warn('[MONITOR] ❌ No data loaded after all retries');
+                            if (lastError) {
+                                console.error('[MONITOR] Last error:', lastError);
+                            }
+                            showSubscribersTableMessage('⚠️ لم يتم العثور على بيانات محفوظة بعد المزامنة. يرجى المحاولة مرة أخرى.');
                         }
                     }, 2000);
                 }
@@ -2940,10 +3061,46 @@ async function monitorSyncProgress(userId) {
                     }
                     
                     // إبقاء الشريط ظاهراً لمدة 10 ثوانٍ قبل الإخفاء
-                    setTimeout(() => {
+                    setTimeout(async () => {
                         stopSyncProgressMonitoring();
                         if (progressContainer) {
                             progressContainer.classList.add('hidden');
+                        }
+                        
+                        // Load subscribers from DB after sync is completed or cancelled
+                        console.log('[MONITOR] Sync completed/cancelled. Loading subscribers from DB...');
+                        let retries = 0;
+                        const maxRetries = 5; // زيادة عدد المحاولات
+                        let lastError = null;
+                        
+                        while (retries < maxRetries) {
+                            try {
+                                await loadSubscribersFromDB();
+                                if (subscribersCache.length > 0) {
+                                    console.log(`[MONITOR] ✅ Successfully loaded ${subscribersCache.length} subscribers from DB after ${retries + 1} attempt(s).`);
+                                    showSubscribersTableMessage(`✅ تم تحميل ${subscribersCache.length} مشترك من قاعدة البيانات`);
+                                    break;
+                                } else {
+                                    console.log(`[MONITOR] ⚠️ No data loaded (attempt ${retries + 1}/${maxRetries}). subscribersCache.length = ${subscribersCache.length}`);
+                                }
+                            } catch (dbError) {
+                                lastError = dbError;
+                                console.error(`[MONITOR] ❌ Error loading from DB (retry ${retries + 1}/${maxRetries}):`, dbError);
+                            }
+                            retries++;
+                            if (retries < maxRetries) {
+                                const delay = 2000 * retries; // زيادة الـ delay تدريجياً (2s, 4s, 6s, 8s)
+                                console.log(`[MONITOR] Retrying in ${delay / 1000} seconds... (attempt ${retries + 1}/${maxRetries})`);
+                                await new Promise(resolve => setTimeout(resolve, delay));
+                            }
+                        }
+                        
+                        if (subscribersCache.length === 0) {
+                            console.warn('[MONITOR] ❌ No data loaded after all retries');
+                            if (lastError) {
+                                console.error('[MONITOR] Last error:', lastError);
+                            }
+                            showSubscribersTableMessage('⚠️ لم يتم العثور على بيانات محفوظة بعد المزامنة. يرجى المحاولة مرة أخرى.');
                         }
                     }, 10000);
                 }
@@ -4451,6 +4608,19 @@ function scrollToSection(sectionId, options = {}) {
     if (!section) return;
     section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     
+    // إذا تم فتح section-subscribers، تحميل المشتركين تلقائياً من قاعدة البيانات
+    if (sectionId === 'section-subscribers' && currentUserId) {
+        console.log('[SCROLL TO SECTION] Loading subscribers from database automatically...');
+        setTimeout(async () => {
+            try {
+                await loadSubscribersFromDB();
+                console.log('[SCROLL TO SECTION] ✅ Loaded', subscribersCache.length, 'subscribers from database');
+            } catch (error) {
+                console.error('[SCROLL TO SECTION] ❌ Error loading subscribers:', error);
+            }
+        }, 300); // تأخير بسيط لضمان تحميل القسم أولاً
+    }
+    
     if (!options.skipMenuUpdate) {
         setSideMenuActiveBySection(sectionId);
     }
@@ -4515,6 +4685,19 @@ function navigateToSection(sectionId) {
             if (sectionSubscribers) {
                 sectionSubscribers.classList.remove('hidden');
                 scrollToSection(sectionId);
+                
+                // تحميل المشتركين تلقائياً من قاعدة البيانات عند فتح القسم
+                if (currentUserId) {
+                    console.log('[NAVIGATE TO SECTION] Loading subscribers from database automatically...');
+                    setTimeout(async () => {
+                        try {
+                            await loadSubscribersFromDB();
+                            console.log('[NAVIGATE TO SECTION] ✅ Loaded', subscribersCache.length, 'subscribers from database');
+                        } catch (error) {
+                            console.error('[NAVIGATE TO SECTION] ❌ Error loading subscribers:', error);
+                        }
+                    }, 300);
+                }
             }
         } else if (sectionId === 'section-dashboard') {
             // إظهار لوحة التحكم وإخفاء قسم المشتركين

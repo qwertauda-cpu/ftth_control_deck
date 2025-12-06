@@ -3639,10 +3639,15 @@ app.get('/api/alwatani-login/:id/customers/db', async (req, res) => {
             
             if (verification.success && verification.data) {
                 partnerId = verification.data?.AccountId || verification.data?.account_id || null;
+                console.log('[CUSTOMERS DB] Got partnerId from verification:', partnerId);
+            } else {
+                console.warn('[CUSTOMERS DB] Verification failed, partnerId will be null');
             }
         } catch (e) {
             console.warn('[CUSTOMERS DB] Could not get partnerId, will fetch all:', e.message);
         }
+        
+        console.log('[CUSTOMERS DB] Using partnerId:', partnerId, 'for account:', account.username);
         
         const pageNumber = Math.max(parseInt(req.query.pageNumber, 10) || 1, 1);
         const pageSize = Math.min(Math.max(parseInt(req.query.pageSize, 10) || 100, 1), 1000);
@@ -3668,18 +3673,25 @@ app.get('/api/alwatani-login/:id/customers/db', async (req, res) => {
         try {
             if (hasCustomerData) {
                 // البنية الجديدة: customer_data (JSON)
-                let query = 'SELECT account_id, customer_data, synced_at FROM alwatani_customers_cache WHERE 1=1';
+                let query = 'SELECT account_id, partner_id, customer_data, synced_at FROM alwatani_customers_cache WHERE 1=1';
                 const params = [];
                 
+                // إذا كان partnerId موجوداً، نبحث عنه، لكن أيضاً نبحث عن NULL في حالة عدم التطابق
+                // هذا يضمن أننا نجد البيانات حتى لو كانت محفوظة بدون partner_id
                 if (hasPartnerId && partnerId) {
-                    query = 'SELECT account_id, partner_id, customer_data, synced_at FROM alwatani_customers_cache WHERE partner_id = ?';
+                    query = 'SELECT account_id, partner_id, customer_data, synced_at FROM alwatani_customers_cache WHERE partner_id = ? OR partner_id IS NULL';
                     params.push(partnerId);
+                } else if (hasPartnerId) {
+                    // إذا كان partnerId غير موجود، نبحث عن NULL فقط
+                    query = 'SELECT account_id, partner_id, customer_data, synced_at FROM alwatani_customers_cache WHERE partner_id IS NULL';
                 }
                 
                 query += ' ORDER BY synced_at DESC LIMIT ? OFFSET ?';
                 params.push(pageSize, offset);
                 
+                console.log('[CUSTOMERS DB] Query:', query, 'Params:', params);
                 [rows] = await alwataniPool.query(query, params);
+                console.log('[CUSTOMERS DB] Found', rows.length, 'rows');
             } else {
                 // البنية القديمة: أعمدة منفصلة
                 let query = 'SELECT account_id, username, device_name, phone, region, page_url, start_date, end_date, status, created_at as synced_at FROM alwatani_customers_cache WHERE 1=1';
@@ -3688,7 +3700,9 @@ app.get('/api/alwatani-login/:id/customers/db', async (req, res) => {
                 query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
                 params.push(pageSize, offset);
                 
+                console.log('[CUSTOMERS DB] Query (old schema):', query, 'Params:', params);
                 [rows] = await alwataniPool.query(query, params);
+                console.log('[CUSTOMERS DB] Found', rows.length, 'rows (old schema)');
             }
         } catch (error) {
             console.error('[CUSTOMERS DB] Error querying customers:', error);
@@ -3705,14 +3719,20 @@ app.get('/api/alwatani-login/:id/customers/db', async (req, res) => {
             const countParams = [];
             
             if (hasPartnerId && partnerId) {
-                countQuery = 'SELECT COUNT(*) as total FROM alwatani_customers_cache WHERE partner_id = ?';
+                // البحث عن partnerId أو NULL
+                countQuery = 'SELECT COUNT(*) as total FROM alwatani_customers_cache WHERE partner_id = ? OR partner_id IS NULL';
                 countParams.push(partnerId);
+            } else if (hasPartnerId) {
+                // البحث عن NULL فقط
+                countQuery = 'SELECT COUNT(*) as total FROM alwatani_customers_cache WHERE partner_id IS NULL';
             } else {
                 countQuery = 'SELECT COUNT(*) as total FROM alwatani_customers_cache WHERE 1=1';
             }
             
+            console.log('[CUSTOMERS DB] Count query:', countQuery, 'Params:', countParams);
             const [countResult] = await alwataniPool.query(countQuery, countParams);
             total = countResult[0]?.total || 0;
+            console.log('[CUSTOMERS DB] Total count:', total);
         } catch (error) {
             console.error('[CUSTOMERS DB] Error getting count:', error);
             total = rows.length; // استخدام عدد الصفوف المسترجعة كبديل
