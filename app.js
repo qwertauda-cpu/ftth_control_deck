@@ -2625,6 +2625,12 @@ async function loadSubscribersFromDB(pageNumber = 1, pageSize = ALWATANI_CUSTOME
             renderSubscriberStatusCards();
             renderExpiringSoonList();
             
+            // تحديث بطاقة إجمالي المشتركين
+            const totalSubscribersEl = document.getElementById('dashboard-total-subscribers');
+            if (totalSubscribersEl) {
+                totalSubscribersEl.textContent = formatNumber(subscribersCache.length);
+            }
+            
             // إزالة الحد الأقصى - جلب جميع المشتركين
             // لا نحتاج لتحديد pageSize لأننا نجلب جميع البيانات
             
@@ -3474,6 +3480,12 @@ async function loadWalletBalance() {
                 balance = 0;
             }
             
+            // تحديث بطاقة رصيد المحفظة في لوحة التحكم
+            const walletBalanceEl = document.getElementById('dashboard-wallet-balance');
+            if (walletBalanceEl) {
+                walletBalanceEl.textContent = formatNumber(balance);
+            }
+            
             const formattedBalance = new Intl.NumberFormat('ar-IQ', {
                 style: 'currency',
                 currency: 'IQD',
@@ -3559,6 +3571,13 @@ async function loadWalletBalanceInScreen() {
         
         if (data.success && data.data) {
             const balance = data.data.balance || data.data.availableBalance || data.data.totalBalance || 0;
+            
+            // تحديث بطاقة رصيد المحفظة في لوحة التحكم
+            const walletBalanceEl = document.getElementById('dashboard-wallet-balance');
+            if (walletBalanceEl) {
+                walletBalanceEl.textContent = formatNumber(balance);
+            }
+            
             const formattedBalance = new Intl.NumberFormat('ar-IQ', {
                 style: 'currency',
                 currency: 'IQD',
@@ -4952,6 +4971,17 @@ function renderAlwataniData(response) {
     setText('alwatani-tickets-open', formatNumber(openTickets));
     setText('alwatani-tickets-pending', formatNumber(pendingTickets));
     setText('alwatani-tickets-closed', formatNumber(closedTickets));
+    
+    // تحديث البطاقات الأربعة في لوحة التحكم
+    updateDashboardCards({
+        walletBalance: walletCurrent,
+        totalSubscribers: totalPages || subscribersCache.length,
+        openTickets: openTickets,
+        activeTeams: null // سيتم تحميلها لاحقاً
+    });
+    
+    // تحميل عدد الفرق النشطة
+    loadActiveTeamsCount();
 
     setText('alwatani-user-username', currentUser.preferred_username || currentUser.username || '--');
     setText('alwatani-user-email', currentUser.email || currentUser.userName || currentUser.username || '--');
@@ -4982,6 +5012,58 @@ function renderAlwataniData(response) {
 
     renderAlwataniTransactions(payload.transactions);
     setAlwataniState('success');
+}
+
+// دالة لتحديث البطاقات الأربعة في لوحة التحكم
+function updateDashboardCards(data) {
+    // رصيد المحفظة
+    const walletBalanceEl = document.getElementById('dashboard-wallet-balance');
+    if (walletBalanceEl && data.walletBalance !== null && data.walletBalance !== undefined) {
+        walletBalanceEl.textContent = formatNumber(data.walletBalance);
+    }
+    
+    // إجمالي المشتركين
+    const totalSubscribersEl = document.getElementById('dashboard-total-subscribers');
+    if (totalSubscribersEl && data.totalSubscribers !== null && data.totalSubscribers !== undefined) {
+        totalSubscribersEl.textContent = formatNumber(data.totalSubscribers);
+    }
+    
+    // التذاكر المفتوحة
+    const openTicketsEl = document.getElementById('dashboard-open-tickets');
+    if (openTicketsEl && data.openTickets !== null && data.openTickets !== undefined) {
+        openTicketsEl.textContent = formatNumber(data.openTickets);
+    }
+    
+    // الفرق النشطة (سيتم تحديثها في loadActiveTeamsCount)
+    if (data.activeTeams !== null && data.activeTeams !== undefined) {
+        const activeTeamsEl = document.getElementById('dashboard-active-teams');
+        if (activeTeamsEl) {
+            activeTeamsEl.textContent = formatNumber(data.activeTeams);
+        }
+    }
+}
+
+// دالة لتحميل عدد الفرق النشطة
+async function loadActiveTeamsCount() {
+    if (!currentUserId) return;
+    
+    try {
+        const response = await fetch(addAlwataniLoginIdToUrl(addUsernameToUrl(`${API_URL}/teams`)), addUsernameToFetchOptions());
+        const teamsData = await response.json();
+        const teams = Array.isArray(teamsData) ? teamsData : (teamsData.error ? [] : []);
+        
+        // فلترة الفرق النشطة فقط
+        const activeTeams = teams.filter(team => team.status === 'active');
+        
+        // تحديث البطاقة
+        const activeTeamsEl = document.getElementById('dashboard-active-teams');
+        if (activeTeamsEl) {
+            activeTeamsEl.textContent = formatNumber(activeTeams.length);
+        }
+    } catch (error) {
+        console.error('[DASHBOARD] Error loading active teams count:', error);
+        // في حالة الخطأ، نترك القيمة الحالية
+    }
 }
 
 function renderAlwataniTransactions(transactionsPayload) {
@@ -5103,6 +5185,13 @@ async function loadTickets() {
         
         // التحقق من أن البيانات هي array
         const tickets = Array.isArray(ticketsData) ? ticketsData : (ticketsData.error ? [] : []);
+        
+        // تحديث بطاقة التذاكر المفتوحة
+        const openTicketsCount = tickets.filter(ticket => ticket.status === 'open').length;
+        const openTicketsEl = document.getElementById('dashboard-open-tickets');
+        if (openTicketsEl) {
+            openTicketsEl.textContent = formatNumber(openTicketsCount);
+        }
         
         const tableBody = document.getElementById('tickets-table-body');
         tableBody.innerHTML = '';
