@@ -3549,8 +3549,9 @@ async function handleGetAlwataniCustomers(req, res) {
         const ownerPool = await getOwnerPoolFromRequestHelper(req);
         
         const pageNumber = Math.max(parseInt(req.query.pageNumber, 10) || 1, 1);
-        const requestedPageSize = parseInt(req.query.pageSize, 10) || 10;
-        const pageSize = Math.min(Math.max(requestedPageSize, 1), 100);
+        const requestedPageSize = parseInt(req.query.pageSize, 10) || 10000;
+        // إزالة الحد الأقصى - جلب جميع المشتركين
+        const pageSize = Math.max(requestedPageSize, 1);
 
         const fetchMode = (req.query.mode || req.query.fetch || '').toLowerCase();
         const fetchAll = fetchMode === 'all' || (req.query.fetchAll || '').toLowerCase() === 'true';
