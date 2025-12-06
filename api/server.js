@@ -5974,11 +5974,19 @@ app.get('/api/alwatani-login/:id/wallet/transactions/db', async (req, res) => {
         // الحصول على العدد الإجمالي
         let countQuery = 'SELECT COUNT(*) as total FROM wallet_transactions WHERE 1=1';
         const countParams = [];
-        if (partnerId) {
+        if (partnerId && hasPartnerId) {
             countQuery += ' AND partner_id = ?';
             countParams.push(partnerId);
         }
-        const [countResult] = await alwataniPool.query(countQuery, countParams);
+        
+        let countResult;
+        try {
+            [countResult] = await alwataniPool.query(countQuery, countParams);
+        } catch (countError) {
+            console.error('[WALLET] Error executing count query:', countError);
+            // في حالة الخطأ، نستخدم عدد الصفوف المسترجعة
+            countResult = [{ total: transactions.length }];
+        }
         const totalCount = countResult[0]?.total || 0;
 
         res.json({
