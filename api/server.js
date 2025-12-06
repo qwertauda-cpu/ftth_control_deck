@@ -3987,7 +3987,7 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
             stage: 'fetching_pages',
             current: 1,
             total: totalPages,
-            message: 'جاري جلب الصفحات...'
+            message: `جاري جلب الصفحات... (1/${totalPages} صفحة)`
         });
         
         // إضافة رسالة الصفحة الأولى إلى logs
@@ -4042,7 +4042,7 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                 updateSyncProgress(id, {
                     current: pageNum,
                     total: totalPages,
-                    message: 'جاري جلب الصفحات...', // الرسالة الرئيسية تبقى ثابتة
+                    message: `جاري جلب الصفحات... (${pageNum}/${totalPages} صفحة)`, // الرسالة الرئيسية مع عدد الصفحات
                     logs: [{
                         timestamp: new Date().toISOString(),
                         message: `${pageNum}/${totalPages} - FETCH PAGE ${pageNum} COMPLETE (${customersList.length} subscribers)`,
@@ -4054,7 +4054,7 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                 updateSyncProgress(id, {
                     current: pageNum - 1,
                     total: totalPages,
-                    message: 'جاري جلب الصفحات...', // الرسالة الرئيسية تبقى ثابتة
+                    message: `جاري جلب الصفحات... (${pageNum - 1}/${totalPages} صفحة)`, // الرسالة الرئيسية مع عدد الصفحات
                     logs: [{
                         timestamp: new Date().toISOString(),
                         message: `${pageNum}/${totalPages} - FAILED TO FETCH PAGE ${pageNum}: ${pageResult.message || 'Unknown error'}`,
