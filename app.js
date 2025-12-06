@@ -2050,10 +2050,10 @@ function startAutoRefresh() {
         try {
             switch (currentScreen) {
                 case 'dashboard':
-                    // تحديث بيانات المشتركين مباشرة من API
-                    if (currentUserId) {
-                        await loadRemoteSubscribers(currentCustomersPage || 1, ALWATANI_CUSTOMERS_PAGE_SIZE);
-                    }
+                    // لا يتم تحديث بيانات المشتركين تلقائياً - فقط عند الضغط على مزامنة
+                    // if (currentUserId) {
+                    //     await loadRemoteSubscribers(currentCustomersPage || 1, ALWATANI_CUSTOMERS_PAGE_SIZE);
+                    // }
                     break;
                     
                 case 'expiring':
