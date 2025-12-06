@@ -3671,10 +3671,22 @@ async function loadWalletBalanceInScreen() {
             }).format(balance);
             
             display.innerHTML = `
-                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-8 border border-blue-200">
-                    <div class="text-center">
-                        <p class="text-sm text-slate-600 mb-3">الرصيد المتاح</p>
-                        <p class="text-4xl font-bold text-[#26466D]">${formattedBalance}</p>
+                <div class="relative">
+                    <div class="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-8 shadow-xl text-white relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-2xl -mr-20 -mt-20"></div>
+                        <div class="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full blur-xl -ml-16 -mb-16"></div>
+                        <div class="relative z-10">
+                            <div class="flex items-center justify-center gap-3 mb-4">
+                                <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                </div>
+                            </div>
+                            <p class="text-sm text-white/90 mb-2 text-center">الرصيد المتاح</p>
+                            <p class="text-5xl font-bold text-center mb-2">${formattedBalance}</p>
+                            <p class="text-xs text-white/70 text-center">دينار عراقي</p>
+                        </div>
                     </div>
                 </div>
             `;
@@ -4096,18 +4108,46 @@ function renderWalletTransactions(transactions, totalCount) {
             extraInfo = transaction.deviceUsername;
         }
         
+        const iconColor = isDebit ? 'text-red-500' : 'text-green-500';
+        const bgColor = isDebit ? 'bg-red-50' : 'bg-green-50';
+        const borderColor = isDebit ? 'border-red-100' : 'border-green-100';
+        
         return `
-            <div class="border-b border-slate-100 p-4 hover:bg-slate-50 transition-colors">
-                <div class="flex items-center justify-between">
-                    <div class="flex-1">
-                        <p class="text-sm font-medium text-slate-800">${description}${additionalInfo}</p>
-                        ${extraInfo ? `<p class="text-xs text-slate-400 mt-0.5">${extraInfo}</p>` : ''}
-                        <p class="text-xs text-slate-500 mt-1">${formattedDate}</p>
+            <div class="border-b border-slate-100 last:border-0 p-4 hover:bg-gradient-to-r hover:from-slate-50 hover:to-blue-50/30 transition-all duration-200 group">
+                <div class="flex items-center gap-4">
+                    <!-- أيقونة الحوالة -->
+                    <div class="flex-shrink-0 w-12 h-12 ${bgColor} ${borderColor} border-2 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                        ${isDebit ? `
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 ${iconColor}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+                            </svg>
+                        ` : `
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 ${iconColor}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                        `}
                     </div>
-                    <div class="text-left ml-4">
-                        <p class="text-sm font-bold ${isDebit ? 'text-red-600' : 'text-green-600'}">
-                            ${isDebit ? '-' : '+'}${formattedAmount}
-                        </p>
+                    <!-- معلومات الحوالة -->
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-bold text-slate-800 mb-1 truncate">${description}${additionalInfo}</p>
+                                ${extraInfo ? `<p class="text-xs text-slate-500 mb-1 truncate">${extraInfo}</p>` : ''}
+                                <div class="flex items-center gap-2 text-xs text-slate-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span>${formattedDate}</span>
+                                </div>
+                            </div>
+                            <!-- المبلغ -->
+                            <div class="flex-shrink-0 text-left">
+                                <p class="text-base font-bold ${isDebit ? 'text-red-600' : 'text-green-600'} whitespace-nowrap">
+                                    ${isDebit ? '−' : '+'}${formattedAmount}
+                                </p>
+                                <p class="text-[10px] text-slate-400 mt-0.5">${isDebit ? 'مصروف' : 'دخل'}</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -4115,8 +4155,8 @@ function renderWalletTransactions(transactions, totalCount) {
     }).join('');
     
     container.innerHTML = `
-        <div class="border border-slate-200 rounded-lg overflow-hidden">
-            ${transactionsHtml}
+        <div class="bg-white rounded-xl border border-slate-200/50 overflow-hidden shadow-sm">
+            ${transactionsHtml || '<div class="text-center text-slate-400 text-sm py-12">لا توجد حوالات</div>'}
         </div>
     `;
 }
