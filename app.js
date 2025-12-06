@@ -4962,8 +4962,8 @@ async function renderExpiringSoonList() {
             // المنتهين: daysLeft < 0
             return meta.isExpired || (meta.daysLeft !== null && meta.daysLeft < 0);
         } else {
-            // القريبين على الانتهاء: 0 <= daysLeft <= 7
-            return meta.isExpiringSoon || (meta.daysLeft !== null && meta.daysLeft >= 0 && meta.daysLeft <= 7);
+            // القريبين على الانتهاء: 0 <= daysLeft <= 3
+            return meta.isExpiringSoon || (meta.daysLeft !== null && meta.daysLeft >= 0 && meta.daysLeft <= 3);
         }
     });
     
