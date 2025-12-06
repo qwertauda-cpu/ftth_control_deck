@@ -1378,17 +1378,64 @@ async function saveCustomerRecordImmediate(item, alwataniPool) {
     }
 
     try {
-        const payload = JSON.stringify(item.record);
-        const partnerId = item.partnerId || null;
+        // التحقق من بنية الجدول أولاً
+        let hasPartnerId = false;
+        let hasCustomerData = false;
+        
+        try {
+            const [columns] = await alwataniPool.query(`
+                SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'alwatani_customers_cache' AND COLUMN_NAME IN ('partner_id', 'customer_data')
+            `);
+            hasPartnerId = columns.some(col => col.COLUMN_NAME === 'partner_id');
+            hasCustomerData = columns.some(col => col.COLUMN_NAME === 'customer_data');
+        } catch (e) {
+            console.warn(`[ENRICH] Could not check table structure for ${item?.accountId}, assuming old schema:`, e.message);
+        }
 
-        await alwataniPool.query(
-            `INSERT INTO alwatani_customers_cache (account_id, partner_id, customer_data, synced_at)
-             VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-             ON DUPLICATE KEY UPDATE 
-                customer_data = VALUES(customer_data),
-                updated_at = CURRENT_TIMESTAMP`,
-            [item.accountId, partnerId, payload]
-        );
+        if (hasPartnerId && hasCustomerData) {
+            // البنية الجديدة: partner_id + customer_data (JSON)
+            const payload = JSON.stringify(item.record);
+            const partnerId = item.partnerId || null;
+
+            await alwataniPool.query(
+                `INSERT INTO alwatani_customers_cache (account_id, partner_id, customer_data, synced_at)
+                 VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                 ON DUPLICATE KEY UPDATE 
+                    customer_data = VALUES(customer_data),
+                    updated_at = CURRENT_TIMESTAMP`,
+                [item.accountId, partnerId, payload]
+            );
+        } else {
+            // البنية القديمة: أعمدة منفصلة
+            const record = item.record;
+            await alwataniPool.query(
+                `INSERT INTO alwatani_customers_cache 
+                 (account_id, username, device_name, phone, region, page_url, start_date, end_date, status, created_at) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                 ON DUPLICATE KEY UPDATE 
+                    username = VALUES(username),
+                    device_name = VALUES(device_name),
+                    phone = VALUES(phone),
+                    region = VALUES(region),
+                    page_url = VALUES(page_url),
+                    start_date = VALUES(start_date),
+                    end_date = VALUES(end_date),
+                    status = VALUES(status),
+                    updated_at = CURRENT_TIMESTAMP`,
+                [
+                    item.accountId,
+                    record.username || record.name || null,
+                    record.deviceName || null,
+                    record.phone || null,
+                    record.zone || record.region || null,
+                    record.page_url || (item.accountId ? `https://admin.ftth.iq/customer-details/${item.accountId}/details/view` : null),
+                    record.start_date || record.startDate || null,
+                    record.end_date || record.endDate || null,
+                    record.status || null
+                ]
+            );
+        }
     } catch (error) {
         console.error(`[ENRICH] Error saving subscriber ${item?.accountId} immediately: ${error.message}`);
     }
