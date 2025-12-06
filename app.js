@@ -2692,13 +2692,6 @@ async function loadSubscribersFromDB(pageNumber = 1, pageSize = ALWATANI_CUSTOME
             renderExpiringSoonList();
             applySubscriberFilter(activeSubscriberFilter || 'all');
             // Throw error to allow retry mechanism to work
-        }
-    } catch (error) {
-        console.error('[LOAD DB] ❌ Error loading subscribers from database:', error);
-        addLogToConsoleBox(`❌ خطأ في تحميل المشتركين: ${error.message}`, 'text-red-400');
-        showSubscribersTableMessage(`خطأ في تحميل البيانات: ${error.message}`);
-    } finally {
-        isLoadingSubscribers = false;
             throw new Error('لا توجد بيانات في الاستجابة من قاعدة البيانات');
         }
     } catch (error) {
@@ -2709,8 +2702,8 @@ async function loadSubscribersFromDB(pageNumber = 1, pageSize = ALWATANI_CUSTOME
             name: error.name
         });
         subscribersCache = [];
-        addLogToConsoleBox(`❌ خطأ في تحميل البيانات: ${error.message || 'خطأ غير معروف'}`, 'text-red-400');
-        showSubscribersTableMessage('❌ حدث خطأ في تحميل البيانات من قاعدة البيانات المحلية: ' + (error.message || 'خطأ غير معروف'));
+        addLogToConsoleBox(`❌ خطأ في تحميل المشتركين: ${error.message}`, 'text-red-400');
+        showSubscribersTableMessage(`❌ حدث خطأ في تحميل البيانات من قاعدة البيانات المحلية: ${error.message || 'خطأ غير معروف'}`);
         renderSubscriberStatusCards();
         renderExpiringSoonList();
         applySubscriberFilter(activeSubscriberFilter || 'all');
