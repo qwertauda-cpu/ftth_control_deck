@@ -2934,14 +2934,48 @@ async function monitorSyncProgress(userId) {
     // إظهار حاوية التقدم
     progressContainer.classList.remove('hidden');
     
+    // دالة مساعدة للتحقق من أن قسم المشتركين مرئي
+    function isSubscribersSectionVisible() {
+        const sectionSubscribers = document.getElementById('section-subscribers');
+        const pageDetailScreen = document.getElementById('page-detail-screen');
+        return sectionSubscribers && 
+               !sectionSubscribers.classList.contains('hidden') &&
+               pageDetailScreen && 
+               !pageDetailScreen.classList.contains('hidden');
+    }
+    
     // مراقبة التقدم كل ثانية
     syncProgressInterval = setInterval(async () => {
         try {
+            // التحقق من أن قسم المشتركين مرئي قبل تحديث العناصر
+            const isVisible = isSubscribersSectionVisible();
+            
+            // إذا لم يكن القسم مرئياً، نتخطى تحديث العناصر لكن نستمر في مراقبة التقدم
+            if (!isVisible) {
+                // نتحقق فقط من حالة المزامنة بدون تحديث UI
+                const response = await fetch(`${API_URL}/alwatani-login/${userId}/customers/sync-progress`);
+                const data = await response.json();
+                
+                // إذا اكتملت المزامنة أو تم إيقافها، نوقف المراقبة
+                if (data.success && data.progress) {
+                    const progress = data.progress;
+                    if (progress.stage === 'completed' || progress.stage === 'error' || progress.stage === 'cancelled') {
+                        stopSyncProgressMonitoring();
+                    }
+                }
+                return;
+            }
+            
             const response = await fetch(`${API_URL}/alwatani-login/${userId}/customers/sync-progress`);
             const data = await response.json();
             
             if (data.success && data.progress) {
                 const progress = data.progress;
+                
+                // التحقق مرة أخرى من أن العناصر موجودة قبل التحديث
+                if (!progressContainer || !isSubscribersSectionVisible()) {
+                    return;
+                }
                 
                 // تحديث العداد
                 if (progressCounter) {
@@ -3017,10 +3051,10 @@ async function monitorSyncProgress(userId) {
                     progressTimer.textContent = progress.elapsedTime;
                 }
                 
-                // تحديث مربع CMD-like Console
+                // تحديث مربع CMD-like Console (فقط إذا كان القسم مرئياً)
                 const consoleBox = document.getElementById('sync-console-box');
                 const consoleContent = document.getElementById('sync-console-content');
-                if (consoleBox && consoleContent) {
+                if (consoleBox && consoleContent && isSubscribersSectionVisible()) {
                     // إظهار المربع إذا كان مخفياً
                     if (consoleBox.parentElement && consoleBox.parentElement.classList.contains('hidden')) {
                         consoleBox.parentElement.classList.remove('hidden');
@@ -4794,6 +4828,29 @@ function scrollToSection(sectionId, options = {}) {
     // إذا تم فتح section-subscribers، تحميل المشتركين تلقائياً من قاعدة البيانات
     if (sectionId === 'section-subscribers' && currentUserId && !options.skipLoad) {
         console.log('[SCROLL TO SECTION] Loading subscribers from database automatically...');
+        
+        // إعادة تشغيل مراقبة التقدم إذا كانت المزامنة لا تزال نشطة
+        if (currentUserId) {
+            // التحقق من حالة المزامنة
+            try {
+                const progressResponse = await fetch(`${API_URL}/alwatani-login/${currentUserId}/customers/sync-progress`);
+                const progressData = await progressResponse.json();
+                if (progressData.success && progressData.progress) {
+                    const progress = progressData.progress;
+                    // إذا كانت المزامنة لا تزال نشطة (ليست مكتملة أو ملغاة أو خطأ)
+                    if (progress.stage && 
+                        progress.stage !== 'completed' && 
+                        progress.stage !== 'error' && 
+                        progress.stage !== 'cancelled') {
+                        console.log('[SCROLL TO SECTION] Sync still active, restarting progress monitoring...');
+                        monitorSyncProgress(currentUserId);
+                    }
+                }
+            } catch (e) {
+                console.warn('[SCROLL TO SECTION] Could not check sync progress:', e);
+            }
+        }
+        
         setTimeout(async () => {
             try {
                 await loadSubscribersFromDB();
