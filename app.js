@@ -2979,7 +2979,12 @@ async function monitorSyncProgress(userId) {
                 
                 // تحديث العداد
                 if (progressCounter) {
-                    progressCounter.textContent = `${progress.current || 0} / ${progress.total || 0}`;
+                    // إذا كان هناك remaining، نعرضه أيضاً
+                    if (progress.remaining !== undefined && progress.remaining !== null) {
+                        progressCounter.textContent = `${progress.current || 0} / ${progress.total || 0} (متبقي: ${progress.remaining})`;
+                    } else {
+                        progressCounter.textContent = `${progress.current || 0} / ${progress.total || 0}`;
+                    }
                 }
                 
                 // تحديث الرسالة
@@ -3013,6 +3018,21 @@ async function monitorSyncProgress(userId) {
                 // تحديث عدد أرقام الهواتف
                 if (progressPhoneFound) {
                     progressPhoneFound.textContent = `${progress.phoneFound || 0} رقم هاتف تم العثور عليه`;
+                }
+                
+                // تحديث عدد المشتركين المتبقيين
+                const progressRemaining = document.getElementById('sync-progress-remaining');
+                if (progressRemaining) {
+                    if (progress.remaining !== undefined && progress.remaining !== null && progress.remaining > 0) {
+                        progressRemaining.textContent = `متبقي: ${progress.remaining} مشترك`;
+                        progressRemaining.classList.remove('hidden');
+                    } else if (progress.remaining === 0) {
+                        progressRemaining.textContent = '✅ لا يوجد مشتركين متبقين';
+                        progressRemaining.classList.remove('hidden');
+                        progressRemaining.classList.add('text-green-600');
+                    } else {
+                        progressRemaining.classList.add('hidden');
+                    }
                 }
                 
                 // تحديث رسالة "جاري جلب معلومات المشتركين..." في مكان عداد الهواتف
@@ -4951,6 +4971,26 @@ function navigateToSection(sectionId) {
                 // تحميل المشتركين تلقائياً من قاعدة البيانات عند فتح القسم
                 if (currentUserId) {
                     console.log('[NAVIGATE TO SECTION] Loading subscribers from database automatically...');
+                    
+                    // إعادة تشغيل مراقبة التقدم إذا كانت المزامنة لا تزال نشطة
+                    try {
+                        const progressResponse = await fetch(`${API_URL}/alwatani-login/${currentUserId}/customers/sync-progress`);
+                        const progressData = await progressResponse.json();
+                        if (progressData.success && progressData.progress) {
+                            const progress = progressData.progress;
+                            // إذا كانت المزامنة لا تزال نشطة (ليست مكتملة أو ملغاة أو خطأ)
+                            if (progress.stage && 
+                                progress.stage !== 'completed' && 
+                                progress.stage !== 'error' && 
+                                progress.stage !== 'cancelled') {
+                                console.log('[NAVIGATE TO SECTION] Sync still active, restarting progress monitoring...');
+                                monitorSyncProgress(currentUserId);
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('[NAVIGATE TO SECTION] Could not check sync progress:', e);
+                    }
+                    
                     setTimeout(async () => {
                         try {
                             await loadSubscribersFromDB();

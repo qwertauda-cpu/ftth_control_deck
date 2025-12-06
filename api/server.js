@@ -4171,7 +4171,7 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         const totalPages = totalCount > 0 ? Math.ceil(totalCount / pageSize) : Math.ceil(firstPageList.length / pageSize);
         
         const existingCount = existingAccountIds.size;
-        const missingCount = totalCount - existingCount;
+        const missingCount = Math.max(0, totalCount - existingCount);
         
         console.log(`[SYNC] Total count: ${totalCount || 'unknown'}, Existing: ${existingCount}, Missing: ${missingCount}`);
         console.log(`[SYNC] 🔄 Starting incremental sync: Will fetch only ${missingCount} missing subscribers from API`);
@@ -4181,16 +4181,23 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
             stage: 'preparing',
             current: existingCount,
             total: totalCount,
+            remaining: missingCount,
+            existing: existingCount,
             message: `تم العثور على ${existingCount} مشترك موجود - متبقي ${missingCount} مشترك للجلب`
         });
         
         // ========== جلب جميع الصفحات - صفحة واحدة كل ثانية ==========
+        // حساب عدد المشتركين المتبقيين بعد الصفحة الأولى
+        const remainingAfterFirstPage = missingCount - firstPageMissing.length;
+        
         // تحديث progress للصفحة الأولى - الرسالة الرئيسية تبقى ثابتة
         updateSyncProgress(id, {
             stage: 'fetching_pages',
             current: 1,
             total: totalPages,
-            message: `جاري جلب الصفحات... (1/${totalPages} صفحة)`
+            remaining: remainingAfterFirstPage,
+            existing: existingCount,
+            message: `جاري جلب الصفحات... (1/${totalPages} صفحة) - متبقي ${remainingAfterFirstPage} مشترك للجلب`
         });
         
         // إضافة رسالة الصفحة الأولى إلى logs
@@ -4249,18 +4256,23 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                 allCustomers = allCustomers.concat(missingFromPage);
                 
                 const skippedCount = customersList.length - missingFromPage.length;
+                // حساب عدد المشتركين المتبقيين بعد هذه الصفحة
+                const remainingAfterThisPage = missingCount - allCustomers.length;
+                
                 const progressMessage = skippedCount > 0 
-                    ? `جاري جلب الصفحات... (${pageNum}/${totalPages} صفحة) - تم تخطي ${skippedCount} مشترك موجود`
-                    : `جاري جلب الصفحات... (${pageNum}/${totalPages} صفحة)`;
+                    ? `جاري جلب الصفحات... (${pageNum}/${totalPages} صفحة) - تم تخطي ${skippedCount} مشترك موجود - متبقي ${remainingAfterThisPage} مشترك`
+                    : `جاري جلب الصفحات... (${pageNum}/${totalPages} صفحة) - متبقي ${remainingAfterThisPage} مشترك`;
                 
                 // تحديث progress - إضافة log جديد بشكل تراكمي
                 updateSyncProgress(id, {
                     current: pageNum,
                     total: totalPages,
+                    remaining: remainingAfterThisPage,
+                    existing: existingCount,
                     message: progressMessage,
                     logs: [{
                         timestamp: new Date().toISOString(),
-                        message: `${pageNum}/${totalPages} - FETCH PAGE ${pageNum} COMPLETE (${missingFromPage.length} new, ${skippedCount} skipped)`,
+                        message: `${pageNum}/${totalPages} - FETCH PAGE ${pageNum} COMPLETE (${missingFromPage.length} new, ${skippedCount} skipped, ${remainingAfterThisPage} remaining)`,
                         stage: 'fetching_pages'
                     }]
                 });
@@ -4295,6 +4307,7 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         // التحقق من أن جميع الصفحات تم جلبها بنجاح
         const totalFetched = allCustomers.length;
         const pagesFetched = totalPages;
+        const finalRemaining = missingCount - totalFetched;
         
         console.log(`[SYNC] ✅ Fetched ${totalFetched} missing subscribers from ${totalPages} pages (${existingCount} already exist, ${missingCount} missing)`);
         
@@ -4304,6 +4317,8 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                 stage: 'completed',
                 current: totalCount,
                 total: totalCount,
+                remaining: 0,
+                existing: existingCount,
                 message: `✅ جميع المشتركين موجودون في قاعدة البيانات (${existingCount}/${totalCount}) - لا حاجة للمزامنة`
             });
             return res.json({
@@ -4325,7 +4340,9 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
             stage: 'pages_complete',
             current: totalPages,
             total: totalPages,
-            message: `✅ تم جلب جميع الصفحات (${totalPages} صفحة) - وجدنا ${totalFetched} مشترك ناقص من أصل ${totalCount} - جاري الانتقال لمرحلة جلب العناوين...`
+            remaining: finalRemaining,
+            existing: existingCount,
+            message: `✅ تم جلب جميع الصفحات (${totalPages} صفحة) - وجدنا ${totalFetched} مشترك ناقص من أصل ${totalCount} (${existingCount} موجود) - جاري الانتقال لمرحلة جلب العناوين...`
         });
         
         // تأخير قصير قبل الانتقال للمرحلة التالية
