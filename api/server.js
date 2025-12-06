@@ -6163,7 +6163,66 @@ app.get('/api/alwatani-login/:id/wallet/transactions/db', async (req, res) => {
             hasPartnerId = false;
         }
         
-        let query = 'SELECT transaction_data, occured_at, synced_at FROM wallet_transactions WHERE 1=1';
+        // فحص الأعمدة الفعلية في الجدول
+        let tableColumns = [];
+        let hasTransactionData = false;
+        let hasOccuredAt = false;
+        let hasSyncedAt = false;
+        let hasCreatedAt = false;
+        
+        try {
+            const [columns] = await alwataniPool.query('SHOW COLUMNS FROM wallet_transactions');
+            tableColumns = columns.map(col => col.Field);
+            hasTransactionData = tableColumns.includes('transaction_data');
+            hasOccuredAt = tableColumns.includes('occured_at');
+            hasSyncedAt = tableColumns.includes('synced_at');
+            hasCreatedAt = tableColumns.includes('created_at');
+            console.log('[WALLET] Table columns:', tableColumns);
+        } catch (colError) {
+            console.error('[WALLET] Error getting table columns:', colError);
+            return res.json({
+                success: true,
+                data: {
+                    items: [],
+                    totalCount: 0
+                },
+                partnerId,
+                fromCache: true,
+                message: 'خطأ في فحص بنية الجدول'
+            });
+        }
+        
+        // بناء الاستعلام بناءً على الأعمدة المتاحة
+        let selectColumns = [];
+        if (hasTransactionData) {
+            selectColumns.push('transaction_data');
+        }
+        if (hasOccuredAt) {
+            selectColumns.push('occured_at');
+        } else if (hasCreatedAt) {
+            selectColumns.push('created_at as occured_at');
+        }
+        if (hasSyncedAt) {
+            selectColumns.push('synced_at');
+        } else if (hasCreatedAt) {
+            selectColumns.push('created_at as synced_at');
+        }
+        
+        if (selectColumns.length === 0) {
+            console.error('[WALLET] No valid columns found in wallet_transactions table');
+            return res.json({
+                success: true,
+                data: {
+                    items: [],
+                    totalCount: 0
+                },
+                partnerId,
+                fromCache: true,
+                message: 'الجدول لا يحتوي على أعمدة صالحة'
+            });
+        }
+        
+        let query = `SELECT ${selectColumns.join(', ')} FROM wallet_transactions WHERE 1=1`;
         const params = [];
 
         if (partnerId && hasPartnerId) {
@@ -6171,7 +6230,9 @@ app.get('/api/alwatani-login/:id/wallet/transactions/db', async (req, res) => {
             params.push(partnerId);
         }
 
-        query += ' ORDER BY occured_at DESC LIMIT ? OFFSET ?';
+        // تحديد عمود الترتيب
+        const orderColumn = hasOccuredAt ? 'occured_at' : (hasCreatedAt ? 'created_at' : tableColumns[0]);
+        query += ` ORDER BY ${orderColumn} DESC LIMIT ? OFFSET ?`;
         params.push(limit, offset);
         
         let rows;
@@ -6179,6 +6240,15 @@ app.get('/api/alwatani-login/:id/wallet/transactions/db', async (req, res) => {
             [rows] = await alwataniPool.query(query, params);
         } catch (queryError) {
             console.error('[WALLET] Error executing query:', queryError);
+            console.error('[WALLET] Query:', query);
+            console.error('[WALLET] Params:', params);
+            console.error('[WALLET] Error details:', {
+                code: queryError.code,
+                errno: queryError.errno,
+                sqlState: queryError.sqlState,
+                sqlMessage: queryError.sqlMessage
+            });
+            
             return res.status(500).json({
                 success: false,
                 message: 'خطأ في تنفيذ الاستعلام: ' + queryError.message
