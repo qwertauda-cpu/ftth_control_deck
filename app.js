@@ -3928,17 +3928,35 @@ async function loadAllWalletTransactions() {
         const dbResponse = await fetch(addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/wallet/transactions/db?limit=10000`), addUsernameToFetchOptions());
         const dbData = await dbResponse.json();
         
-        if (dbData.success && dbData.data && dbData.data.items && dbData.data.items.length > 0) {
+        if (dbData.success && dbData.data && dbData.data.items) {
             allWalletTransactions = dbData.data.items;
-            const totalCount = dbData.data.totalCount || allWalletTransactions.length;
+            const loadedCount = allWalletTransactions.length;
+            const dbTotalCount = dbData.data.totalCount || loadedCount;
             
-            console.log(`[WALLET] Loaded ${allWalletTransactions.length} transactions from database`);
+            console.log(`[WALLET] Loaded ${loadedCount} transactions from database`);
+            
+            // محاولة الحصول على العدد الإجمالي من API
+            let totalCountFromAPI = null;
+            try {
+                const apiResponse = await fetch(addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/wallet/transactions?pageSize=1&pageNumber=1`), addUsernameToFetchOptions());
+                const apiData = await apiResponse.json();
+                if (apiData.success && apiData.data && apiData.data.totalCount) {
+                    totalCountFromAPI = apiData.data.totalCount;
+                }
+            } catch (apiError) {
+                console.warn('[WALLET] Could not get total count from API:', apiError);
+            }
             
             // عرض الحوالات من قاعدة البيانات
-            renderWalletTransactions(allWalletTransactions, totalCount);
+            renderWalletTransactions(allWalletTransactions, totalCountFromAPI || dbTotalCount);
             
             if (summaryEl) {
-                summaryEl.textContent = `عرض ${allWalletTransactions.length} حوالة من قاعدة البيانات (آخر تحديث: ${new Date().toLocaleTimeString('ar-IQ')})`;
+                if (totalCountFromAPI !== null) {
+                    const remaining = Math.max(0, totalCountFromAPI - loadedCount);
+                    summaryEl.textContent = `تم تحميل ${formatNumber(loadedCount)} حوالة | متبقي ${formatNumber(remaining)} حوالة (آخر تحديث: ${new Date().toLocaleTimeString('ar-IQ')})`;
+                } else {
+                    summaryEl.textContent = `تم تحميل ${formatNumber(loadedCount)} حوالة من قاعدة البيانات (آخر تحديث: ${new Date().toLocaleTimeString('ar-IQ')})`;
+                }
             }
             
             // محاولة المزامنة في الخلفية لتحديث البيانات
@@ -3998,11 +4016,28 @@ async function loadAllWalletTransactions() {
     
     console.log(`[WALLET] Loaded ${allWalletTransactions.length} transactions from ${pageNumber} pages`);
     
+    // محاولة الحصول على عدد الحوالات المحملة من قاعدة البيانات
+    let loadedFromDB = 0;
+    try {
+        const dbResponse = await fetch(addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/wallet/transactions/db?limit=1`), addUsernameToFetchOptions());
+        const dbData = await dbResponse.json();
+        if (dbData.success && dbData.data && dbData.data.totalCount) {
+            loadedFromDB = dbData.data.totalCount;
+        }
+    } catch (dbError) {
+        console.warn('[WALLET] Could not get loaded count from DB:', dbError);
+    }
+    
     // عرض جميع الحوالات
     renderWalletTransactions(allWalletTransactions, totalCount);
     
     if (summaryEl) {
-        summaryEl.textContent = `عرض ${allWalletTransactions.length} حوالة (آخر تحديث: ${new Date().toLocaleTimeString('ar-IQ')})`;
+        if (loadedFromDB > 0 && totalCount > 0) {
+            const remaining = Math.max(0, totalCount - loadedFromDB);
+            summaryEl.textContent = `تم تحميل ${formatNumber(loadedFromDB)} حوالة | متبقي ${formatNumber(remaining)} حوالة (آخر تحديث: ${new Date().toLocaleTimeString('ar-IQ')})`;
+        } else {
+            summaryEl.textContent = `عرض ${formatNumber(allWalletTransactions.length)} حوالة (آخر تحديث: ${new Date().toLocaleTimeString('ar-IQ')})`;
+        }
     }
 }
 
