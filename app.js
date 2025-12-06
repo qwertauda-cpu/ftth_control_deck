@@ -3668,6 +3668,121 @@ async function loadWalletData() {
     ]);
 }
 
+// دالة لتحميل النشاطات الأخيرة (آخر 5 حوالات)
+async function loadRecentActivities() {
+    if (!currentUserId) return;
+    
+    const container = document.getElementById('dashboard-recent-activities');
+    if (!container) return;
+    
+    try {
+        // محاولة جلب آخر 5 حوالات من قاعدة البيانات
+        const response = await fetch(addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/wallet/transactions/db?limit=5`), addUsernameToFetchOptions());
+        const data = await response.json();
+        
+        if (data.success && data.data && data.data.items && data.data.items.length > 0) {
+            const transactions = data.data.items;
+            
+            container.innerHTML = transactions.map((transaction, index) => {
+                // استخراج المبلغ
+                let amount = 0;
+                if (typeof transaction === 'number') {
+                    amount = transaction;
+                } else if (transaction && typeof transaction === 'object') {
+                    if (transaction.transactionAmount && typeof transaction.transactionAmount === 'object') {
+                        amount = transaction.transactionAmount.value || transaction.transactionAmount.amount || 0;
+                    } else {
+                        amount = transaction.amount || transaction.totalAmount || transaction.transactionValue || transaction.value || 0;
+                    }
+                    if (typeof amount === 'string') {
+                        amount = parseFloat(amount.replace(/[^\d.-]/g, '')) || 0;
+                    }
+                }
+                
+                const isDebit = amount < 0;
+                const formattedAmount = new Intl.NumberFormat('ar-IQ', {
+                    style: 'currency',
+                    currency: 'IQD',
+                    minimumFractionDigits: 0
+                }).format(Math.abs(amount));
+                
+                // استخراج التاريخ
+                const date = transaction.occuredAt || transaction.occurredAt || transaction.createdAt || transaction.date || '';
+                const formattedDate = date ? new Date(date).toLocaleDateString('ar-IQ', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }) : 'غير معروف';
+                
+                // استخراج الوصف
+                let description = transaction.type || transaction.transactionType || transaction.description || 'حوالة';
+                
+                // ترجمة أنواع الحوالات
+                const typeTranslations = {
+                    'PLAN_PURCHASE': 'شراء باقة',
+                    'PLAN_RENEW': 'تجديد باقة',
+                    'DEPOSIT': 'إيداع',
+                    'WITHDRAWAL': 'سحب',
+                    'REFUND': 'استرداد',
+                    'TRANSFER': 'تحويل',
+                    'PAYMENT': 'دفع'
+                };
+                const descriptionUpper = description.toUpperCase().trim();
+                description = typeTranslations[description] || typeTranslations[descriptionUpper] || description;
+                
+                return `
+                    <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
+                        <div class="flex-1">
+                            <p class="text-sm font-medium text-slate-800">${description}</p>
+                            <p class="text-xs text-slate-500 mt-1">${formattedDate}</p>
+                        </div>
+                        <div class="text-left ml-4">
+                            <p class="text-sm font-bold ${isDebit ? 'text-red-600' : 'text-green-600'}">
+                                ${isDebit ? '−' : '+'}${formattedAmount}
+                            </p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            container.innerHTML = `
+                <div class="text-center text-slate-400 text-sm py-4">
+                    <p>لا توجد نشاطات حديثة</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('[DASHBOARD] Error loading recent activities:', error);
+        container.innerHTML = `
+            <div class="text-center text-slate-400 text-sm py-4">
+                <p>لا يمكن تحميل النشاطات</p>
+            </div>
+        `;
+    }
+}
+
+// دالة لتحميل عدد التذاكر المفتوحة
+async function loadOpenTicketsCount() {
+    if (!currentUserId) return;
+    
+    try {
+        const response = await fetch(addUsernameToUrl(`${API_URL}/tickets?status=open`), addUsernameToFetchOptions());
+        const data = await response.json();
+        
+        const tickets = Array.isArray(data) ? data : (data.tickets || []);
+        const openTickets = tickets.filter(ticket => ticket.status === 'open');
+        
+        const openTicketsEl = document.getElementById('dashboard-open-tickets');
+        if (openTicketsEl) {
+            openTicketsEl.textContent = formatNumber(openTickets.length);
+        }
+    } catch (error) {
+        console.error('[DASHBOARD] Error loading open tickets count:', error);
+    }
+}
+
 async function loadWalletBalanceInScreen() {
     if (!currentUserId) return;
     
