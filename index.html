@@ -889,63 +889,6 @@
                     <span>المشتركين</span>
                 </button>
                 
-                <!-- قسم المبيعات -->
-                <div class="menu-section">
-                    <button class="menu-section-title cursor-pointer hover:bg-white/10 rounded-lg transition-colors" onclick="openSalesScreen()">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                        </svg>
-                        <span>المبيعات</span>
-                    </button>
-                </div>
-                
-                <!-- قسم المخازن -->
-                <div class="menu-section">
-                    <div class="menu-section-title cursor-pointer hover:bg-white/10 rounded-lg transition-colors" onclick="toggleWarehouseMenu()">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                        </svg>
-                        <span>المخازن</span>
-                        <svg id="warehouse-menu-arrow" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-300 transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </div>
-                    <div id="warehouse-subsection" class="menu-subsection hidden">
-                        <button class="side-menu-link-sub" onclick="openWarehouseScreen()">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                            </svg>
-                            <span>المخازن</span>
-                        </button>
-                        <button class="side-menu-link-sub" onclick="openPurchasesScreen()">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
-                            <span>المشتريات</span>
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- السندات والمالية -->
-                <div class="menu-section">
-                    <button class="menu-section-title cursor-pointer hover:bg-white/10 rounded-lg transition-colors" onclick="openFinanceScreen()">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <span>السندات والمالية</span>
-                    </button>
-                </div>
-                
-                <!-- التقارير -->
-                <div class="menu-section">
-                    <button class="menu-section-title cursor-pointer hover:bg-white/10 rounded-lg transition-colors" onclick="openReportsScreen()">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <span>التقارير</span>
-                    </button>
-                </div>
-                
                 <!-- الأكسباير -->
                 <button class="side-menu-link w-full text-right" data-screen-link="expiring" onclick="openExpiringScreen()">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

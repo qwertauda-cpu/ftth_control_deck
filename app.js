@@ -2395,68 +2395,6 @@ function showToast(message, type = 'info') {
 }
 
 // دوال الشاشات الجديدة
-function openSalesScreen() {
-    hideAllMainScreens();
-    showScreen('dashboard-screen');
-    scrollToSection('section-dashboard');
-    showToast('قسم المبيعات - قريباً', 'info');
-    setSideMenuActiveBySection('section-dashboard');
-    currentScreen = 'dashboard';
-}
-
-// دالة لفتح/إغلاق قائمة المخازن المنسدلة
-function toggleWarehouseMenu() {
-    const subsection = document.getElementById('warehouse-subsection');
-    const arrow = document.getElementById('warehouse-menu-arrow');
-    if (subsection && arrow) {
-        subsection.classList.toggle('hidden');
-        arrow.classList.toggle('rotate-180');
-    }
-}
-
-function openWarehouseScreen() {
-    hideAllMainScreens();
-    showScreen('dashboard-screen');
-    scrollToSection('section-dashboard');
-    showToast('قسم المخازن - قريباً', 'info');
-    // تفعيل زر المخازن في القائمة
-    const warehouseBtn = document.querySelector('.side-menu-link-sub[onclick*="openWarehouseScreen"]');
-    if (warehouseBtn) {
-        setSideMenuActive([warehouseBtn]);
-    }
-    currentScreen = 'dashboard';
-}
-
-function openPurchasesScreen() {
-    hideAllMainScreens();
-    showScreen('dashboard-screen');
-    scrollToSection('section-dashboard');
-    showToast('قسم المشتريات - قريباً', 'info');
-    // تفعيل زر المشتريات في القائمة
-    const purchasesBtn = document.querySelector('.side-menu-link-sub[onclick*="openPurchasesScreen"]');
-    if (purchasesBtn) {
-        setSideMenuActive([purchasesBtn]);
-    }
-    currentScreen = 'dashboard';
-}
-
-function openFinanceScreen() {
-    hideAllMainScreens();
-    showScreen('dashboard-screen');
-    scrollToSection('section-dashboard');
-    showToast('قسم السندات والمالية - قريباً', 'info');
-    setSideMenuActiveBySection('section-dashboard');
-    currentScreen = 'dashboard';
-}
-
-function openReportsScreen() {
-    hideAllMainScreens();
-    showScreen('dashboard-screen');
-    scrollToSection('section-dashboard');
-    showToast('قسم التقارير - قريباً', 'info');
-    setSideMenuActiveBySection('section-dashboard');
-    currentScreen = 'dashboard';
-}
 
 function ensurePageDetailScreenVisible() {
     const pageDetailScreen = document.getElementById('page-detail-screen');
