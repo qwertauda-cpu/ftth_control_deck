@@ -10317,6 +10317,134 @@ app.delete('/api/control/flowchart/:id', requireControlAuth, async (req, res) =>
     }
 });
 
+// ==================== Expiring Subscriptions API ====================
+
+// Get expiring subscriptions from admin.ftth.iq
+app.get('/api/alwatani-login/:id/expiring-subscriptions', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { fromExpirationDate, toExpirationDate, status = 'Active', pageSize = 10000, pageNumber = 1 } = req.query;
+        
+        if (!fromExpirationDate || !toExpirationDate) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'fromExpirationDate and toExpirationDate are required' 
+            });
+        }
+        
+        // Get alwatani login details
+        const alwataniPool = await getAlwataniPoolFromRequestHelper(req);
+        const [accounts] = await alwataniPool.query(
+            'SELECT username, password FROM alwatani_login WHERE id = ?',
+            [id]
+        );
+        
+        if (accounts.length === 0) {
+            return res.status(404).json({ success: false, error: 'Account not found' });
+        }
+        
+        const { username, password } = accounts[0];
+        
+        // Verify account to get access token
+        const verification = await verifyAlwataniAccount(username, password);
+        if (!verification.success || !verification.data?.access_token) {
+            return res.status(401).json({ 
+                success: false, 
+                error: 'Failed to authenticate with admin.ftth.iq' 
+            });
+        }
+        
+        const accessToken = verification.data.access_token;
+        
+        // Build API URL
+        const apiUrl = `https://admin.ftth.iq/api/subscriptions?pageSize=${pageSize}&pageNumber=${pageNumber}&sortCriteria.property=expires&sortCriteria.direction=asc&status=${status}&fromExpirationDate=${fromExpirationDate}&toExpirationDate=${toExpirationDate}&hierarchyLevel=0`;
+        
+        // Make request to admin.ftth.iq
+        const headers = buildAlwataniHeaders({
+            'Authorization': `Bearer ${accessToken}`,
+            'x-client-app': '53d57a7f-3f89-4e9d-873b-3d071bc6dd9f',
+            'x-user-role': '0'
+        }, accessToken);
+        
+        const https = require('https');
+        const url = require('url');
+        const parsedUrl = url.parse(apiUrl);
+        
+        const options = {
+            hostname: parsedUrl.hostname,
+            path: parsedUrl.path,
+            method: 'GET',
+            headers: headers
+        };
+        
+        const response = await new Promise((resolve, reject) => {
+            const req = https.request(options, (res) => {
+                let data = '';
+                res.on('data', (chunk) => {
+                    data += chunk;
+                });
+                res.on('end', () => {
+                    try {
+                        const jsonData = JSON.parse(data);
+                        resolve({
+                            statusCode: res.statusCode,
+                            data: jsonData
+                        });
+                    } catch (error) {
+                        resolve({
+                            statusCode: res.statusCode,
+                            data: data
+                        });
+                    }
+                });
+            });
+            
+            req.on('error', (error) => {
+                reject(error);
+            });
+            
+            req.end();
+        });
+        
+        if (response.statusCode !== 200) {
+            return res.status(response.statusCode).json({ 
+                success: false, 
+                error: 'Failed to fetch subscriptions from admin.ftth.iq',
+                statusCode: response.statusCode
+            });
+        }
+        
+        // Extract subscribers from response
+        let subscribers = [];
+        const data = response.data;
+        
+        if (Array.isArray(data)) {
+            subscribers = data;
+        } else if (data.data && Array.isArray(data.data)) {
+            subscribers = data.data;
+        } else if (data.subscribers && Array.isArray(data.subscribers)) {
+            subscribers = data.subscribers;
+        } else if (data.results && Array.isArray(data.results)) {
+            subscribers = data.results;
+        } else if (data.items && Array.isArray(data.items)) {
+            subscribers = data.items;
+        }
+        
+        res.json({
+            success: true,
+            data: subscribers,
+            total: subscribers.length
+        });
+        
+    } catch (error) {
+        console.error('[EXPIRING SUBSCRIPTIONS] Error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error: ' + error.message 
+        });
+    }
+});
+
 // ==================== Chat API Endpoints - REMOVED ====================
 
 

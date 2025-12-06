@@ -5412,40 +5412,18 @@ function initExpiringSortControl() {
 }
 
 // دالة لجلب البيانات من API مخصص
-async function loadExpiringFromApi(apiUrl) {
+async function loadExpiringFromApi(fromDateISO, toDateISO) {
     try {
-        // إذا كان API من admin.ftth.iq، نحتاج للحصول على access token أولاً
-        let headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json, text/plain, */*'
-        };
+        const loginId = currentUserId || 1;
         
-        // إذا كان API من admin.ftth.iq، نحتاج للحصول على access token
-        if (apiUrl.includes('admin.ftth.iq')) {
-            try {
-                // جلب access token من السيرفر
-                const loginId = currentUserId || 1;
-                const tokenResponse = await fetch(`/api/alwatani-login/${loginId}/verify`, addUsernameToFetchOptions({
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
-                }));
-                
-                if (tokenResponse.ok) {
-                    const tokenData = await tokenResponse.json();
-                    if (tokenData.access_token) {
-                        headers['Authorization'] = `Bearer ${tokenData.access_token}`;
-                        headers['x-client-app'] = '53d57a7f-3f89-4e9d-873b-3d071bc6dd9f';
-                        headers['x-user-role'] = '0';
-                    }
-                }
-            } catch (tokenError) {
-                console.warn('[EXPIRING API] Could not get access token, proceeding without it:', tokenError);
-            }
-        }
+        // استخدام endpoint السيرفر بدلاً من جلب البيانات مباشرة
+        const apiUrl = `${API_URL}/alwatani-login/${loginId}/expiring-subscriptions?fromExpirationDate=${fromDateISO}&toExpirationDate=${toDateISO}&status=Active&pageSize=10000&pageNumber=1`;
         
         const options = addUsernameToFetchOptions({
             method: 'GET',
-            headers: headers
+            headers: {
+                'Content-Type': 'application/json'
+            }
         });
         
         const response = await fetch(apiUrl, options);
@@ -5454,21 +5432,13 @@ async function loadExpiringFromApi(apiUrl) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        const data = await response.json();
+        const result = await response.json();
         
-        // دعم تنسيقات مختلفة للاستجابة
-        let subscribers = [];
-        if (Array.isArray(data)) {
-            subscribers = data;
-        } else if (data.data && Array.isArray(data.data)) {
-            subscribers = data.data;
-        } else if (data.subscribers && Array.isArray(data.subscribers)) {
-            subscribers = data.subscribers;
-        } else if (data.results && Array.isArray(data.results)) {
-            subscribers = data.results;
-        } else if (data.items && Array.isArray(data.items)) {
-            subscribers = data.items;
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to fetch subscriptions');
         }
+        
+        const subscribers = result.data || [];
         
         // تطبيع البيانات لتكون متوافقة مع التنسيق المتوقع
         return subscribers.map((sub, index) => {
