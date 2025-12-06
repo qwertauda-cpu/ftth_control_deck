@@ -4576,7 +4576,7 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         
         // تحديث حالة التقدم بعد انتهاء جلب التفاصيل
         // ملاحظة: كل مشترك تم حفظه فوراً أثناء الجلب باستخدام saveCustomerRecordImmediate
-        const finalProgress = getSyncProgress(id);
+        const syncProgress = getSyncProgress(id);
         updateSyncProgress(id, {
             stage: 'saving',
             current: combinedRecords.length, // جميع المشتركين محفوظين بالفعل
