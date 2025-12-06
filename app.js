@@ -2211,6 +2211,8 @@ function closeWalletScreen() {
         clearInterval(walletAutoRefreshInterval);
         walletAutoRefreshInterval = null;
     }
+    // إيقاف المزامنة الصامتة للمحفظة
+    stopWalletSilentSync();
     // إلغاء تفعيل toggle
     const toggle = document.getElementById('wallet-auto-refresh-toggle');
     if (toggle) {
@@ -2218,6 +2220,8 @@ function closeWalletScreen() {
     }
     // إزالة التفعيل من القائمة الجانبية أولاً
     setSideMenuActive(null);
+    // إعادة تعيين isNavigating للتأكد من عدم وجود قفل
+    isNavigating = false;
     // إعادة فتح page-detail-screen أولاً
     if (currentUserId) {
         hideAllMainScreens();
