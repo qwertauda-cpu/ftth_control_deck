@@ -164,7 +164,6 @@ let subscribersCache = [];
 let activeSubscriberFilter = 'all';
 let expiringSortOrder = 'asc';
 let expiringFilterType = 'expiring'; // 'expiring' أو 'expired'
-let expiringApiEndpoint = localStorage.getItem('expiringApiEndpoint') || ''; // API endpoint مخصص للأكسباير
 let currentFilteredSubscribers = [];
 let subscriberPagination = {
     pageSize: 10000, // بلا حدود - عرض جميع المشتركين
@@ -5383,12 +5382,6 @@ function initExpiringSortControl() {
             expiringFilterType = event.target.value || 'expiring';
             renderExpiringSoonList();
         });
-    }
-    
-    // تحميل API endpoint المحفوظ
-    const apiInput = document.getElementById('expiring-api-input');
-    if (apiInput) {
-        apiInput.value = expiringApiEndpoint;
     }
 }
 
