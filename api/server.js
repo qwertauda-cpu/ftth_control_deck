@@ -4066,6 +4066,53 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
 
         console.log(`[SYNC] Starting sync for account ${id} (partnerId: ${partnerId})`);
         
+        // التحقق من المشتركين الموجودين في قاعدة البيانات أولاً
+        updateSyncProgress(id, {
+            stage: 'checking_existing',
+            current: 0,
+            total: 0,
+            message: 'جاري التحقق من المشتركين الموجودين في قاعدة البيانات...'
+        });
+        
+        // جلب قائمة account_id للمشتركين الموجودين في قاعدة البيانات
+        let existingAccountIds = new Set();
+        try {
+            let existingQuery;
+            let existingParams;
+            
+            // التحقق من بنية الجدول
+            const [columns] = await alwataniPool.query(`
+                SELECT COLUMN_NAME 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_NAME = 'alwatani_customers_cache'
+            `);
+            const columnNames = columns.map(c => c.COLUMN_NAME);
+            const hasPartnerId = columnNames.includes('partner_id');
+            
+            if (hasPartnerId && partnerId) {
+                existingQuery = 'SELECT DISTINCT account_id FROM alwatani_customers_cache WHERE partner_id = ?';
+                existingParams = [partnerId];
+            } else {
+                existingQuery = 'SELECT DISTINCT account_id FROM alwatani_customers_cache';
+                existingParams = [];
+            }
+            
+            const [existingRows] = await alwataniPool.query(existingQuery, existingParams);
+            existingAccountIds = new Set(existingRows.map(row => String(row.account_id)));
+            
+            console.log(`[SYNC] Found ${existingAccountIds.size} existing subscribers in database`);
+            updateSyncProgress(id, {
+                stage: 'checking_existing',
+                current: existingAccountIds.size,
+                total: 0,
+                message: `تم العثور على ${existingAccountIds.size} مشترك موجود في قاعدة البيانات`
+            });
+        } catch (error) {
+            console.warn('[SYNC] Error checking existing subscribers, will sync all:', error.message);
+            // في حالة الخطأ، نتابع مع المزامنة الكاملة
+        }
+        
         // تحديث progress قبل بدء جلب الصفحات
         updateSyncProgress(id, {
             stage: 'preparing',
@@ -4113,12 +4160,29 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
             });
         }
 
-        let allCustomers = [...firstPageList];
+        // فلترة المشتركين الناقصين فقط من الصفحة الأولى
+        const firstPageMissing = firstPageList.filter(customer => {
+            const accountId = extractAlwataniAccountId(customer);
+            return accountId && !existingAccountIds.has(String(accountId));
+        });
+        
+        let allCustomers = [...firstPageMissing];
         const totalCount = firstPageResp.data?.totalCount || firstPageResp.data?.total || 0;
         const totalPages = totalCount > 0 ? Math.ceil(totalCount / pageSize) : Math.ceil(firstPageList.length / pageSize);
         
-        console.log(`[SYNC] Total count: ${totalCount || 'unknown'}, Total pages: ${totalPages}`);
-        console.log(`[SYNC] 🔄 Starting full sync: Will fetch all ${totalCount} subscribers from API and save to database`);
+        const existingCount = existingAccountIds.size;
+        const missingCount = totalCount - existingCount;
+        
+        console.log(`[SYNC] Total count: ${totalCount || 'unknown'}, Existing: ${existingCount}, Missing: ${missingCount}`);
+        console.log(`[SYNC] 🔄 Starting incremental sync: Will fetch only ${missingCount} missing subscribers from API`);
+        
+        // تحديث progress مع معلومات المشتركين المتبقيين
+        updateSyncProgress(id, {
+            stage: 'preparing',
+            current: existingCount,
+            total: totalCount,
+            message: `تم العثور على ${existingCount} مشترك موجود - متبقي ${missingCount} مشترك للجلب`
+        });
         
         // ========== جلب جميع الصفحات - صفحة واحدة كل ثانية ==========
         // تحديث progress للصفحة الأولى - الرسالة الرئيسية تبقى ثابتة
@@ -4175,16 +4239,28 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
 
             if (pageResult.success && pageResult.data) {
                 const customersList = normalizeAlwataniCollection(pageResult.data);
-                allCustomers = allCustomers.concat(customersList);
+                
+                // فلترة المشتركين الناقصين فقط من هذه الصفحة
+                const missingFromPage = customersList.filter(customer => {
+                    const accountId = extractAlwataniAccountId(customer);
+                    return accountId && !existingAccountIds.has(String(accountId));
+                });
+                
+                allCustomers = allCustomers.concat(missingFromPage);
+                
+                const skippedCount = customersList.length - missingFromPage.length;
+                const progressMessage = skippedCount > 0 
+                    ? `جاري جلب الصفحات... (${pageNum}/${totalPages} صفحة) - تم تخطي ${skippedCount} مشترك موجود`
+                    : `جاري جلب الصفحات... (${pageNum}/${totalPages} صفحة)`;
                 
                 // تحديث progress - إضافة log جديد بشكل تراكمي
                 updateSyncProgress(id, {
                     current: pageNum,
                     total: totalPages,
-                    message: `جاري جلب الصفحات... (${pageNum}/${totalPages} صفحة)`, // الرسالة الرئيسية مع عدد الصفحات
+                    message: progressMessage,
                     logs: [{
                         timestamp: new Date().toISOString(),
-                        message: `${pageNum}/${totalPages} - FETCH PAGE ${pageNum} COMPLETE (${customersList.length} subscribers)`,
+                        message: `${pageNum}/${totalPages} - FETCH PAGE ${pageNum} COMPLETE (${missingFromPage.length} new, ${skippedCount} skipped)`,
                         stage: 'fetching_pages'
                     }]
                 });
@@ -4218,21 +4294,30 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
 
         // التحقق من أن جميع الصفحات تم جلبها بنجاح
         const totalFetched = allCustomers.length;
-        const expectedTotal = totalPages * pageSize;
-        const pagesFetched = Math.ceil(totalFetched / pageSize);
+        const pagesFetched = totalPages;
         
-        console.log(`[SYNC] ✅ Fetched ${totalFetched} subscribers from ${pagesFetched} pages (Expected: ~${expectedTotal} from ${totalPages} pages)`);
+        console.log(`[SYNC] ✅ Fetched ${totalFetched} missing subscribers from ${totalPages} pages (${existingCount} already exist, ${missingCount} missing)`);
         
-        // التحقق من أن جميع الصفحات تم جلبها قبل المتابعة
-        if (pagesFetched < totalPages) {
-            console.warn(`[SYNC] ⚠️ Warning: Only fetched ${pagesFetched} pages out of ${totalPages} total pages`);
+        // إذا لم يكن هناك مشتركين ناقصين، ننهي المزامنة
+        if (totalFetched === 0) {
             updateSyncProgress(id, {
-                stage: 'error',
-                current: pagesFetched,
-                total: totalPages,
-                message: `⚠️ تم جلب ${pagesFetched} صفحة فقط من ${totalPages} - قد تكون هناك صفحات فشلت في الجلب`
+                stage: 'completed',
+                current: totalCount,
+                total: totalCount,
+                message: `✅ جميع المشتركين موجودون في قاعدة البيانات (${existingCount}/${totalCount}) - لا حاجة للمزامنة`
             });
-            // نتابع مع البيانات المتوفرة، لكن نعطي تحذير
+            return res.json({
+                success: true,
+                message: `جميع المشتركين موجودون في قاعدة البيانات`,
+                stats: {
+                    totalFetched: 0,
+                    saved: 0,
+                    updated: 0,
+                    total: existingCount,
+                    existing: existingCount,
+                    missing: 0
+                }
+            });
         }
         
         // تحديث حالة التقدم بعد جلب جميع الصفحات
@@ -4240,7 +4325,7 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
             stage: 'pages_complete',
             current: totalPages,
             total: totalPages,
-            message: `✅ تم جلب جميع الصفحات (${totalPages} صفحة، ${totalFetched} مشترك) - جاري الانتقال لمرحلة جلب العناوين...`
+            message: `✅ تم جلب جميع الصفحات (${totalPages} صفحة) - وجدنا ${totalFetched} مشترك ناقص من أصل ${totalCount} - جاري الانتقال لمرحلة جلب العناوين...`
         });
         
         // تأخير قصير قبل الانتقال للمرحلة التالية
