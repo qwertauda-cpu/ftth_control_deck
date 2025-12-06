@@ -1881,7 +1881,17 @@ function parseCustomerDetailsHtml(html) {
     }
     
     details.zone = details.zone || extractDomValueByLabels($, ['المنطقة', 'المنطقة الجغرافية']);
-    details.startDate = details.startDate || extractDomValueByLabels($, ['تاريخ بدء الاشتراك', 'تاريخ التفعيل', 'تاريخ البدء']);
+    // محاولات متعددة لاستخراج تاريخ البدء
+    details.startDate = details.startDate || extractDomValueByLabels($, [
+        'تاريخ بدء الاشتراك', 
+        'تاريخ التفعيل', 
+        'تاريخ البدء',
+        'تاريخ بدء الخدمة',
+        'تاريخ الاشتراك',
+        'تاريخ البداية',
+        'Start Date',
+        'startDate'
+    ]);
     details.endDate = details.endDate || extractDomValueByLabels($, ['تاريخ انتهاء الاشتراك', 'تاريخ الانتهاء']);
     details.status = details.status || extractDomValueByLabels($, ['الحالة', 'حالة الخدمة']);
     
@@ -4334,11 +4344,20 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                 
                 if (detailResp.success && detailResp.data) {
                     const beforePhone = item.record.phone;
+                    const beforeStartDate = item.record.startDate || item.record.start_date;
                     mergeCustomerDetails(item.record, detailResp.data);
                     successCount++;
                     
                     if (detailResp.data.phone && detailResp.data.phone !== beforePhone) {
                         phoneFoundCount++;
+                    }
+                    
+                    // Log startDate if found
+                    const afterStartDate = item.record.startDate || item.record.start_date;
+                    if (afterStartDate && !beforeStartDate) {
+                        console.log(`[SYNC] ✅ Found startDate for ${item.accountId}: ${afterStartDate}`);
+                    } else if (!afterStartDate && parseInt(item.accountId) % 10 === 0) {
+                        console.log(`[SYNC] ⚠️ No startDate found for ${item.accountId}. Details keys:`, Object.keys(detailResp.data || {}));
                     }
                     
                     // حفظ المشترك فوراً في الداتابيس
