@@ -4938,13 +4938,43 @@ async function renderExpiringSoonList() {
         const fromDateISO = fromDate.toISOString();
         const toDateISO = toDate.toISOString();
         
-        // استخدام endpoint السيرفر
-        const apiData = await loadExpiringFromApi(fromDateISO, toDateISO);
-        if (apiData && Array.isArray(apiData) && apiData.length > 0) {
-            dataSource = apiData;
-        } else {
-            // إذا فشل API أو لم تكن هناك بيانات، استخدم البيانات المحلية
-            dataSource = subscribersCache;
+        // محاولة جلب البيانات من قاعدة البيانات أولاً
+        let dataSource = subscribersCache;
+        try {
+            const dbUrl = addAlwataniLoginIdToUrl(`${API_URL}/alwatani-login/${currentUserId}/expiring-subscriptions/db?fromExpirationDate=${fromDateISO}&toExpirationDate=${toDateISO}&filterType=${expiringFilterType}`);
+            const dbResponse = await fetch(dbUrl, addUsernameToFetchOptions({
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json, text/plain, */*'
+                }
+            }));
+            
+            if (dbResponse.ok) {
+                const dbData = await dbResponse.json();
+                if (dbData.success && Array.isArray(dbData.data) && dbData.data.length > 0) {
+                    console.log(`[EXPIRING] Loaded ${dbData.data.length} subscribers from database`);
+                    dataSource = dbData.data;
+                }
+            }
+        } catch (dbError) {
+            console.error('[EXPIRING] Error loading from database:', dbError);
+        }
+        
+        // إذا لم تكن هناك بيانات في قاعدة البيانات، جلب من API وحفظها
+        if (!dataSource || dataSource.length === 0 || (dataSource === subscribersCache && subscribersCache.length === 0)) {
+            try {
+                const apiData = await loadExpiringFromApi(fromDateISO, toDateISO);
+                if (apiData && Array.isArray(apiData) && apiData.length > 0) {
+                    dataSource = apiData;
+                    console.log(`[EXPIRING] Loaded ${apiData.length} subscribers from API`);
+                } else {
+                    dataSource = subscribersCache;
+                }
+            } catch (apiError) {
+                console.error('[EXPIRING] Error loading from API:', apiError);
+                dataSource = subscribersCache;
+            }
         }
     } catch (error) {
         console.error('[EXPIRING API] Error loading from API:', error);

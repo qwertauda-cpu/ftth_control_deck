@@ -10430,6 +10430,150 @@ app.get('/api/alwatani-login/:id/expiring-subscriptions', async (req, res) => {
             subscribers = data.items;
         }
         
+        // حفظ البيانات في قاعدة البيانات
+        try {
+            // التحقق من وجود جدول expiring_subscribers وإنشاؤه إذا لم يكن موجوداً
+            const [tables] = await alwataniPool.query(`
+                SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES 
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'expiring_subscribers'
+            `);
+            
+            if (tables.length === 0) {
+                await alwataniPool.query(`
+                    CREATE TABLE IF NOT EXISTS expiring_subscribers (
+                        id INT PRIMARY KEY AUTO_INCREMENT,
+                        alwatani_login_id INT NOT NULL,
+                        subscription_id VARCHAR(255) NOT NULL,
+                        account_id VARCHAR(255) NULL,
+                        customer_name VARCHAR(500) NULL,
+                        phone VARCHAR(50) NULL,
+                        zone VARCHAR(255) NULL,
+                        device_name VARCHAR(255) NULL,
+                        username VARCHAR(255) NULL,
+                        start_date DATE NULL,
+                        end_date DATE NULL,
+                        expiration_date DATE NULL,
+                        status VARCHAR(50) NULL,
+                        subscription_data JSON NULL,
+                        customer_data JSON NULL,
+                        from_expiration_date DATE NULL,
+                        to_expiration_date DATE NULL,
+                        synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        UNIQUE KEY unique_subscription (alwatani_login_id, subscription_id),
+                        INDEX idx_alwatani_login (alwatani_login_id),
+                        INDEX idx_expiration_date (expiration_date),
+                        INDEX idx_end_date (end_date),
+                        INDEX idx_account_id (account_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                `);
+                console.log('[EXPIRING SUBSCRIBERS] Created expiring_subscribers table');
+            }
+            
+            // حفظ كل مشترك في قاعدة البيانات
+            let savedCount = 0;
+            let updatedCount = 0;
+            
+            for (const sub of subscribers) {
+                try {
+                    const subscription = sub.subscription || sub;
+                    const customer = sub.customer || subscription?.customer || {};
+                    
+                    // استخراج البيانات
+                    const subscriptionId = subscription?.id || sub.id || subscription?.subscriptionId || sub.subscriptionId || null;
+                    const accountId = subscription?.accountId || customer?.id || subscription?.accountId || sub.accountId || null;
+                    const customerName = customer?.name || customer?.displayValue || customer?.fullName || sub.name || null;
+                    const phone = customer?.phone || customer?.phoneNumber || customer?.contactPhone || sub.phone || null;
+                    const zone = customer?.zone || customer?.area || subscription?.zone || sub.zone || null;
+                    const deviceName = subscription?.username || subscription?.deviceName || customer?.deviceName || sub.deviceName || null;
+                    const username = subscription?.username || subscription?.deviceName || customer?.username || sub.username || null;
+                    
+                    // استخراج التواريخ
+                    const startDate = subscription?.starts || sub.starts || subscription?.startDate || sub.startDate || null;
+                    const endDate = subscription?.expires || sub.expires || subscription?.expirationDate || sub.expirationDate || null;
+                    const expirationDate = endDate || subscription?.expires || sub.expires || null;
+                    
+                    const status = subscription?.status || sub.status || 'Active';
+                    
+                    // تحويل التواريخ إلى DATE format
+                    const formatDateForDB = (dateStr) => {
+                        if (!dateStr) return null;
+                        try {
+                            const date = new Date(dateStr);
+                            if (isNaN(date.getTime())) return null;
+                            return date.toISOString().split('T')[0];
+                        } catch (e) {
+                            return null;
+                        }
+                    };
+                    
+                    // إنشاء subscription_id فريد إذا لم يكن موجوداً
+                    const finalSubscriptionId = subscriptionId || `temp-${accountId || sub.id || Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                    
+                    // حفظ في قاعدة البيانات
+                    const [result] = await alwataniPool.query(`
+                        INSERT INTO expiring_subscribers 
+                        (alwatani_login_id, subscription_id, account_id, customer_name, phone, zone, device_name, username,
+                         start_date, end_date, expiration_date, status, subscription_data, customer_data,
+                         from_expiration_date, to_expiration_date, synced_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                        ON DUPLICATE KEY UPDATE
+                            account_id = VALUES(account_id),
+                            customer_name = VALUES(customer_name),
+                            phone = VALUES(phone),
+                            zone = VALUES(zone),
+                            device_name = VALUES(device_name),
+                            username = VALUES(username),
+                            start_date = VALUES(start_date),
+                            end_date = VALUES(end_date),
+                            expiration_date = VALUES(expiration_date),
+                            status = VALUES(status),
+                            subscription_data = VALUES(subscription_data),
+                            customer_data = VALUES(customer_data),
+                            from_expiration_date = VALUES(from_expiration_date),
+                            to_expiration_date = VALUES(to_expiration_date),
+                            synced_at = CURRENT_TIMESTAMP,
+                            updated_at = CURRENT_TIMESTAMP
+                    `, [
+                        id,
+                        finalSubscriptionId,
+                        accountId,
+                        customerName,
+                        phone,
+                        zone,
+                        deviceName,
+                        username,
+                        formatDateForDB(startDate),
+                        formatDateForDB(endDate),
+                        formatDateForDB(expirationDate),
+                        status,
+                        JSON.stringify(subscription),
+                        JSON.stringify(customer),
+                        formatDateForDB(fromExpirationDate),
+                        formatDateForDB(toExpirationDate)
+                    ]);
+                    
+                    // التحقق من إذا كان insert أم update
+                    if (result.affectedRows > 0) {
+                        if (result.insertId) {
+                            savedCount++;
+                        } else {
+                            updatedCount++;
+                        }
+                    }
+                } catch (subError) {
+                    console.error(`[EXPIRING SUBSCRIBERS] Error saving subscriber ${sub.id || 'unknown'}:`, subError.message);
+                    // استمر في الحفظ حتى لو فشل أحد المشتركين
+                }
+            }
+            
+            console.log(`[EXPIRING SUBSCRIBERS] Saved ${savedCount} new, updated ${updatedCount} existing subscribers`);
+        } catch (dbError) {
+            console.error('[EXPIRING SUBSCRIBERS] Error saving to database:', dbError);
+            // لا نوقف العملية، نستمر في إرجاع البيانات
+        }
+        
         res.json({
             success: true,
             data: subscribers,
@@ -10441,6 +10585,128 @@ app.get('/api/alwatani-login/:id/expiring-subscriptions', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: 'Internal server error: ' + error.message 
+        });
+    }
+});
+
+// Get expiring subscribers from database
+app.get('/api/alwatani-login/:id/expiring-subscriptions/db', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { fromExpirationDate, toExpirationDate, filterType = 'expiring' } = req.query;
+        
+        const alwataniPool = await getAlwataniPoolFromRequestHelper(req);
+        
+        // التحقق من وجود الجدول
+        const [tables] = await alwataniPool.query(`
+            SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'expiring_subscribers'
+        `);
+        
+        if (tables.length === 0) {
+            return res.json({
+                success: true,
+                data: [],
+                total: 0,
+                message: 'لا توجد بيانات محفوظة بعد'
+            });
+        }
+        
+        // بناء الاستعلام
+        let query = `
+            SELECT 
+                id,
+                subscription_id,
+                account_id,
+                customer_name as name,
+                phone,
+                zone,
+                device_name,
+                username,
+                start_date as startDate,
+                end_date as endDate,
+                expiration_date as expirationDate,
+                status,
+                subscription_data,
+                customer_data,
+                synced_at,
+                created_at,
+                updated_at
+            FROM expiring_subscribers
+            WHERE alwatani_login_id = ?
+        `;
+        
+        const params = [id];
+        
+        // إضافة فلترة حسب النوع
+        if (filterType === 'expired') {
+            query += ` AND (expiration_date < CURDATE() OR end_date < CURDATE())`;
+        } else {
+            // القريبين على الانتهاء: من اليوم حتى 3 أيام
+            query += ` AND (expiration_date >= CURDATE() AND expiration_date <= DATE_ADD(CURDATE(), INTERVAL 3 DAY)) 
+                       OR (end_date >= CURDATE() AND end_date <= DATE_ADD(CURDATE(), INTERVAL 3 DAY))`;
+        }
+        
+        // إضافة فلترة حسب التواريخ إذا كانت موجودة
+        if (fromExpirationDate) {
+            query += ` AND (expiration_date >= ? OR end_date >= ?)`;
+            params.push(fromExpirationDate, fromExpirationDate);
+        }
+        if (toExpirationDate) {
+            query += ` AND (expiration_date <= ? OR end_date <= ?)`;
+            params.push(toExpirationDate, toExpirationDate);
+        }
+        
+        query += ` ORDER BY expiration_date ASC, end_date ASC`;
+        
+        const [rows] = await alwataniPool.query(query, params);
+        
+        // تحويل البيانات إلى التنسيق المطلوب
+        const subscribers = rows.map(row => {
+            const subscriptionData = row.subscription_data ? 
+                (typeof row.subscription_data === 'string' ? JSON.parse(row.subscription_data) : row.subscription_data) : {};
+            const customerData = row.customer_data ? 
+                (typeof row.customer_data === 'string' ? JSON.parse(row.customer_data) : row.customer_data) : {};
+            
+            return {
+                id: row.subscription_id || row.account_id,
+                subscriptionId: row.subscription_id,
+                account_id: row.account_id,
+                accountId: row.account_id,
+                name: row.name,
+                fullName: row.name,
+                phone: row.phone,
+                zone: row.zone,
+                deviceName: row.device_name,
+                username: row.username,
+                start_date: row.startDate,
+                startDate: row.startDate,
+                end_date: row.endDate || row.expirationDate,
+                endDate: row.endDate || row.expirationDate,
+                expirationDate: row.expirationDate,
+                status: row.status,
+                subscription: subscriptionData,
+                customer: customerData,
+                raw: {
+                    subscription: subscriptionData,
+                    customer: customerData
+                },
+                _fromDB: true
+            };
+        });
+        
+        res.json({
+            success: true,
+            data: subscribers,
+            total: subscribers.length,
+            fromDB: true
+        });
+        
+    } catch (error) {
+        console.error('[EXPIRING SUBSCRIBERS DB] Error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error: ' + error.message
         });
     }
 });
