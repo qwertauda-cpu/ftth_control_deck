@@ -4239,6 +4239,14 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                         phoneFoundCount++;
                     }
                     
+                    // حفظ المشترك فوراً في الداتابيس
+                    try {
+                        await saveCustomerRecordImmediate(item, alwataniPool);
+                        console.log(`[SYNC] ✅ Saved subscriber ${item.accountId} to database immediately`);
+                    } catch (saveError) {
+                        console.error(`[SYNC] ❌ Error saving subscriber ${item.accountId} immediately:`, saveError.message);
+                    }
+                    
                     // تحديث progress - فقط الأرقام وlogs، الرسالة الرئيسية تبقى ثابتة
                     const current = syncProgressStore.get(id) || { logs: [] };
                     current.current = i + 1;
@@ -4251,7 +4259,7 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
                     const customerData = detailResp.data || {};
                     const fullName = customerData.fullName || customerData.name || subscriberName;
                     const phone = customerData.phone || item.record?.phone || '';
-                    const region = customerData.region || item.record?.region || '';
+                    const region = customerData.zone || item.record?.zone || '';
                     const deviceName = customerData.deviceName || item.record?.deviceName || '';
                     
                     // بناء رسالة مفصلة
@@ -4315,20 +4323,22 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         };
             
             if (enrichResult?.cancelled || isSyncCancelled(id)) {
+                // عند الإيقاف، البيانات محفوظة بالفعل (كل مشترك تم حفظه فوراً)
                 updateSyncProgress(id, {
                     stage: 'cancelled',
                     current: enrichResult?.processed || 0,
                 total: combinedRecords.length,
-                message: `تم إيقاف جلب التفاصيل بعد معالجة ${enrichResult?.processed || 0} من ${combinedRecords.length}`,
+                message: `تم إيقاف جلب التفاصيل بعد معالجة ${enrichResult?.processed || 0} من ${combinedRecords.length} - تم حفظ البيانات في قاعدة البيانات`,
                     phoneFound: enrichResult?.phoneFoundCount || 0,
                     cancelRequested: true
                 });
                 return res.json({
                     success: true,
                     cancelled: true,
-                    message: 'تم إيقاف جلب التفاصيل حسب الطلب',
+                    message: 'تم إيقاف جلب التفاصيل حسب الطلب - تم حفظ البيانات في قاعدة البيانات',
                     processed: enrichResult?.processed || 0,
-                    phones: enrichResult?.phoneFoundCount || 0
+                    phones: enrichResult?.phoneFoundCount || 0,
+                    saved: enrichResult?.processed || 0 // عدد المشتركين المحفوظين
             });
         }
         
@@ -4347,30 +4357,24 @@ app.post('/api/alwatani-login/:id/customers/sync', async (req, res) => {
         token = tokenRef.value;
         
         // تحديث حالة التقدم بعد انتهاء جلب التفاصيل
+        // ملاحظة: كل مشترك تم حفظه فوراً أثناء الجلب باستخدام saveCustomerRecordImmediate
         const finalProgress = getSyncProgress(id);
         updateSyncProgress(id, {
             stage: 'saving',
-            current: 0, // Reset to 0 for saving stage
+            current: combinedRecords.length, // جميع المشتركين محفوظين بالفعل
             total: combinedRecords.length,
-            message: `تم جلب التفاصيل - جاري الحفظ في قاعدة البيانات...`,
+            message: `✅ تم جلب وحفظ جميع المشتركين في قاعدة البيانات`,
             phoneFound: finalProgress?.phoneFound || 0
         });
 
+        // ملاحظة: كل مشترك تم حفظه فوراً أثناء الجلب، لكن نتحقق من الحفظ مرة أخرى للتأكد
         const customersToSave = combinedRecords.map((item) => ({
             accountId: item.accountId,
             partnerId: item.partnerId,
             customerData: JSON.stringify(item.record)
         }));
 
-        console.log(`[SYNC] Preparing ${customersToSave.length} subscribers to save to database...`);
-
-        // تحديث حالة التقدم عند بدء الحفظ
-        updateSyncProgress(id, {
-            stage: 'saving',
-            current: 0,
-            total: customersToSave.length,
-            message: `جاري الحفظ في قاعدة البيانات... 0/${customersToSave.length}`
-        });
+        console.log(`[SYNC] Verifying ${customersToSave.length} subscribers are saved in database (already saved immediately during fetch)...`);
 
         // التحقق من بنية الجدول
         let hasPartnerId = false;

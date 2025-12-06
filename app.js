@@ -1202,7 +1202,7 @@ async function handleAddPage(e) {
             // Switch to subscriber management page after short delay
             setTimeout(async () => {
                 switchScreen('dashboard-screen', 'page-detail-screen');
-                await loadSubscribers();
+                // لا يتم جلب المشتركين تلقائياً - فقط عند الضغط على مزامنة
                 await loadAlwataniDetails();
                 
                 // Clear form
@@ -1328,7 +1328,7 @@ function openPageDetail(username, password, userId) {
     if (sectionDashboard) sectionDashboard.classList.remove('hidden');
     if (sectionSubscribers) sectionSubscribers.classList.add('hidden');
     
-    loadSubscribers();
+    // لا يتم جلب المشتركين تلقائياً - فقط عند الضغط على مزامنة
     loadAlwataniDetails();
     // تم إزالة updateSyncStatus() لأننا لم نعد نستخدم sync
 }
@@ -2724,8 +2724,9 @@ async function stopSync() {
                     `;
                 }
                 
-                // تحديث البيانات بعد الإيقاف
-                await loadLocalSubscribers();
+                // تحديث البيانات بعد الإيقاف - جلب من الداتابيس
+                console.log('[STOP SYNC] Loading subscribers from database after stop...');
+                await loadSubscribersFromDB();
             }, 2000);
         } else {
             alert('فشل إيقاف المزامنة: ' + (data.message || 'خطأ غير معروف'));
