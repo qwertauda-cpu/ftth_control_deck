@@ -4890,7 +4890,7 @@ async function scrollToSection(sectionId, options = {}) {
 // Flag لمنع الاستدعاء المتكرر
 let isNavigating = false;
 
-function navigateToSection(sectionId) {
+async function navigateToSection(sectionId) {
     // منع الاستدعاء المتكرر
     if (isNavigating) {
         console.log('[navigateToSection] Already navigating, skipping...');
@@ -4911,9 +4911,9 @@ function navigateToSection(sectionId) {
             console.log('[navigateToSection] Opening page-detail-screen from dashboard-screen');
             isNavigating = true;
             openPageDetail(currentDetailUser, currentDetailPass, currentUserId, true);
-            setTimeout(() => {
+            setTimeout(async () => {
                 isNavigating = false;
-                navigateToSection(sectionId);
+                await navigateToSection(sectionId);
             }, 300);
             return;
         } else {
@@ -4943,9 +4943,9 @@ function navigateToSection(sectionId) {
         // فتح صفحة تفاصيل المستخدم (بدون تحميل تلقائي للمشتركين)
         openPageDetail(currentDetailUser, currentDetailPass, currentUserId, true);
         // الانتظار قليلاً ثم الانتقال للقسم المطلوب
-        setTimeout(() => {
+        setTimeout(async () => {
             isNavigating = false;
-            navigateToSection(sectionId);
+            await navigateToSection(sectionId);
         }, 300);
         return;
     }
