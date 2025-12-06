@@ -4951,10 +4951,37 @@ function renderExpiringSoonList() {
     listEl.innerHTML = filtered.map((sub) => {
         const daysLeft = sub._meta?.daysLeft ?? 0;
         const isExpired = daysLeft < 0;
-        const daysText = isExpired 
-            ? `منتهي منذ ${Math.abs(daysLeft)} يوم`
-            : `${daysLeft} يوم متبقي`;
-        const daysColor = isExpired ? 'text-red-500' : 'text-orange-500';
+        
+        // حساب الساعات المتبقية إذا كان daysLeft === 0
+        let timeText = '';
+        let daysColor = isExpired ? 'text-red-500' : 'text-orange-500';
+        
+        if (isExpired) {
+            timeText = `منتهي منذ ${Math.abs(daysLeft)} يوم`;
+        } else if (daysLeft === 0) {
+            // حساب الساعات المتبقية
+            const endDate = new Date(sub.end_date || sub.endDate);
+            const now = new Date();
+            const diffMs = endDate - now;
+            
+            if (diffMs > 0) {
+                const hoursLeft = Math.floor(diffMs / (1000 * 60 * 60));
+                const minutesLeft = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                
+                if (hoursLeft > 0) {
+                    timeText = `${hoursLeft} ساعة متبقية`;
+                } else if (minutesLeft > 0) {
+                    timeText = `${minutesLeft} دقيقة متبقية`;
+                } else {
+                    timeText = 'أقل من دقيقة';
+                }
+            } else {
+                timeText = 'منتهي';
+                daysColor = 'text-red-500';
+            }
+        } else {
+            timeText = `${daysLeft} يوم متبقي`;
+        }
         
         return `
         <div class="flex items-center justify-between py-3 hover:bg-slate-50 rounded-lg px-2 transition-colors">
@@ -4966,7 +4993,7 @@ function renderExpiringSoonList() {
                 </div>
             </div>
             <div class="text-right ml-4">
-                <span class="text-sm font-bold ${daysColor}">${daysText}</span>
+                <span class="text-sm font-bold ${daysColor}">${timeText}</span>
                 ${sub.zone ? `<p class="text-[11px] text-slate-400 mt-1">${sub.zone}</p>` : ''}
             </div>
         </div>
