@@ -1405,6 +1405,8 @@ function openExpiringScreen() {
 function closeExpiringScreen() {
     // إزالة التفعيل من القائمة الجانبية أولاً
     setSideMenuActive(null);
+    // إعادة تعيين isNavigating للتأكد من عدم وجود قفل
+    isNavigating = false;
     // إعادة فتح page-detail-screen أولاً
     if (currentUserId) {
         hideAllMainScreens();
@@ -1431,6 +1433,8 @@ function openTicketDashboardScreen() {
 function closeTicketDashboardScreen() {
     // إزالة التفعيل من القائمة الجانبية أولاً
     setSideMenuActive(null);
+    // إعادة تعيين isNavigating للتأكد من عدم وجود قفل
+    isNavigating = false;
     // إعادة فتح page-detail-screen أولاً
     if (currentUserId) {
         hideAllMainScreens();
@@ -1458,6 +1462,8 @@ function openGeneralSettingsScreen() {
 function closeGeneralSettingsScreen() {
     // إزالة التفعيل من القائمة الجانبية أولاً
     setSideMenuActive(null);
+    // إعادة تعيين isNavigating للتأكد من عدم وجود قفل
+    isNavigating = false;
     // إعادة فتح page-detail-screen أولاً
     if (currentUserId) {
         hideAllMainScreens();
@@ -4944,9 +4950,12 @@ async function navigateToSection(sectionId) {
         openPageDetail(currentDetailUser, currentDetailPass, currentUserId, true);
         // الانتظار قليلاً ثم الانتقال للقسم المطلوب
         setTimeout(async () => {
+            // إعادة تعيين isNavigating قبل الاستدعاء التالي
             isNavigating = false;
+            // تأخير إضافي صغير لضمان أن الشاشة تم تحميلها
+            await new Promise(resolve => setTimeout(resolve, 100));
             await navigateToSection(sectionId);
-        }, 300);
+        }, 400); // زيادة التأخير قليلاً لضمان اكتمال فتح الشاشة
         return;
     }
     
@@ -5020,16 +5029,18 @@ async function navigateToSection(sectionId) {
         setTimeout(() => {
             setSideMenuActiveBySection(sectionId);
             isNavigating = false;
-        }, 150);
+        }, 200); // زيادة التأخير قليلاً لضمان اكتمال التحديث
     } else {
         // إذا لم نكن في page-detail-screen وليس لدينا معلومات المستخدم، نحتاج لفتحها أولاً
         if (currentUserId && currentDetailUser) {
             console.log('[navigateToSection] Opening page-detail-screen first');
             openPageDetail(currentDetailUser, currentDetailPass, currentUserId, true);
-            setTimeout(() => {
+            setTimeout(async () => {
                 isNavigating = false;
-                navigateToSection(sectionId);
-            }, 300);
+                // تأخير إضافي صغير
+                await new Promise(resolve => setTimeout(resolve, 100));
+                await navigateToSection(sectionId);
+            }, 400); // زيادة التأخير قليلاً
         } else {
             console.warn('[navigateToSection] Cannot navigate to section without opening a user page first');
             isNavigating = false;
