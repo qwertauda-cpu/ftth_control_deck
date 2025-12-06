@@ -2150,6 +2150,11 @@ function startAutoRefresh() {
                         } catch (error) {
                             console.error('[AUTO-REFRESH] ❌ Error refreshing subscribers:', error);
                         }
+                        // تحديث بيانات لوحة التحكم
+                        loadWalletBalance();
+                        loadRecentActivities();
+                        loadActiveTeamsCount();
+                        loadOpenTicketsCount();
                     }
                     break;
                     
