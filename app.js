@@ -2567,6 +2567,14 @@ async function loadSubscribersFromDB(pageNumber = 1, pageSize = ALWATANI_CUSTOME
         showSubscribersTableMessage('يرجى اختيار حساب الوطني من القائمة.');
         return;
     }
+    
+    // منع الاستدعاءات المكررة
+    if (isLoadingSubscribers) {
+        console.log('[LOAD DB] Already loading subscribers, skipping...');
+        return;
+    }
+    
+    isLoadingSubscribers = true;
 
     const userId = currentUserId;
     
@@ -3496,6 +3504,7 @@ let allWalletTransactions = []; // تخزين جميع الحوالات
 let walletAutoRefreshInterval = null; // للتحديث التلقائي
 let walletSilentSyncInterval = null; // للتحديث التلقائي المخفي كل دقيقتين
 let isLoadingAllTransactions = false; // لتجنب طلبات متعددة متزامنة
+let isLoadingSubscribers = false; // لتجنب طلبات متعددة متزامنة لجلب المشتركين
 
 async function loadWalletBalance() {
     if (!currentUserId) {
