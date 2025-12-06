@@ -2194,11 +2194,6 @@ function closeWalletScreen() {
         hideAllMainScreens();
         showScreen('dashboard-screen');
     }
-    const toggle = document.getElementById('wallet-auto-refresh-toggle');
-    if (toggle) {
-        toggle.checked = false;
-    }
-    scrollToSection('section-subscribers');
 }
 
 function hideAllMainScreens() {
