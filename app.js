@@ -4476,7 +4476,7 @@ function buildSubscriberMeta(subscriber) {
                 tags.add('expired');
                 meta.isExpired = true;
             }
-            if (diffDays >= 0 && diffDays <= 7) {
+            if (diffDays >= 0 && diffDays <= 3) {
                 tags.add('expiring');
                 meta.isExpiringSoon = true;
             }
