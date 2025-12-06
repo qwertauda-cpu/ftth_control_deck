@@ -4955,35 +4955,66 @@ function renderExpiringSoonList() {
         let daysColor = 'text-orange-500';
         
         if (endDateValue) {
-            const endDate = new Date(endDateValue);
-            const now = new Date();
-            const diffMs = endDate - now;
-            const diffHours = diffMs / (1000 * 60 * 60);
-            const diffDays = diffMs / (1000 * 60 * 60 * 24);
-            
-            if (diffMs <= 0) {
-                // منتهي
-                const daysAgo = Math.abs(Math.floor(diffDays));
-                timeText = daysAgo > 0 ? `منتهي منذ ${daysAgo} يوم` : 'منتهي';
-                daysColor = 'text-red-500';
-            } else if (diffHours <= 24) {
-                // أقل من 24 ساعة - عرض بالساعات
-                const hoursLeft = Math.floor(diffHours);
-                const minutesLeft = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                
-                if (hoursLeft > 0) {
-                    timeText = `${hoursLeft} ساعة متبقية`;
-                } else if (minutesLeft > 0) {
-                    timeText = `${minutesLeft} دقيقة متبقية`;
+            // معالجة أفضل للتاريخ - دعم تنسيقات مختلفة
+            let endDate;
+            if (typeof endDateValue === 'string') {
+                // إذا كان التاريخ بصيغة "YYYY-MM-DD" أو "YYYY/MM/DD"
+                if (endDateValue.match(/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/)) {
+                    endDate = new Date(endDateValue.replace(/\//g, '-'));
+                } else if (endDateValue.match(/^\d{1,2}[-/]\d{1,2}[-/]\d{4}/)) {
+                    // تنسيق "DD/MM/YYYY" أو "DD-MM-YYYY"
+                    const parts = endDateValue.split(/[-/]/);
+                    if (parts.length === 3) {
+                        // افتراض DD/MM/YYYY
+                        endDate = new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
+                    } else {
+                        endDate = new Date(endDateValue);
+                    }
                 } else {
-                    timeText = 'أقل من دقيقة';
+                    endDate = new Date(endDateValue);
                 }
-                daysColor = 'text-orange-500';
             } else {
-                // أكثر من 24 ساعة - عرض بالأيام
-                const daysLeft = Math.floor(diffDays);
-                timeText = `${daysLeft} يوم متبقي`;
-                daysColor = 'text-orange-500';
+                endDate = new Date(endDateValue);
+            }
+            
+            // التحقق من صحة التاريخ
+            if (isNaN(endDate.getTime())) {
+                timeText = 'تاريخ غير صحيح';
+                daysColor = 'text-slate-400';
+            } else {
+                const now = new Date();
+                // تعيين الوقت إلى منتصف النهار لتجنب مشاكل التوقيت
+                now.setHours(12, 0, 0, 0);
+                endDate.setHours(12, 0, 0, 0);
+                
+                const diffMs = endDate - now;
+                const diffHours = diffMs / (1000 * 60 * 60);
+                const diffDays = diffMs / (1000 * 60 * 60 * 24);
+                
+                if (diffMs <= 0) {
+                    // منتهي
+                    const daysAgo = Math.abs(Math.floor(diffDays));
+                    timeText = daysAgo > 0 ? `منتهي منذ ${daysAgo} يوم` : 'منتهي';
+                    daysColor = 'text-red-500';
+                } else if (diffHours <= 24) {
+                    // أقل من 24 ساعة - عرض بالساعات
+                    const hoursLeft = Math.floor(diffHours);
+                    const minutesLeft = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                    
+                    if (hoursLeft > 0) {
+                        timeText = `${hoursLeft} ساعة متبقية`;
+                    } else if (minutesLeft > 0) {
+                        timeText = `${minutesLeft} دقيقة متبقية`;
+                    } else {
+                        timeText = 'أقل من دقيقة';
+                    }
+                    daysColor = 'text-orange-500';
+                } else {
+                    // أكثر من 24 ساعة - عرض بالأيام
+                    const daysLeft = Math.floor(diffDays);
+                    timeText = `${daysLeft} يوم متبقي`;
+                    daysColor = 'text-orange-500';
+                }
             }
         } else {
             timeText = 'تاريخ غير معروف';
