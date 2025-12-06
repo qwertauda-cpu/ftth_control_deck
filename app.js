@@ -2700,7 +2700,7 @@ async function stopSync() {
         if (data.success) {
             showSubscribersTableMessage('⏹️ تم طلب إيقاف المزامنة. سيتم حفظ البيانات التي تم جلبها.');
             
-            // إخفاء زر الإيقاف وإظهار زر المزامنة بعد ثانيتين
+            // إخفاء زر الإيقاف وإظهار زر المزامنة بعد 3 ثوانٍ (زيادة الوقت لضمان حفظ البيانات)
             setTimeout(async () => {
                 if (stopSyncBtn) {
                     stopSyncBtn.classList.add('hidden');
@@ -2724,10 +2724,33 @@ async function stopSync() {
                     `;
                 }
                 
-                // تحديث البيانات بعد الإيقاف - جلب من الداتابيس
+                // تحديث البيانات بعد الإيقاف - جلب من الداتابيس مع retry mechanism
                 console.log('[STOP SYNC] Loading subscribers from database after stop...');
-                await loadSubscribersFromDB();
-            }, 2000);
+                let retryCount = 0;
+                const maxRetries = 3;
+                
+                while (retryCount < maxRetries) {
+                    await loadSubscribersFromDB();
+                    
+                    // إذا تم تحميل البيانات بنجاح، نخرج من الحلقة
+                    if (subscribersCache.length > 0) {
+                        console.log(`[STOP SYNC] Successfully loaded ${subscribersCache.length} subscribers after ${retryCount + 1} attempt(s)`);
+                        break;
+                    }
+                    
+                    retryCount++;
+                    if (retryCount < maxRetries) {
+                        console.log(`[STOP SYNC] No data loaded, retrying in 2 seconds... (attempt ${retryCount + 1}/${maxRetries})`);
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    }
+                }
+                
+                // إذا لم يتم تحميل أي بيانات بعد جميع المحاولات
+                if (subscribersCache.length === 0) {
+                    console.warn('[STOP SYNC] No data loaded after all retries');
+                    showSubscribersTableMessage('⚠️ لم يتم العثور على بيانات محفوظة. قد تحتاج لإعادة المزامنة.');
+                }
+            }, 3000);
         } else {
             alert('فشل إيقاف المزامنة: ' + (data.message || 'خطأ غير معروف'));
             if (stopSyncBtn) {
