@@ -3762,7 +3762,8 @@ app.get('/api/alwatani-login/:id/customers/db', async (req, res) => {
         console.log('[CUSTOMERS DB] Using partnerId:', partnerId, 'for account:', account.username);
         
         const pageNumber = Math.max(parseInt(req.query.pageNumber, 10) || 1, 1);
-        const pageSize = Math.min(Math.max(parseInt(req.query.pageSize, 10) || 100, 1), 1000);
+        // إزالة الحد الأقصى - جلب جميع المشتركين
+        const pageSize = Math.max(parseInt(req.query.pageSize, 10) || 10000, 1);
         const offset = (pageNumber - 1) * pageSize;
         
         // التحقق من وجود الأعمدة في الجدول
@@ -6102,9 +6103,9 @@ app.get('/api/subscribers', async (req, res) => {
             });
         }
         
-        // إضافة pagination وlimit لتحسين الأداء
+        // إزالة الحد الأقصى - جلب جميع المشتركين
         const page = parseInt(req.query.page || '1', 10);
-        const limit = parseInt(req.query.limit || '100', 10); // حد أقصى 100 مشترك في كل طلب
+        const limit = parseInt(req.query.limit || '10000', 10); // بلا حدود - جلب جميع المشتركين
         const offset = (page - 1) * limit;
         
         // التحقق من بنية الجدول
@@ -6129,12 +6130,12 @@ app.get('/api/subscribers', async (req, res) => {
             if (hasCustomerData) {
                 [rows] = await alwataniPool.query(
                     'SELECT account_id, customer_data, synced_at FROM alwatani_customers_cache ORDER BY synced_at DESC LIMIT ? OFFSET ?',
-                    [Math.min(limit, 100), offset]
+                    [limit, offset]
                 );
             } else {
                 [rows] = await alwataniPool.query(
                     'SELECT account_id, username, device_name, phone, region, page_url, start_date, end_date, status, created_at as synced_at FROM alwatani_customers_cache ORDER BY created_at DESC LIMIT ? OFFSET ?',
-                    [Math.min(limit, 100), offset]
+                    [limit, offset]
                 );
             }
         } catch (queryError) {
@@ -6189,9 +6190,9 @@ app.get('/api/subscribers', async (req, res) => {
                 data: subscribers || [],
                 pagination: {
                     page,
-                    limit: Math.min(limit, 100),
+                    limit: limit,
                     total: countResult[0]?.total || 0,
-                    totalPages: Math.ceil((countResult[0]?.total || 0) / Math.min(limit, 100))
+                    totalPages: Math.ceil((countResult[0]?.total || 0) / limit)
                 }
             });
         } else {

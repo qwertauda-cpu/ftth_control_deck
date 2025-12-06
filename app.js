@@ -88,7 +88,7 @@ function addUsernameToFetchOptions(options = {}) {
 }
 let currentCustomersPage = 1;
 
-const ALWATANI_CUSTOMERS_PAGE_SIZE = 100;
+const ALWATANI_CUSTOMERS_PAGE_SIZE = 10000; // بلا حدود - جلب جميع المشتركين
 
 // Auto-refresh intervals
 let dataAutoRefreshInterval = null;
@@ -165,7 +165,7 @@ let activeSubscriberFilter = 'all';
 let expiringSortOrder = 'asc';
 let currentFilteredSubscribers = [];
 let subscriberPagination = {
-    pageSize: 100,
+    pageSize: 10000, // بلا حدود - عرض جميع المشتركين
     currentPage: 1
 };
 
@@ -2329,6 +2329,16 @@ function openSalesScreen() {
     currentScreen = 'dashboard';
 }
 
+// دالة لفتح/إغلاق قائمة المخازن المنسدلة
+function toggleWarehouseMenu() {
+    const subsection = document.getElementById('warehouse-subsection');
+    const arrow = document.getElementById('warehouse-menu-arrow');
+    if (subsection && arrow) {
+        subsection.classList.toggle('hidden');
+        arrow.classList.toggle('rotate-180');
+    }
+}
+
 function openWarehouseScreen() {
     hideAllMainScreens();
     showScreen('dashboard-screen');
@@ -2602,15 +2612,8 @@ async function loadSubscribersFromDB(pageNumber = 1, pageSize = ALWATANI_CUSTOME
             renderSubscriberStatusCards();
             renderExpiringSoonList();
             
-            // التأكد من أن pageSize مضبوط على 100
-            if (subscriberPagination.pageSize !== 100) {
-                subscriberPagination.pageSize = 100;
-                // تحديث القائمة المنسدلة إذا كانت موجودة
-                const pageSizeSelect = document.getElementById('subscriber-page-size');
-                if (pageSizeSelect) {
-                    pageSizeSelect.value = '100';
-                }
-            }
+            // إزالة الحد الأقصى - جلب جميع المشتركين
+            // لا نحتاج لتحديد pageSize لأننا نجلب جميع البيانات
             
             applySubscriberFilter(activeSubscriberFilter || 'all');
             updateStats();
@@ -2710,15 +2713,8 @@ async function loadRemoteSubscribers(pageNumber = 1, pageSize = ALWATANI_CUSTOME
             renderSubscriberStatusCards();
             renderExpiringSoonList();
             
-            // التأكد من أن pageSize مضبوط على 100
-            if (subscriberPagination.pageSize !== 100) {
-                subscriberPagination.pageSize = 100;
-                // تحديث القائمة المنسدلة إذا كانت موجودة
-                const pageSizeSelect = document.getElementById('subscriber-page-size');
-                if (pageSizeSelect) {
-                    pageSizeSelect.value = '100';
-                }
-            }
+            // إزالة الحد الأقصى - جلب جميع المشتركين
+            // لا نحتاج لتحديد pageSize لأننا نجلب جميع البيانات
             
             applySubscriberFilter(activeSubscriberFilter || 'all');
             
@@ -4404,7 +4400,7 @@ function updateSubscriberFilterSummary(count) {
 
 function renderSubscribersTablePage() {
     const total = currentFilteredSubscribers.length;
-    const pageSize = subscriberPagination.pageSize || 100;
+    const pageSize = subscriberPagination.pageSize || 10000; // بلا حدود
     const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
     
     if (totalPages === 0) {
@@ -4615,7 +4611,14 @@ function scrollToSection(sectionId, options = {}) {
     ensurePageDetailScreenVisible();
     const section = document.getElementById(sectionId);
     if (!section) return;
-    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // تنقل سلس مع offset للرأس
+    const headerOffset = 80;
+    const elementPosition = section.getBoundingClientRect().top;
+    const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+    window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+    });
     
     // إذا تم فتح section-subscribers، تحميل المشتركين تلقائياً من قاعدة البيانات
     if (sectionId === 'section-subscribers' && currentUserId) {

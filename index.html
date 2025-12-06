@@ -901,13 +901,16 @@
                 
                 <!-- قسم المخازن -->
                 <div class="menu-section">
-                    <div class="menu-section-title">
+                    <div class="menu-section-title cursor-pointer hover:bg-white/10 rounded-lg transition-colors" onclick="toggleWarehouseMenu()">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                         </svg>
                         <span>المخازن</span>
+                        <svg id="warehouse-menu-arrow" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-300 transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
                     </div>
-                    <div class="menu-subsection">
+                    <div id="warehouse-subsection" class="menu-subsection hidden">
                         <button class="side-menu-link-sub" onclick="openWarehouseScreen()">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
