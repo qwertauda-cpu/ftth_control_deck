@@ -3691,11 +3691,35 @@ async function loadWalletBalanceInScreen() {
                 </div>
             `;
         } else {
-            display.innerHTML = `<div class="text-center text-red-500 text-sm py-4">${data.message || 'فشل جلب رصيد المحفظة'}</div>`;
+            display.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="inline-flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>${data.message || 'فشل جلب رصيد المحفظة'}</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // تحديث وقت آخر تحديث
+        const lastUpdateEl = document.getElementById('wallet-last-update');
+        if (lastUpdateEl) {
+            lastUpdateEl.textContent = new Date().toLocaleTimeString('ar-IQ');
         }
     } catch (error) {
         console.error('[WALLET] Error loading balance in screen:', error);
-        display.innerHTML = `<div class="text-center text-red-500 text-sm py-4">خطأ في جلب رصيد المحفظة</div>`;
+        display.innerHTML = `
+            <div class="text-center py-8">
+                <div class="inline-flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>خطأ في جلب رصيد المحفظة</span>
+                </div>
+            </div>
+        `;
     }
 }
 
