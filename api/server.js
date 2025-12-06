@@ -5823,17 +5823,6 @@ app.get('/api/alwatani-login/:id/wallet/transactions/db', async (req, res) => {
             console.warn('[WALLET] Could not get partnerId, using stored transactions only:', e.message);
         }
 
-        let query = 'SELECT transaction_data, occured_at, synced_at FROM wallet_transactions WHERE 1=1';
-        const params = [];
-
-        if (partnerId) {
-            query += ' AND partner_id = ?';
-            params.push(partnerId);
-        }
-
-        query += ' ORDER BY occured_at DESC LIMIT ? OFFSET ?';
-        params.push(limit, offset);
-
         // الحصول على pool لقاعدة بيانات الوطني
         const alwataniUsername = accounts[0].username;
         let alwataniPool;
@@ -5846,6 +5835,32 @@ app.get('/api/alwatani-login/:id/wallet/transactions/db', async (req, res) => {
                 message: 'خطأ في الاتصال بقاعدة بيانات الوطني: ' + poolError.message
             });
         }
+        
+        // التحقق من وجود عمود partner_id في الجدول
+        let hasPartnerId = false;
+        if (partnerId) {
+            try {
+                await alwataniPool.query(
+                    'SELECT partner_id FROM wallet_transactions LIMIT 1'
+                );
+                hasPartnerId = true;
+                console.log('[WALLET] Table has partner_id column');
+            } catch (e) {
+                hasPartnerId = false;
+                console.log('[WALLET] Table does not have partner_id column, using old structure');
+            }
+        }
+        
+        let query = 'SELECT transaction_data, occured_at, synced_at FROM wallet_transactions WHERE 1=1';
+        const params = [];
+
+        if (partnerId && hasPartnerId) {
+            query += ' AND partner_id = ?';
+            params.push(partnerId);
+        }
+
+        query += ' ORDER BY occured_at DESC LIMIT ? OFFSET ?';
+        params.push(limit, offset);
         
         let rows;
         try {
