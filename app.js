@@ -4909,24 +4909,50 @@ async function renderExpiringSoonList() {
         }
     }
     
-    // إذا كان هناك API endpoint مخصص، استخدمه
+    // استخدام API مباشرة من admin.ftth.iq
     let dataSource = subscribersCache;
-    if (expiringApiEndpoint && expiringApiEndpoint.trim()) {
-        try {
-            listEl.innerHTML = '<div class="py-6 text-center text-slate-400 text-sm">جاري التحميل...</div>';
-            const apiData = await loadExpiringFromApi(expiringApiEndpoint);
-            if (apiData && Array.isArray(apiData) && apiData.length > 0) {
-                dataSource = apiData;
-            } else {
-                // إذا فشل API، استخدم البيانات المحلية
-                dataSource = subscribersCache;
-            }
-        } catch (error) {
-            console.error('[EXPIRING API] Error loading from custom API:', error);
-            addLogToConsoleBox(`❌ خطأ في جلب البيانات من API: ${error.message}`, 'text-red-400');
-            // في حالة الخطأ، استخدم البيانات المحلية
+    try {
+        listEl.innerHTML = '<div class="py-6 text-center text-slate-400 text-sm">جاري التحميل...</div>';
+        
+        // حساب التواريخ ديناميكياً
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        let fromDate, toDate;
+        if (expiringFilterType === 'expired') {
+            // المنتهين: من تاريخ قديم جداً حتى اليوم
+            fromDate = new Date(today);
+            fromDate.setFullYear(2020); // تاريخ قديم
+            toDate = new Date(today);
+            toDate.setHours(23, 59, 59, 999);
+        } else {
+            // القريبين على الانتهاء: من اليوم حتى 7 أيام من الآن
+            fromDate = new Date(today);
+            fromDate.setHours(0, 0, 0, 0);
+            toDate = new Date(today);
+            toDate.setDate(toDate.getDate() + 7);
+            toDate.setHours(23, 59, 59, 999);
+        }
+        
+        // تحويل التواريخ إلى ISO format مع UTC
+        const fromDateISO = fromDate.toISOString();
+        const toDateISO = toDate.toISOString();
+        
+        // بناء API URL
+        const apiUrl = `https://admin.ftth.iq/api/subscriptions?pageSize=10000&pageNumber=1&sortCriteria.property=expires&sortCriteria.direction=asc&status=Active&fromExpirationDate=${fromDateISO}&toExpirationDate=${toDateISO}&hierarchyLevel=0`;
+        
+        const apiData = await loadExpiringFromApi(apiUrl);
+        if (apiData && Array.isArray(apiData) && apiData.length > 0) {
+            dataSource = apiData;
+        } else {
+            // إذا فشل API أو لم تكن هناك بيانات، استخدم البيانات المحلية
             dataSource = subscribersCache;
         }
+    } catch (error) {
+        console.error('[EXPIRING API] Error loading from API:', error);
+        addLogToConsoleBox(`❌ خطأ في جلب البيانات من API: ${error.message}`, 'text-red-400');
+        // في حالة الخطأ، استخدم البيانات المحلية
+        dataSource = subscribersCache;
     }
     
     // فلترة حسب النوع المختار
@@ -5398,7 +5424,8 @@ async function loadExpiringFromApi(apiUrl) {
         if (apiUrl.includes('admin.ftth.iq')) {
             try {
                 // جلب access token من السيرفر
-                const tokenResponse = await fetch(`/api/alwatani-login/${currentAlwataniLoginId || 1}/verify`, addUsernameToFetchOptions({
+                const loginId = currentUserId || 1;
+                const tokenResponse = await fetch(`/api/alwatani-login/${loginId}/verify`, addUsernameToFetchOptions({
                     method: 'GET',
                     headers: { 'Content-Type': 'application/json' }
                 }));
@@ -5492,35 +5519,6 @@ async function loadExpiringFromApi(apiUrl) {
     }
 }
 
-// دالة لحفظ API endpoint
-function saveExpiringApi() {
-    const apiInput = document.getElementById('expiring-api-input');
-    if (!apiInput) return;
-    
-    const apiUrl = apiInput.value.trim();
-    
-    if (apiUrl) {
-        // التحقق من صحة URL
-        try {
-            new URL(apiUrl);
-            expiringApiEndpoint = apiUrl;
-            localStorage.setItem('expiringApiEndpoint', apiUrl);
-            addLogToConsoleBox(`✅ تم حفظ API endpoint: ${apiUrl}`, 'text-green-300');
-            // إعادة تحميل القائمة
-            renderExpiringSoonList();
-        } catch (error) {
-            alert('يرجى إدخال رابط صحيح');
-            console.error('[EXPIRING API] Invalid URL:', error);
-        }
-    } else {
-        // حذف API endpoint
-        expiringApiEndpoint = '';
-        localStorage.removeItem('expiringApiEndpoint');
-        addLogToConsoleBox('✅ تم إزالة API endpoint، سيتم استخدام البيانات المحلية', 'text-green-300');
-        // إعادة تحميل القائمة
-        renderExpiringSoonList();
-    }
-}
 
 function initSideMenuToggle() {
     const menus = document.querySelectorAll('.side-menu');
