@@ -4983,10 +4983,6 @@ function renderExpiringSoonList() {
                 daysColor = 'text-slate-400';
             } else {
                 const now = new Date();
-                // تعيين الوقت إلى منتصف النهار لتجنب مشاكل التوقيت
-                now.setHours(12, 0, 0, 0);
-                endDate.setHours(12, 0, 0, 0);
-                
                 const diffMs = endDate - now;
                 const diffHours = diffMs / (1000 * 60 * 60);
                 const diffDays = diffMs / (1000 * 60 * 60 * 24);
@@ -4996,23 +4992,33 @@ function renderExpiringSoonList() {
                     const daysAgo = Math.abs(Math.floor(diffDays));
                     timeText = daysAgo > 0 ? `منتهي منذ ${daysAgo} يوم` : 'منتهي';
                     daysColor = 'text-red-500';
-                } else if (diffHours <= 24) {
-                    // أقل من 24 ساعة - عرض بالساعات
-                    const hoursLeft = Math.floor(diffHours);
-                    const minutesLeft = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                } else {
+                    // عرض بالساعات لجميع المشتركين في قسم "القريبين على الانتهاء"
+                    const totalHours = Math.floor(diffHours);
+                    const days = Math.floor(totalHours / 24);
+                    const hours = totalHours % 24;
+                    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
                     
-                    if (hoursLeft > 0) {
-                        timeText = `${hoursLeft} ساعة متبقية`;
-                    } else if (minutesLeft > 0) {
-                        timeText = `${minutesLeft} دقيقة متبقية`;
+                    if (days > 0) {
+                        // إذا كان أكثر من يوم، نعرض الأيام والساعات
+                        if (hours > 0) {
+                            timeText = `${days} يوم و ${hours} ساعة متبقية`;
+                        } else {
+                            timeText = `${days} يوم متبقي`;
+                        }
+                    } else if (hours > 0) {
+                        // أقل من يوم ولكن أكثر من ساعة
+                        if (minutes > 0) {
+                            timeText = `${hours} ساعة و ${minutes} دقيقة متبقية`;
+                        } else {
+                            timeText = `${hours} ساعة متبقية`;
+                        }
+                    } else if (minutes > 0) {
+                        // أقل من ساعة
+                        timeText = `${minutes} دقيقة متبقية`;
                     } else {
                         timeText = 'أقل من دقيقة';
                     }
-                    daysColor = 'text-orange-500';
-                } else {
-                    // أكثر من 24 ساعة - عرض بالأيام
-                    const daysLeft = Math.floor(diffDays);
-                    timeText = `${daysLeft} يوم متبقي`;
                     daysColor = 'text-orange-500';
                 }
             }
