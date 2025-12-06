@@ -2252,12 +2252,29 @@ function setSideMenuActiveBySection(sectionId) {
         setSideMenuActive(null);
         return;
     }
+    
     // البحث عن الأزرار التي تستخدم onclick أو data-side-link
-    const buttons = Array.from(document.querySelectorAll(`[data-side-link="${sectionId}"], button[onclick*="${sectionId}"]`));
+    // البحث في onclick بشكل أكثر دقة
+    const buttons = Array.from(document.querySelectorAll(`[data-side-link="${sectionId}"]`));
+    
+    // إذا لم نجد أزرار بـ data-side-link، نبحث في onclick
+    if (buttons.length === 0) {
+        const allButtons = Array.from(document.querySelectorAll('button[onclick]'));
+        allButtons.forEach(btn => {
+            const onclick = btn.getAttribute('onclick') || '';
+            // البحث عن sectionId في onclick
+            if (onclick.includes(sectionId)) {
+                buttons.push(btn);
+            }
+        });
+    }
+    
     if (buttons.length) {
         setSideMenuActive(buttons);
     } else {
+        // إذا لم نجد أزرار، نزيل التفعيل من الجميع
         setSideMenuActive(null);
+        console.warn('[setSideMenuActiveBySection] No buttons found for section:', sectionId);
     }
 }
 
@@ -4664,20 +4681,31 @@ function initSideMenuNavigation() {
 
 function scrollToSection(sectionId, options = {}) {
     if (!sectionId) return;
+    
+    // التأكد من أن page-detail-screen مرئي
     ensurePageDetailScreenVisible();
+    
     const section = document.getElementById(sectionId);
-    if (!section) return;
-    // تنقل سلس مع offset للرأس
-    const headerOffset = 80;
-    const elementPosition = section.getBoundingClientRect().top;
-    const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-    window.scrollTo({
-        top: offsetPosition,
-        behavior: 'smooth'
-    });
+    if (!section) {
+        console.warn('[SCROLL TO SECTION] Section not found:', sectionId);
+        return;
+    }
+    
+    // الانتظار قليلاً لضمان أن القسم مرئي قبل التمرير
+    setTimeout(() => {
+        // تنقل سلس مع offset للرأس
+        const headerOffset = 80;
+        const elementPosition = section.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+        
+        window.scrollTo({
+            top: Math.max(0, offsetPosition),
+            behavior: 'smooth'
+        });
+    }, 50);
     
     // إذا تم فتح section-subscribers، تحميل المشتركين تلقائياً من قاعدة البيانات
-    if (sectionId === 'section-subscribers' && currentUserId) {
+    if (sectionId === 'section-subscribers' && currentUserId && !options.skipLoad) {
         console.log('[SCROLL TO SECTION] Loading subscribers from database automatically...');
         setTimeout(async () => {
             try {
@@ -4705,12 +4733,29 @@ function navigateToSection(sectionId) {
         return;
     }
     
+    if (!sectionId) {
+        console.warn('[navigateToSection] No sectionId provided');
+        return;
+    }
+    
     const pageDetailScreen = document.getElementById('page-detail-screen');
     const dashboardScreen = document.getElementById('dashboard-screen');
     
-    // إذا كنا في dashboard-screen الرئيسية، لا نعمل شيئاً
+    // إذا كنا في dashboard-screen الرئيسية، نحتاج للانتقال إلى page-detail-screen أولاً
     if (dashboardScreen && !dashboardScreen.classList.contains('hidden')) {
-        return;
+        if (currentUserId && currentDetailUser) {
+            console.log('[navigateToSection] Opening page-detail-screen from dashboard-screen');
+            isNavigating = true;
+            openPageDetail(currentDetailUser, currentDetailPass, currentUserId);
+            setTimeout(() => {
+                isNavigating = false;
+                navigateToSection(sectionId);
+            }, 300);
+            return;
+        } else {
+            console.warn('[navigateToSection] Cannot navigate: no user selected');
+            return;
+        }
     }
     
     // إذا كنا في شاشة أخرى (مثل الأكسباير أو التذاكر)، نحتاج للانتقال إلى page-detail-screen أولاً
@@ -4735,7 +4780,7 @@ function navigateToSection(sectionId) {
         setTimeout(() => {
             isNavigating = false;
             navigateToSection(sectionId);
-        }, 500); // زيادة الوقت لتجنب الحلقة اللانهائية
+        }, 400);
         return;
     }
     
@@ -4752,7 +4797,10 @@ function navigateToSection(sectionId) {
             if (sectionDashboard) sectionDashboard.classList.add('hidden');
             if (sectionSubscribers) {
                 sectionSubscribers.classList.remove('hidden');
-                scrollToSection(sectionId);
+                // الانتظار قليلاً قبل التمرير لضمان أن القسم مرئي
+                setTimeout(() => {
+                    scrollToSection(sectionId, { skipMenuUpdate: true });
+                }, 100);
                 
                 // تحميل المشتركين تلقائياً من قاعدة البيانات عند فتح القسم
                 if (currentUserId) {
@@ -4772,25 +4820,33 @@ function navigateToSection(sectionId) {
             if (sectionSubscribers) sectionSubscribers.classList.add('hidden');
             if (sectionDashboard) {
                 sectionDashboard.classList.remove('hidden');
-                scrollToSection(sectionId);
+                // الانتظار قليلاً قبل التمرير لضمان أن القسم مرئي
+                setTimeout(() => {
+                    scrollToSection(sectionId, { skipMenuUpdate: true });
+                }, 100);
             }
         } else {
             // لأي قسم آخر، استخدام السلوك الافتراضي
-            scrollToSection(sectionId);
+            scrollToSection(sectionId, { skipMenuUpdate: true });
         }
         
-        setSideMenuActiveBySection(sectionId);
-        isNavigating = false;
+        // تحديث القائمة الجانبية بعد التأكد من أن القسم ظاهر
+        setTimeout(() => {
+            setSideMenuActiveBySection(sectionId);
+            isNavigating = false;
+        }, 150);
     } else {
         // إذا لم نكن في page-detail-screen وليس لدينا معلومات المستخدم، نحتاج لفتحها أولاً
         if (currentUserId && currentDetailUser) {
             console.log('[navigateToSection] Opening page-detail-screen first');
             openPageDetail(currentDetailUser, currentDetailPass, currentUserId);
             setTimeout(() => {
+                isNavigating = false;
                 navigateToSection(sectionId);
-            }, 100);
+            }, 300);
         } else {
             console.warn('[navigateToSection] Cannot navigate to section without opening a user page first');
+            isNavigating = false;
         }
     }
 }
