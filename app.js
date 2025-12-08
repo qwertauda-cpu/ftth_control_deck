@@ -5897,9 +5897,6 @@ function updateTicketCountsDisplay(open, pending, closed) {
 // Make sure function is available globally for onclick
 window.loadTicketsForDashboard = loadTicketsForDashboard;
 
-// Make sure function is available globally for onclick
-window.loadTicketsForDashboard = loadTicketsForDashboard;
-
 async function loadTicketsForDashboard(forceSync = false) {
     try {
         console.log('[TICKETS DASHBOARD] ========== START loadTicketsForDashboard ==========');
