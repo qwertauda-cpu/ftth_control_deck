@@ -7268,6 +7268,7 @@ app.get('/api/alwatani-login/:id/partners/:partnerId/wallets/balance', async (re
 });
 
 // Get current user from admin.ftth.iq
+// Get current user information from admin.ftth.iq
 app.get('/api/alwatani-login/:id/current-user', async (req, res) => {
     try {
         const token = await getAlwataniTokenFromLogin(req);
@@ -7281,6 +7282,8 @@ app.get('/api/alwatani-login/:id/current-user', async (req, res) => {
             });
         }
         
+        // إرجاع البيانات بنفس البنية من API الوطني
+        // البيانات تحتوي على model مع permissions, zones, roles, etc.
         res.json({
             success: true,
             data: resp.data
