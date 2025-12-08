@@ -5667,23 +5667,64 @@ async function openTicketManagement() {
     startAutoRefresh();
 }
 
-// Load tickets from API
+// Load tickets from API (from Alwatani website)
 async function loadTickets() {
     try {
-        const response = await fetch(addAlwataniLoginIdToUrl(addUsernameToUrl(`${API_URL}/tickets`)), addUsernameToFetchOptions());
-        const ticketsData = await response.json();
+        console.log('[TICKETS] Loading tickets from Alwatani API...');
         
-        // التحقق من أن البيانات هي array
-        const tickets = Array.isArray(ticketsData) ? ticketsData : (ticketsData.error ? [] : []);
+        // التحقق من وجود currentUserId
+        if (!currentUserId) {
+            throw new Error('لم يتم تحديد حساب الوطني. يرجى اختيار حساب وطني أولاً.');
+        }
+        
+        // استدعاء API الوطني لجلب التذاكر
+        const response = await fetch(
+            addAlwataniLoginIdToUrl(addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks?pageSize=100`)), 
+            addUsernameToFetchOptions()
+        );
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const responseData = await response.json();
+        console.log('[TICKETS] Response:', responseData);
+        
+        // استخراج البيانات من response
+        let tickets = [];
+        if (responseData.success && responseData.data) {
+            // البيانات قد تكون array مباشرة أو داخل items
+            if (Array.isArray(responseData.data)) {
+                tickets = responseData.data;
+            } else if (Array.isArray(responseData.data.items)) {
+                tickets = responseData.data.items;
+            } else if (Array.isArray(responseData.data.tasks)) {
+                tickets = responseData.data.tasks;
+            }
+        } else if (Array.isArray(responseData)) {
+            tickets = responseData;
+        } else if (Array.isArray(responseData.data)) {
+            tickets = responseData.data;
+        }
+        
+        console.log(`[TICKETS] Loaded ${tickets.length} tickets`);
         
         // تحديث بطاقة التذاكر المفتوحة
-        const openTicketsCount = tickets.filter(ticket => ticket.status === 'open').length;
+        const openTicketsCount = tickets.filter(ticket => {
+            const status = ticket.status || ticket.taskStatus || ticket.state || '';
+            return status.toLowerCase() === 'open' || status.toLowerCase() === 'new' || status.toLowerCase() === 'pending';
+        }).length;
         const openTicketsEl = document.getElementById('dashboard-open-tickets');
         if (openTicketsEl) {
             openTicketsEl.textContent = formatNumber(openTicketsCount);
         }
         
         const tableBody = document.getElementById('tickets-table-body');
+        if (!tableBody) {
+            console.error('[TICKETS] Table body not found');
+            return;
+        }
+        
         tableBody.innerHTML = '';
         
         if (!Array.isArray(tickets) || tickets.length === 0) {
@@ -5692,63 +5733,117 @@ async function loadTickets() {
                     <td colspan="7" class="p-8 text-center text-gray-400">لا توجد تكتات</td>
                 </tr>
             `;
-        } else {
-            tickets.forEach(ticket => {
-                const row = document.createElement('tr');
-                row.className = "hover:bg-slate-50 slide-up";
-                row.setAttribute('data-status', ticket.status);
-                row.setAttribute('data-ticket-id', ticket.id);
-                
-                const statusClasses = {
-                    'open': 'bg-red-100 text-red-600 focus:ring-red-200',
-                    'pending': 'bg-orange-100 text-orange-600 focus:ring-orange-200',
-                    'closed': 'bg-gray-100 text-gray-600 focus:ring-gray-200'
-                };
-                
-                const statusText = {
-                    'open': 'مفتوح',
-                    'pending': 'قيد المعالجة',
-                    'closed': 'مغلق'
-                };
-                
-                const date = ticket.created_at ? new Date(ticket.created_at).toISOString().split('T')[0] : '-';
-                
-                // Escape values for onclick attribute
-                const ticketNumberEscaped = (ticket.ticket_number || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                const subscriberNameEscaped = (ticket.subscriber_name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                const teamEscaped = (ticket.team || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                const descriptionEscaped = (ticket.description || '').replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/\n/g, '\\n');
-                
-                row.innerHTML = `
-                    <td class="p-3 font-mono text-slate-600">${ticket.ticket_number}</td>
-                    <td class="p-3 font-medium">${ticket.subscriber_name}</td>
-                    <td class="p-3 text-slate-600">${ticket.description || '-'}</td>
-                    <td class="p-3"><span class="bg-indigo-50 text-indigo-700 px-2 py-1 rounded text-xs font-bold">${ticket.team || '-'}</span></td>
-                    <td class="p-3">
-                        <select onchange="updateTicketStatus(this)" class="status-select ${statusClasses[ticket.status] || statusClasses.open} px-2 py-1 rounded text-xs font-bold border-none outline-none focus:ring-2 transition-colors">
-                            <option value="open" ${ticket.status === 'open' ? 'selected' : ''}>مفتوح</option>
-                            <option value="pending" ${ticket.status === 'pending' ? 'selected' : ''}>قيد المعالجة</option>
-                            <option value="closed" ${ticket.status === 'closed' ? 'selected' : ''}>مغلق</option>
-                        </select>
-                    </td>
-                    <td class="p-3 text-slate-500">${date}</td>
-                    <td class="p-3 text-center">
-                        <button onclick="viewTicketDetails(${ticket.id}, '${ticketNumberEscaped}', '${subscriberNameEscaped}', '${teamEscaped}', '${descriptionEscaped}')" class="text-blue-500 hover:underline">عرض</button>
-                    </td>
-                `;
-                
-                tableBody.appendChild(row);
-            });
+            // تحديث العدادات
+            updateTicketCountsDisplay(0, 0, 0);
+            return;
         }
+        
+        // تحديث العدادات
+        const openCount = tickets.filter(t => {
+            const s = (t.status || t.taskStatus || t.state || '').toLowerCase();
+            return s === 'open' || s === 'new';
+        }).length;
+        const pendingCount = tickets.filter(t => {
+            const s = (t.status || t.taskStatus || t.state || '').toLowerCase();
+            return s === 'pending' || s === 'inprogress' || s === 'in_progress';
+        }).length;
+        const closedCount = tickets.filter(t => {
+            const s = (t.status || t.taskStatus || t.state || '').toLowerCase();
+            return s === 'closed' || s === 'completed' || s === 'resolved';
+        }).length;
+        updateTicketCountsDisplay(openCount, pendingCount, closedCount);
+        
+        tickets.forEach(ticket => {
+            const row = document.createElement('tr');
+            row.className = "hover:bg-slate-50 slide-up";
+            
+            // استخراج البيانات من التذكرة
+            const ticketId = ticket.id || ticket.taskId || ticket.ticketId || '';
+            const ticketNumber = ticket.number || ticket.taskNumber || ticket.ticketNumber || ticket.id || '-';
+            const status = ticket.status || ticket.taskStatus || ticket.state || 'open';
+            const subject = ticket.subject || ticket.title || ticket.name || ticket.description || '-';
+            const description = ticket.description || ticket.notes || ticket.comment || subject || '-';
+            const customerName = ticket.customerName || ticket.customer?.name || ticket.subscriberName || ticket.subscriber?.name || '-';
+            const team = ticket.team || ticket.assignedTeam || ticket.assignedTo || '-';
+            const createdAt = ticket.createdAt || ticket.created_at || ticket.dateCreated || ticket.date || '';
+            const date = createdAt ? new Date(createdAt).toISOString().split('T')[0] : '-';
+            
+            row.setAttribute('data-status', status.toLowerCase());
+            row.setAttribute('data-ticket-id', ticketId);
+            
+            const statusClasses = {
+                'open': 'bg-red-100 text-red-600 focus:ring-red-200',
+                'new': 'bg-red-100 text-red-600 focus:ring-red-200',
+                'pending': 'bg-orange-100 text-orange-600 focus:ring-orange-200',
+                'inprogress': 'bg-orange-100 text-orange-600 focus:ring-orange-200',
+                'in_progress': 'bg-orange-100 text-orange-600 focus:ring-orange-200',
+                'closed': 'bg-gray-100 text-gray-600 focus:ring-gray-200',
+                'completed': 'bg-gray-100 text-gray-600 focus:ring-gray-200',
+                'resolved': 'bg-gray-100 text-gray-600 focus:ring-gray-200'
+            };
+            
+            const statusTextMap = {
+                'open': 'مفتوح',
+                'new': 'جديد',
+                'pending': 'قيد المعالجة',
+                'inprogress': 'قيد المعالجة',
+                'in_progress': 'قيد المعالجة',
+                'closed': 'مغلق',
+                'completed': 'مكتمل',
+                'resolved': 'محلول'
+            };
+            
+            const statusLower = status.toLowerCase();
+            const statusClass = statusClasses[statusLower] || statusClasses['open'];
+            const statusText = statusTextMap[statusLower] || status;
+            
+            // Escape values for onclick attribute
+            const ticketNumberEscaped = String(ticketNumber).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+            const subscriberNameEscaped = String(customerName).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+            const teamEscaped = String(team).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+            const descriptionEscaped = String(description).replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/\n/g, '\\n');
+            
+            row.innerHTML = `
+                <td class="p-3 font-mono text-slate-600">${ticketNumber}</td>
+                <td class="p-3 font-medium">${customerName}</td>
+                <td class="p-3 text-slate-600">${description}</td>
+                <td class="p-3"><span class="bg-indigo-50 text-indigo-700 px-2 py-1 rounded text-xs font-bold">${team}</span></td>
+                <td class="p-3">
+                    <span class="${statusClass} px-2 py-1 rounded text-xs font-bold">${statusText}</span>
+                </td>
+                <td class="p-3 text-slate-500">${date}</td>
+                <td class="p-3 text-center">
+                    <button onclick="viewTicketDetails('${ticketId}', '${ticketNumberEscaped}', '${subscriberNameEscaped}', '${teamEscaped}', '${descriptionEscaped}')" class="text-blue-500 hover:underline">عرض</button>
+                </td>
+            `;
+            
+            tableBody.appendChild(row);
+        });
+        
+        console.log('[TICKETS] Successfully rendered tickets');
     } catch (error) {
-        console.error('Error loading tickets:', error);
+        console.error('[TICKETS] Error loading tickets:', error);
         const tableBody = document.getElementById('tickets-table-body');
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="7" class="p-8 text-center text-red-400">حدث خطأ أثناء تحميل التكتات</td>
-            </tr>
-        `;
+        if (tableBody) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="p-8 text-center text-red-400">حدث خطأ أثناء تحميل التكتات: ${error.message}</td>
+                </tr>
+            `;
+        }
+        updateTicketCountsDisplay(0, 0, 0);
     }
+}
+
+// Helper function to update ticket counts display
+function updateTicketCountsDisplay(open, pending, closed) {
+    const openEl = document.getElementById('open-tickets-count');
+    const pendingEl = document.getElementById('pending-tickets-count');
+    const closedEl = document.getElementById('closed-tickets-count');
+    
+    if (openEl) openEl.textContent = formatNumber(open);
+    if (pendingEl) pendingEl.textContent = formatNumber(pending);
+    if (closedEl) closedEl.textContent = formatNumber(closed);
 }
 
 function backToDashboardFromTickets() {
