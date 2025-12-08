@@ -1472,6 +1472,9 @@ async function openTicketDashboardScreen() {
     startAutoRefresh();
 }
 
+// Expose function globally for onclick handlers
+window.openTicketDashboardScreen = openTicketDashboardScreen;
+
 function closeTicketDashboardScreen() {
     // إزالة التفعيل من القائمة الجانبية أولاً
     setSideMenuActive(null);
@@ -5051,8 +5054,11 @@ function escapeCSVValue(value) {
 }
 
 function initSideMenuNavigation() {
+    console.log('[SIDE MENU NAV] ========== Initializing side menu navigation ==========');
+    
     // معالجة أزرار التنقل بين الأقسام
     const sectionLinks = document.querySelectorAll('[data-side-link]');
+    console.log('[SIDE MENU NAV] Found', sectionLinks.length, 'section links');
     sectionLinks.forEach((link) => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
@@ -5066,29 +5072,48 @@ function initSideMenuNavigation() {
     
     // معالجة أزرار التنقل بين الشاشات
     const screenLinks = document.querySelectorAll('[data-screen-link]');
+    console.log('[SIDE MENU NAV] Found', screenLinks.length, 'screen links');
     screenLinks.forEach((link) => {
+        const screenKey = link.getAttribute('data-screen-link');
+        console.log('[SIDE MENU NAV] Setting up listener for screen:', screenKey);
+        
         link.addEventListener('click', (e) => {
             e.preventDefault();
             const screenKey = link.getAttribute('data-screen-link');
+            console.log('[SIDE MENU NAV] Screen link clicked:', screenKey);
             if (screenKey) {
                 // استدعاء الدالة المناسبة حسب الشاشة
                 switch(screenKey) {
                     case 'expiring':
+                        console.log('[SIDE MENU NAV] Calling openExpiringScreen()');
                         openExpiringScreen();
                         break;
                     case 'tickets':
-                        openTicketDashboardScreen();
+                        console.log('[SIDE MENU NAV] Calling openTicketDashboardScreen()');
+                        console.log('[SIDE MENU NAV] openTicketDashboardScreen type:', typeof openTicketDashboardScreen);
+                        console.log('[SIDE MENU NAV] window.openTicketDashboardScreen type:', typeof window.openTicketDashboardScreen);
+                        if (typeof openTicketDashboardScreen === 'function') {
+                            openTicketDashboardScreen();
+                        } else if (typeof window.openTicketDashboardScreen === 'function') {
+                            window.openTicketDashboardScreen();
+                        } else {
+                            console.error('[SIDE MENU NAV] ❌ openTicketDashboardScreen is not a function!');
+                        }
                         break;
                     case 'wallet':
+                        console.log('[SIDE MENU NAV] Calling openWalletScreen()');
                         openWalletScreen();
                         break;
                     case 'settings':
+                        console.log('[SIDE MENU NAV] Calling openGeneralSettingsScreen()');
                         openGeneralSettingsScreen();
                         break;
                 }
             }
         });
     });
+    
+    console.log('[SIDE MENU NAV] ✅ Side menu navigation initialized');
 }
 
 async function scrollToSection(sectionId, options = {}) {
