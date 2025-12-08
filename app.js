@@ -5980,6 +5980,48 @@ async function loadTicketsForDashboard(forceSync = false) {
 // Make sure function is available globally for onclick
 window.loadTicketsForDashboard = loadTicketsForDashboard;
 
+// Load ticket statuses from Alwatani API (like the Alwatani website does)
+async function loadTicketStatuses() {
+    if (!currentUserId) return;
+    
+    try {
+        const url = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/support/tickets/statuses`);
+        const response = await fetch(url, addUsernameToFetchOptions());
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('[TICKETS DASHBOARD] ✅ Loaded ticket statuses:', data);
+            // يمكن استخدام هذه البيانات لاحقاً لعرض حالات التذاكر
+            return data;
+        } else {
+            console.warn('[TICKETS DASHBOARD] ⚠️ Failed to load ticket statuses:', response.status);
+        }
+    } catch (error) {
+        console.error('[TICKETS DASHBOARD] ❌ Error loading ticket statuses:', error);
+    }
+}
+
+// Load zones from Alwatani API (like the Alwatani website does)
+async function loadZones() {
+    if (!currentUserId) return;
+    
+    try {
+        const url = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/locations/zones`);
+        const response = await fetch(url, addUsernameToFetchOptions());
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('[TICKETS DASHBOARD] ✅ Loaded zones:', data);
+            // يمكن استخدام هذه البيانات لاحقاً لعرض المناطق
+            return data;
+        } else {
+            console.warn('[TICKETS DASHBOARD] ⚠️ Failed to load zones:', response.status);
+        }
+    } catch (error) {
+        console.error('[TICKETS DASHBOARD] ❌ Error loading zones:', error);
+    }
+}
+
 // Update tickets count display
 function updateTicketsCount(total, loaded, remaining) {
     const totalEl = document.getElementById('tickets-total-count');
