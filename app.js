@@ -1439,12 +1439,15 @@ async function openTicketDashboardScreen() {
     hideAllMainScreens();
     showScreen('tickets-dashboard-screen');
     setSideMenuActiveByScreen('tickets');
-    currentScreen = 'tickets';
+    currentScreen = 'tickets-dashboard'; // تغيير currentScreen لتفعيل auto-refresh
     
     // جلب وعرض التذاكر كبطاقات
     console.log('[TICKETS DASHBOARD] Calling loadTicketsForDashboard()...');
     await loadTicketsForDashboard();
     console.log('[TICKETS DASHBOARD] loadTicketsForDashboard() completed');
+    
+    // بدء التحديث التلقائي
+    startAutoRefresh();
 }
 
 function closeTicketDashboardScreen() {
@@ -2175,6 +2178,13 @@ function startAutoRefresh() {
                     // تحديث التذاكر
                     if (typeof loadTickets === 'function') {
                         await loadTickets();
+                    }
+                    break;
+                    
+                case 'tickets-dashboard':
+                    // تحديث التذاكر في لوحة التحكم (من قاعدة البيانات)
+                    if (typeof loadTicketsForDashboard === 'function') {
+                        await loadTicketsForDashboard(false); // false = لا force sync، فقط تحديث من DB
                     }
                     break;
                     
@@ -5860,9 +5870,9 @@ function updateTicketCountsDisplay(open, pending, closed) {
 }
 
 // Load tickets for dashboard screen (display as cards)
-async function loadTicketsForDashboard() {
+async function loadTicketsForDashboard(forceSync = false) {
     try {
-        console.log('[TICKETS DASHBOARD] Loading tickets from Alwatani API...');
+        console.log('[TICKETS DASHBOARD] Loading tickets...', { forceSync });
         
         const container = document.getElementById('tickets-cards-container');
         if (!container) {
@@ -5878,7 +5888,7 @@ async function loadTicketsForDashboard() {
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    جاري تحميل التذاكر...
+                    ${forceSync ? 'جاري مزامنة التذاكر...' : 'جاري تحميل التذاكر...'}
                 </div>
             </div>
         `;
@@ -5893,42 +5903,96 @@ async function loadTicketsForDashboard() {
             return;
         }
         
-        // استدعاء API الوطني لجلب التذاكر
-        const url = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks?pageSize=50`);
-        console.log('[TICKETS DASHBOARD] Fetching from URL:', url);
-        
-        const response = await fetch(url, addUsernameToFetchOptions());
-        console.log('[TICKETS DASHBOARD] Response status:', response.status, response.statusText);
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('[TICKETS DASHBOARD] Error response:', errorText);
-            throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-        }
-        
-        const responseData = await response.json();
-        console.log('[TICKETS DASHBOARD] Response data:', responseData);
-        
-        // استخراج البيانات من response
         let tickets = [];
-        if (responseData.success && responseData.data) {
-            if (Array.isArray(responseData.data)) {
-                tickets = responseData.data;
-            } else if (Array.isArray(responseData.data.items)) {
-                tickets = responseData.data.items;
-            } else if (Array.isArray(responseData.data.tasks)) {
-                tickets = responseData.data.tasks;
+        
+        // إذا كان forceSync أو لا توجد تذاكر في قاعدة البيانات، قم بالمزامنة
+        if (forceSync) {
+            console.log('[TICKETS DASHBOARD] Force sync requested, syncing from Alwatani API...');
+            // مزامنة التذاكر من API الوطني
+            const syncUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks/sync`);
+            const syncResponse = await fetch(syncUrl, addUsernameToFetchOptions({
+                method: 'POST'
+            }));
+            
+            if (syncResponse.ok) {
+                const syncData = await syncResponse.json();
+                console.log('[TICKETS DASHBOARD] Sync result:', syncData);
+            } else {
+                console.warn('[TICKETS DASHBOARD] Sync failed, will try to load from DB');
             }
-        } else if (Array.isArray(responseData)) {
-            tickets = responseData;
-        } else if (Array.isArray(responseData.data)) {
-            tickets = responseData.data;
         }
         
-        console.log(`[TICKETS DASHBOARD] Loaded ${tickets.length} tickets`);
+        // جلب التذاكر من قاعدة البيانات
+        console.log('[TICKETS DASHBOARD] Loading tickets from database...');
+        const dbUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks/db`);
+        const dbResponse = await fetch(dbUrl, addUsernameToFetchOptions());
         
-        // عرض التذاكر كبطاقات
-        renderTicketCards(tickets);
+        if (dbResponse.ok) {
+            const dbData = await dbResponse.json();
+            if (dbData.success && dbData.data) {
+                tickets = Array.isArray(dbData.data) ? dbData.data : [];
+                console.log(`[TICKETS DASHBOARD] Loaded ${tickets.length} tickets from database`);
+            }
+        } else {
+            console.warn('[TICKETS DASHBOARD] Failed to load from DB, trying API...');
+        }
+        
+        // إذا لم توجد تذاكر في قاعدة البيانات، جلب من API ومزامنتها
+        if (tickets.length === 0 && !forceSync) {
+            console.log('[TICKETS DASHBOARD] No tickets in DB, fetching from API and syncing...');
+            
+            // جلب من API
+            const apiUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks?pageSize=50`);
+            const apiResponse = await fetch(apiUrl, addUsernameToFetchOptions());
+            
+            if (apiResponse.ok) {
+                const apiData = await apiResponse.json();
+                
+                // استخراج البيانات
+                if (apiData.success && apiData.data) {
+                    if (Array.isArray(apiData.data)) {
+                        tickets = apiData.data;
+                    } else if (Array.isArray(apiData.data.items)) {
+                        tickets = apiData.data.items;
+                    } else if (Array.isArray(apiData.data.tasks)) {
+                        tickets = apiData.data.tasks;
+                    }
+                }
+                
+                // عرض التذاكر فوراً قبل المزامنة
+                if (tickets.length > 0) {
+                    console.log('[TICKETS DASHBOARD] Displaying tickets in real-time...');
+                    renderTicketCards(tickets);
+                }
+                
+                // مزامنة التذاكر في قاعدة البيانات في الخلفية
+                if (tickets.length > 0) {
+                    console.log('[TICKETS DASHBOARD] Syncing tickets to database in background...');
+                    const syncUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks/sync`);
+                    fetch(syncUrl, addUsernameToFetchOptions({
+                        method: 'POST'
+                    })).then(response => {
+                        if (response.ok) {
+                            console.log('[TICKETS DASHBOARD] ✅ Tickets synced to database');
+                        } else {
+                            console.warn('[TICKETS DASHBOARD] ⚠️ Sync failed');
+                        }
+                    }).catch(error => {
+                        console.error('[TICKETS DASHBOARD] ❌ Sync error:', error);
+                    });
+                }
+            }
+        }
+        
+        // إذا كانت التذاكر من قاعدة البيانات، اعرضها
+        if (tickets.length > 0 && !forceSync) {
+            console.log(`[TICKETS DASHBOARD] Total tickets to display: ${tickets.length}`);
+            renderTicketCards(tickets);
+        } else if (tickets.length === 0) {
+            // لا توجد تذاكر
+            console.log('[TICKETS DASHBOARD] No tickets found');
+            renderTicketCards([]);
+        }
         
     } catch (error) {
         console.error('[TICKETS DASHBOARD] Error loading tickets:', error);

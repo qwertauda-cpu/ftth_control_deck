@@ -7429,6 +7429,261 @@ app.get('/api/alwatani-login/:id/tasks/:taskId/comments', async (req, res) => {
     }
 });
 
+// ================= Tickets Database Sync Routes =================
+
+// Sync tickets from Alwatani API to database
+app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
+    try {
+        const ownerUsername = getUsernameFromRequest(req);
+        if (!ownerUsername) {
+            return res.status(400).json({
+                success: false,
+                message: 'Username (owner_username) is required'
+            });
+        }
+        
+        const alwataniLoginId = getAlwataniLoginIdFromRequest(req);
+        if (!alwataniLoginId) {
+            return res.status(400).json({
+                success: false,
+                message: 'alwatani_login_id is required'
+            });
+        }
+        
+        const token = await getAlwataniTokenFromLogin(req);
+        
+        // جلب التذاكر من API الوطني
+        const queryParams = new URLSearchParams();
+        queryParams.append('pageSize', '100');
+        if (req.query.pageNumber) queryParams.append('pageNumber', req.query.pageNumber);
+        
+        const path = `/api/tasks?${queryParams.toString()}`;
+        const resp = await fetchAlwataniResource(path, token, 'GET', false, null, null, 'tasks_sync');
+        
+        if (!resp.success) {
+            return res.status(resp.statusCode || 500).json({
+                success: false,
+                message: resp.message || 'Failed to fetch tasks from Alwatani',
+                error: resp.data
+            });
+        }
+        
+        // استخراج التذاكر من response
+        let tasks = [];
+        if (resp.data) {
+            if (Array.isArray(resp.data)) {
+                tasks = resp.data;
+            } else if (Array.isArray(resp.data.items)) {
+                tasks = resp.data.items;
+            } else if (Array.isArray(resp.data.tasks)) {
+                tasks = resp.data.tasks;
+            }
+        }
+        
+        if (tasks.length === 0) {
+            return res.json({
+                success: true,
+                message: 'No tasks to sync',
+                synced: 0,
+                updated: 0,
+                created: 0
+            });
+        }
+        
+        // الحصول على قاعدة بيانات الوطني
+        const ownerPool = await dbManager.getPoolFromUsername(ownerUsername);
+        const [accounts] = await ownerPool.query(
+            'SELECT username FROM alwatani_login WHERE id = ?',
+            [alwataniLoginId]
+        );
+        
+        if (accounts.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Alwatani login account not found'
+            });
+        }
+        
+        const alwataniUsername = accounts[0].username;
+        const alwataniDbName = `ftth_alwatani_${alwataniUsername.toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')}`;
+        
+        // الاتصال بقاعدة بيانات الوطني
+        const alwataniPool = await dbManager.getPool(alwataniDbName);
+        
+        let synced = 0;
+        let updated = 0;
+        let created = 0;
+        
+        for (const task of tasks) {
+            try {
+                const taskId = task.id || task.taskId || '';
+                const ticketNumber = task.number || task.taskNumber || task.ticketNumber || taskId || '';
+                const title = task.subject || task.title || task.name || '';
+                const description = task.description || task.notes || task.comment || '';
+                const status = task.status || task.taskStatus || task.state || 'open';
+                const priority = task.priority || 'medium';
+                const customerName = task.customerName || task.customer?.name || task.subscriberName || task.subscriber?.name || '';
+                const customerId = task.customerId || task.customer?.id || task.subscriberId || '';
+                const assignedTo = task.assignedTo || task.assignedUser || '';
+                const team = task.team || task.assignedTeam || '';
+                const createdAt = task.createdAt || task.created_at || task.dateCreated || task.date || null;
+                const updatedAt = task.updatedAt || task.updated_at || task.dateUpdated || null;
+                
+                // التحقق من وجود التذكرة
+                const [existing] = await alwataniPool.query(
+                    'SELECT id, last_synced_at FROM sla_tickets WHERE sla_ticket_id = ?',
+                    [taskId]
+                );
+                
+                const taskData = JSON.stringify(task);
+                
+                if (existing.length > 0) {
+                    // تحديث التذكرة الموجودة
+                    await alwataniPool.query(
+                        `UPDATE sla_tickets SET
+                            ticket_number = ?,
+                            title = ?,
+                            description = ?,
+                            status = ?,
+                            priority = ?,
+                            customer_name = ?,
+                            customer_id = ?,
+                            assigned_to = ?,
+                            team = ?,
+                            created_at = ?,
+                            updated_at = ?,
+                            sla_data = ?,
+                            last_synced_at = CURRENT_TIMESTAMP
+                        WHERE sla_ticket_id = ?`,
+                        [ticketNumber, title, description, status, priority, customerName, customerId, assignedTo, team, createdAt, updatedAt, taskData, taskId]
+                    );
+                    updated++;
+                } else {
+                    // إضافة تذكرة جديدة
+                    await alwataniPool.query(
+                        `INSERT INTO sla_tickets (
+                            sla_ticket_id, ticket_number, title, description, status, priority,
+                            customer_name, customer_id, assigned_to, team, created_at, updated_at, sla_data
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [taskId, ticketNumber, title, description, status, priority, customerName, customerId, assignedTo, team, createdAt, updatedAt, taskData]
+                    );
+                    created++;
+                }
+                synced++;
+            } catch (error) {
+                console.error(`[TICKETS SYNC] Error syncing task ${task.id}:`, error);
+            }
+        }
+        
+        res.json({
+            success: true,
+            message: `تم مزامنة ${synced} تذكرة`,
+            synced,
+            updated,
+            created
+        });
+    } catch (error) {
+        console.error('[TICKETS SYNC] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطأ في مزامنة التذاكر: ' + error.message
+        });
+    }
+});
+
+// Get tickets from database
+app.get('/api/alwatani-login/:id/tasks/db', async (req, res) => {
+    try {
+        const ownerUsername = getUsernameFromRequest(req);
+        if (!ownerUsername) {
+            return res.status(400).json({
+                success: false,
+                message: 'Username (owner_username) is required'
+            });
+        }
+        
+        const alwataniLoginId = getAlwataniLoginIdFromRequest(req);
+        if (!alwataniLoginId) {
+            return res.status(400).json({
+                success: false,
+                message: 'alwatani_login_id is required'
+            });
+        }
+        
+        // الحصول على قاعدة بيانات الوطني
+        const ownerPool = await dbManager.getPoolFromUsername(ownerUsername);
+        const [accounts] = await ownerPool.query(
+            'SELECT username FROM alwatani_login WHERE id = ?',
+            [alwataniLoginId]
+        );
+        
+        if (accounts.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Alwatani login account not found'
+            });
+        }
+        
+        const alwataniUsername = accounts[0].username;
+        const alwataniDbName = `ftth_alwatani_${alwataniUsername.toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')}`;
+        
+        // الاتصال بقاعدة بيانات الوطني
+        const alwataniPool = await dbManager.getPool(alwataniDbName);
+        
+        // جلب التذاكر من قاعدة البيانات
+        const [tickets] = await alwataniPool.query(
+            `SELECT 
+                id, sla_ticket_id, ticket_number, title, description, status, priority,
+                customer_name, customer_id, assigned_to, team, created_at, updated_at,
+                sla_data, synced_at, last_synced_at
+            FROM sla_tickets
+            ORDER BY created_at DESC
+            LIMIT 100`
+        );
+        
+        // تحويل البيانات إلى format مناسب
+        const formattedTickets = tickets.map(ticket => {
+            const ticketData = ticket.sla_data ? JSON.parse(ticket.sla_data) : {};
+            return {
+                id: ticket.sla_ticket_id,
+                taskId: ticket.sla_ticket_id,
+                number: ticket.ticket_number,
+                ticketNumber: ticket.ticket_number,
+                subject: ticket.title,
+                title: ticket.title,
+                description: ticket.description,
+                status: ticket.status,
+                taskStatus: ticket.status,
+                priority: ticket.priority,
+                customerName: ticket.customer_name,
+                customer: { name: ticket.customer_name, id: ticket.customer_id },
+                assignedTo: ticket.assigned_to,
+                team: ticket.team,
+                assignedTeam: ticket.team,
+                createdAt: ticket.created_at,
+                created_at: ticket.created_at,
+                updatedAt: ticket.updated_at,
+                updated_at: ticket.updated_at,
+                syncedAt: ticket.synced_at,
+                lastSyncedAt: ticket.last_synced_at,
+                ...ticketData
+            };
+        });
+        
+        res.json({
+            success: true,
+            data: formattedTickets,
+            count: formattedTickets.length
+        });
+    } catch (error) {
+        console.error('[TICKETS DB] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطأ في جلب التذاكر من قاعدة البيانات: ' + error.message
+        });
+    }
+});
+
 // ================= Employees Management Routes =================
 
 // Get owner domain
