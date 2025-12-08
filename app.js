@@ -5678,10 +5678,8 @@ async function loadTickets() {
         }
         
         // استدعاء API الوطني لجلب التذاكر
-        const response = await fetch(
-            addAlwataniLoginIdToUrl(addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks?pageSize=100`)), 
-            addUsernameToFetchOptions()
-        );
+        const url = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks?pageSize=100`);
+        const response = await fetch(url, addUsernameToFetchOptions());
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
