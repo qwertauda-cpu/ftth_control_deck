@@ -5912,6 +5912,7 @@ async function loadTicketsForDashboard(forceSync = false) {
         }
         
         let tickets = [];
+        let syncData = null;
         
         // إذا كان forceSync أو لا توجد تذاكر في قاعدة البيانات، قم بالمزامنة
         if (forceSync) {
@@ -5923,8 +5924,13 @@ async function loadTicketsForDashboard(forceSync = false) {
             }));
             
             if (syncResponse.ok) {
-                const syncData = await syncResponse.json();
+                syncData = await syncResponse.json();
                 console.log('[TICKETS DASHBOARD] Sync result:', syncData);
+                
+                // تحديث العداد
+                if (syncData.totalCount !== undefined) {
+                    updateTicketsCount(syncData.totalCount, syncData.loadedCount || syncData.synced || 0, syncData.remainingCount || 0);
+                }
             } else {
                 console.warn('[TICKETS DASHBOARD] Sync failed, will try to load from DB');
             }
