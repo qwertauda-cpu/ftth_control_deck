@@ -5987,7 +5987,7 @@ async function loadTicketsForDashboard(forceSync = false) {
                         totalCount = totalCount || apiTickets.length;
                     } else if (Array.isArray(apiData.data.items)) {
                         apiTickets = apiData.data.items;
-                        totalCount = totalCount || apiTickets.length;
+                        totalCount = totalCount || (apiData.data.totalCount || apiTickets.length);
                     } else if (Array.isArray(apiData.data.tasks)) {
                         apiTickets = apiData.data.tasks;
                         totalCount = totalCount || apiTickets.length;
@@ -6114,31 +6114,38 @@ function renderTicketCards(tickets) {
     container.innerHTML = '';
     
     tickets.forEach(ticket => {
-        // استخراج البيانات من التذكرة
-        const ticketId = ticket.id || ticket.taskId || ticket.ticketId || '';
-        const ticketNumber = ticket.number || ticket.taskNumber || ticket.ticketNumber || ticket.id || '-';
+        // استخراج البيانات من التذكرة - البنية الجديدة /api/support/tickets
+        const ticketId = ticket.self?.id || ticket.id || ticket.taskId || ticket.ticketId || '';
+        const ticketNumber = ticket.displayId || ticket.number || ticket.taskNumber || ticket.ticketNumber || ticket.id || '-';
         const status = ticket.status || ticket.taskStatus || ticket.state || 'open';
-        const subject = ticket.subject || ticket.title || ticket.name || '-';
-        const description = ticket.description || ticket.notes || ticket.comment || subject || '-';
-        const customerName = ticket.customerName || ticket.customer?.name || ticket.subscriberName || ticket.subscriber?.name || '-';
-        const team = ticket.team || ticket.assignedTeam || ticket.assignedTo || 'غير مسند';
+        const subject = ticket.summary || ticket.subject || ticket.title || ticket.name || '-';
+        const description = ticket.summary || ticket.description || ticket.notes || ticket.comment || subject || '-';
+        const customerName = ticket.customer?.displayValue || ticket.customer?.name || ticket.customerName || ticket.subscriberName || ticket.subscriber?.name || '-';
+        const team = ticket.team || ticket.assignedTeam || ticket.assignedTo || ticket.partner?.displayValue || 'غير مسند';
+        const zone = ticket.zone?.displayValue || ticket.zone || '';
         const createdAt = ticket.createdAt || ticket.created_at || ticket.dateCreated || ticket.date || '';
         const date = createdAt ? new Date(createdAt).toLocaleDateString('ar-EG') : '-';
         
-        // تحديد لون الحالة
+        // تحديد لون الحالة - دعم الحالات الجديدة
         const statusLower = status.toLowerCase();
         let statusColor = 'bg-slate-100 text-slate-600';
         let statusText = status;
         
-        if (statusLower === 'open' || statusLower === 'new') {
+        if (statusLower === 'open' || statusLower === 'new' || statusLower === 'waiting for response') {
             statusColor = 'bg-red-100 text-red-600';
-            statusText = 'مفتوح';
-        } else if (statusLower === 'pending' || statusLower === 'inprogress' || statusLower === 'in_progress') {
+            statusText = statusLower === 'waiting for response' ? 'في انتظار الرد' : 'مفتوح';
+        } else if (statusLower === 'pending' || statusLower === 'in progress' || statusLower === 'inprogress' || statusLower === 'in_progress' || statusLower === 'on hold') {
             statusColor = 'bg-orange-100 text-orange-600';
-            statusText = 'قيد المعالجة';
-        } else if (statusLower === 'closed' || statusLower === 'completed' || statusLower === 'resolved') {
+            statusText = statusLower === 'on hold' ? 'معلق' : 'قيد المعالجة';
+        } else if (statusLower === 'closed' || statusLower === 'close' || statusLower === 'completed' || statusLower === 'resolved' || statusLower === 'canceled') {
             statusColor = 'bg-green-100 text-green-600';
-            statusText = 'مغلق';
+            statusText = statusLower === 'resolved' ? 'تم الحل' : statusLower === 'canceled' ? 'ملغي' : 'مغلق';
+        } else if (statusLower === 'reopened') {
+            statusColor = 'bg-blue-100 text-blue-600';
+            statusText = 'مفتوح مجدداً';
+        } else if (statusLower === 'contractor feedback') {
+            statusColor = 'bg-purple-100 text-purple-600';
+            statusText = 'ملاحظات المقاول';
         }
         
         // إنشاء بطاقة التذكرة
@@ -6158,19 +6165,26 @@ function renderTicketCards(tickets) {
                     </div>
                     <h4 class="font-bold text-slate-800 mb-1">${subject}</h4>
                     <p class="text-sm text-slate-600 mb-2 line-clamp-2">${description}</p>
-                    <div class="flex items-center gap-4 text-xs text-slate-500">
+                    <div class="flex items-center gap-4 text-xs text-slate-500 flex-wrap">
                         <span class="flex items-center gap-1">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
                             ${customerName}
                         </span>
-                        <span class="flex items-center gap-1">
+                        ${team && team !== 'غير مسند' ? `<span class="flex items-center gap-1">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                             </svg>
                             ${team}
-                        </span>
+                        </span>` : ''}
+                        ${zone ? `<span class="flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            ${zone}
+                        </span>` : ''}
                         <span class="flex items-center gap-1">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />

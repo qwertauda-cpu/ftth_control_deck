@@ -7618,16 +7618,17 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
         
         for (const task of tasks) {
             try {
-                const taskId = task.id || task.taskId || '';
-                const ticketNumber = task.number || task.taskNumber || task.ticketNumber || taskId || '';
-                const title = task.subject || task.title || task.name || '';
-                const description = task.description || task.notes || task.comment || '';
+                // استخراج البيانات من البنية الجديدة /api/support/tickets
+                const taskId = task.self?.id || task.id || task.taskId || '';
+                const ticketNumber = task.displayId || task.number || task.taskNumber || task.ticketNumber || taskId || '';
+                const title = task.summary || task.subject || task.title || task.name || '';
+                const description = task.summary || task.description || task.notes || task.comment || '';
                 const status = task.status || task.taskStatus || task.state || 'open';
                 const priority = task.priority || 'medium';
-                const customerName = task.customerName || task.customer?.name || task.subscriberName || task.subscriber?.name || '';
-                const customerId = task.customerId || task.customer?.id || task.subscriberId || '';
+                const customerName = task.customer?.displayValue || task.customer?.name || task.customerName || task.subscriberName || task.subscriber?.name || '';
+                const customerId = task.customer?.id || task.customerId || task.subscriberId || '';
                 const assignedTo = task.assignedTo || task.assignedUser || '';
-                const team = task.team || task.assignedTeam || '';
+                const team = task.team || task.assignedTeam || task.partner?.displayValue || '';
                 const createdAt = task.createdAt || task.created_at || task.dateCreated || task.date || null;
                 const updatedAt = task.updatedAt || task.updated_at || task.dateUpdated || null;
                 
