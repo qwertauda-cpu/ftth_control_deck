@@ -7103,7 +7103,74 @@ app.get('/api/alwatani-login/:id/tasks/types', async (req, res) => {
     }
 });
 
-// Get tasks from admin.ftth.iq
+// Get support tickets from admin.ftth.iq
+app.get('/api/alwatani-login/:id/support/tickets', async (req, res) => {
+    try {
+        const token = await getAlwataniTokenFromLogin(req);
+        
+        // Build query string from request query params
+        const queryParams = new URLSearchParams();
+        if (req.query.pageSize) queryParams.append('pageSize', req.query.pageSize);
+        if (req.query.pageNumber) queryParams.append('pageNumber', req.query.pageNumber);
+        if (req.query['sortCriteria.property']) queryParams.append('sortCriteria.property', req.query['sortCriteria.property']);
+        if (req.query['sortCriteria.direction']) queryParams.append('sortCriteria.direction', req.query['sortCriteria.direction']);
+        if (req.query.status) queryParams.append('status', req.query.status);
+        if (req.query.hierarchyLevel) queryParams.append('hierarchyLevel', req.query.hierarchyLevel);
+        
+        const queryString = queryParams.toString();
+        const path = `/api/support/tickets${queryString ? '?' + queryString : ''}`;
+        
+        const resp = await fetchAlwataniResource(path, token, 'GET', false, null, null, 'support_tickets');
+        
+        if (!resp.success) {
+            return res.status(resp.statusCode || 500).json({
+                success: false,
+                message: resp.message || 'Failed to fetch support tickets',
+                error: resp.data
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: resp.data
+        });
+    } catch (error) {
+        console.error('[SUPPORT TICKETS] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطأ في جلب تذاكر الدعم: ' + error.message
+        });
+    }
+});
+
+// Get support tickets statuses from admin.ftth.iq
+app.get('/api/alwatani-login/:id/support/tickets/statuses', async (req, res) => {
+    try {
+        const token = await getAlwataniTokenFromLogin(req);
+        const resp = await fetchAlwataniResource('/api/support/tickets/statuses', token, 'GET', false, null, null, 'support_tickets_statuses');
+        
+        if (!resp.success) {
+            return res.status(resp.statusCode || 500).json({
+                success: false,
+                message: resp.message || 'Failed to fetch support tickets statuses',
+                error: resp.data
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: resp.data
+        });
+    } catch (error) {
+        console.error('[SUPPORT TICKETS STATUSES] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطأ في جلب حالات تذاكر الدعم: ' + error.message
+        });
+    }
+});
+
+// Keep old endpoint for backward compatibility (redirects to new endpoint)
 app.get('/api/alwatani-login/:id/tasks', async (req, res) => {
     try {
         const token = await getAlwataniTokenFromLogin(req);
@@ -7118,14 +7185,14 @@ app.get('/api/alwatani-login/:id/tasks', async (req, res) => {
         if (req.query.hierarchyLevel) queryParams.append('hierarchyLevel', req.query.hierarchyLevel);
         
         const queryString = queryParams.toString();
-        const path = `/api/tasks${queryString ? '?' + queryString : ''}`;
+        const path = `/api/support/tickets${queryString ? '?' + queryString : ''}`;
         
-        const resp = await fetchAlwataniResource(path, token, 'GET', false, null, null, 'tasks');
+        const resp = await fetchAlwataniResource(path, token, 'GET', false, null, null, 'support_tickets');
         
         if (!resp.success) {
             return res.status(resp.statusCode || 500).json({
                 success: false,
-                message: resp.message || 'Failed to fetch tasks',
+                message: resp.message || 'Failed to fetch support tickets',
                 error: resp.data
             });
         }
@@ -7456,9 +7523,12 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
         const queryParams = new URLSearchParams();
         queryParams.append('pageSize', '100');
         if (req.query.pageNumber) queryParams.append('pageNumber', req.query.pageNumber);
+        if (req.query['sortCriteria.property']) queryParams.append('sortCriteria.property', req.query['sortCriteria.property']);
+        if (req.query['sortCriteria.direction']) queryParams.append('sortCriteria.direction', req.query['sortCriteria.direction']);
+        if (req.query.hierarchyLevel) queryParams.append('hierarchyLevel', req.query.hierarchyLevel);
         
-        const path = `/api/tasks?${queryParams.toString()}`;
-        const resp = await fetchAlwataniResource(path, token, 'GET', false, null, null, 'tasks_sync');
+        const path = `/api/support/tickets?${queryParams.toString()}`;
+        const resp = await fetchAlwataniResource(path, token, 'GET', false, null, null, 'support_tickets_sync');
         
         if (!resp.success) {
             return res.status(resp.statusCode || 500).json({

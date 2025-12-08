@@ -5704,7 +5704,7 @@ async function loadTickets() {
         }
         
         // استدعاء API الوطني لجلب التذاكر
-        const url = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks?pageSize=100`);
+        const url = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/support/tickets?pageSize=100`);
         console.log('[TICKETS] Fetching from URL:', url);
         console.log('[TICKETS] currentUserId:', currentUserId);
         
@@ -5962,7 +5962,7 @@ async function loadTicketsForDashboard(forceSync = false) {
             console.log('[TICKETS DASHBOARD] No tickets in DB, fetching from API and syncing...');
             
             // جلب من API
-            const apiUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks?pageSize=100`);
+            const apiUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/support/tickets?pageSize=100`);
             const apiResponse = await fetch(apiUrl, addUsernameToFetchOptions());
             
             if (apiResponse.ok) {
