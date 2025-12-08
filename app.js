@@ -6083,6 +6083,7 @@ async function loadTicketsForDashboard(forceSync = false) {
                 </div>
             `;
         }
+        updateTicketsCount(0, 0, 0); // Reset counts on error
     }
 }
 

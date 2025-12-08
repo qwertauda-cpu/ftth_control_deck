@@ -7572,6 +7572,7 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
                 totalCount = totalCount || tasks.length;
             } else if (Array.isArray(resp.data.items)) {
                 tasks = resp.data.items;
+                // استخدام totalCount من response إذا كان متوفراً، وإلا استخدم عدد المهام المجلوبة
                 totalCount = totalCount || tasks.length;
             } else if (Array.isArray(resp.data.tasks)) {
                 tasks = resp.data.tasks;
