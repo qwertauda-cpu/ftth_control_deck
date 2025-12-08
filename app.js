@@ -1464,6 +1464,12 @@ async function openTicketDashboardScreen() {
     // جلب وعرض التذاكر كبطاقات
     console.log('[TICKETS DASHBOARD] Calling loadTicketsForDashboard()...');
     try {
+        // جلب حالات التذاكر والمناطق (مثل موقع الوطني)
+        await Promise.all([
+            loadTicketStatuses(),
+            loadZones()
+        ]);
+        // ثم جلب التذاكر
         await loadTicketsForDashboard();
         console.log('[TICKETS DASHBOARD] ✅ loadTicketsForDashboard() completed successfully');
     } catch (error) {
@@ -5802,8 +5808,15 @@ async function loadTicketsForDashboard(forceSync = false) {
         // جلب التذاكر مباشرة من API الوطني (بدون قاعدة البيانات)
         console.log('[TICKETS DASHBOARD] Fetching tickets directly from Alwatani API (no database)...');
         
-        // جلب من API
-        const apiUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/support/tickets?pageSize=100`);
+        // جلب من API بنفس المعاملات التي يستخدمها موقع الوطني
+        const queryParams = new URLSearchParams();
+        queryParams.append('pageSize', '100'); // زيادة pageSize لجلب المزيد من التذاكر
+        queryParams.append('pageNumber', '1');
+        queryParams.append('sortCriteria.property', 'createdAt');
+        queryParams.append('sortCriteria.direction', 'desc');
+        queryParams.append('hierarchyLevel', '0');
+        
+        const apiUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/support/tickets?${queryParams.toString()}`);
         console.log('[TICKETS DASHBOARD] API URL:', apiUrl);
         const apiResponse = await fetch(apiUrl, addUsernameToFetchOptions());
         console.log('[TICKETS DASHBOARD] API Response status:', apiResponse.status, apiResponse.statusText);
