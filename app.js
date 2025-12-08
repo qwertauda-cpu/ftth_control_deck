@@ -6665,9 +6665,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // تم حذف event listener لـ redirect-ticket-modal
     
-    document.getElementById('user-info-modal').addEventListener('click', function(e) {
-        if (e.target === this) { closeUserInfoModal(); }
-    });
+    const userInfoModal = document.getElementById('user-info-modal');
+    if (userInfoModal) {
+        userInfoModal.addEventListener('click', function(e) {
+            if (e.target === this) { closeUserInfoModal(); }
+        });
+    }
     
     // تم حذف event listener لـ add-ticket-modal
     
