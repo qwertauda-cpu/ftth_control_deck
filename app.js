@@ -1431,12 +1431,10 @@ function closeExpiringScreen() {
     }
 }
 
-// Make sure function is available globally for onclick
-window.openTicketDashboardScreen = openTicketDashboardScreen;
-
 async function openTicketDashboardScreen() {
     console.log('[TICKETS DASHBOARD] ========== Opening tickets dashboard screen ==========');
     console.log('[TICKETS DASHBOARD] Function called!');
+    console.log('[TICKETS DASHBOARD] window.openTicketDashboardScreen:', typeof window.openTicketDashboardScreen);
     console.log('[TICKETS DASHBOARD] currentUserId:', currentUserId);
     console.log('[TICKETS DASHBOARD] currentDetailUser:', currentDetailUser);
     
