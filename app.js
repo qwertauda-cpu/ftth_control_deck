@@ -3809,13 +3809,13 @@ async function loadOpenTicketsCount() {
     if (!currentUserId) return;
     
     try {
-        // إضافة alwatani_login_id إلى URL
-        const url = addAlwataniLoginIdToUrl(addUsernameToUrl(`${API_URL}/tickets`));
+        // جلب التذاكر من موقع الوطني
+        const url = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/support/tickets?pageSize=100`);
         const response = await fetch(url, addUsernameToFetchOptions());
         
         if (!response.ok) {
             // إذا كان الخطأ 400 أو 500، نعرض 0 بدلاً من الخطأ
-            if (response.status === 400 || response.status === 500) {
+            if (response.status === 400 || response.status === 500 || response.status === 404) {
                 console.warn('[DASHBOARD] Could not load tickets count:', response.status);
                 const openTicketsEl = document.getElementById('dashboard-open-tickets');
                 if (openTicketsEl) {
@@ -3826,9 +3826,27 @@ async function loadOpenTicketsCount() {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
-        const data = await response.json();
-        const tickets = Array.isArray(data) ? data : (data.tickets || []);
-        const openTickets = tickets.filter(ticket => ticket.status === 'open');
+        const responseData = await response.json();
+        let tickets = [];
+        
+        // استخراج التذاكر من response
+        if (responseData.success && responseData.data) {
+            if (Array.isArray(responseData.data)) {
+                tickets = responseData.data;
+            } else if (Array.isArray(responseData.data.items)) {
+                tickets = responseData.data.items;
+            }
+        } else if (Array.isArray(responseData)) {
+            tickets = responseData;
+        } else if (Array.isArray(responseData.data)) {
+            tickets = responseData.data;
+        }
+        
+        // حساب التذاكر المفتوحة
+        const openTickets = tickets.filter(ticket => {
+            const status = (ticket.status || ticket.taskStatus || ticket.state || '').toLowerCase();
+            return status === 'open' || status === 'new' || status === 'waiting for response';
+        });
         
         const openTicketsEl = document.getElementById('dashboard-open-tickets');
         if (openTicketsEl) {
@@ -6137,10 +6155,31 @@ async function loadTeams() {
                 </div>
             `;
         } else {
-            // Get ticket counts for each team
-            const ticketsResponse = await fetch(addAlwataniLoginIdToUrl(addUsernameToUrl(`${API_URL}/tickets`)), addUsernameToFetchOptions());
-            const ticketsData = await ticketsResponse.json();
-            const allTickets = Array.isArray(ticketsData) ? ticketsData : [];
+            // Get ticket counts for each team from Alwatani API
+            let allTickets = [];
+            try {
+                if (currentUserId) {
+                    const ticketsResponse = await fetch(addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/support/tickets?pageSize=100`), addUsernameToFetchOptions());
+                    if (ticketsResponse.ok) {
+                        const ticketsData = await ticketsResponse.json();
+                        // استخراج التذاكر من response
+                        if (ticketsData.success && ticketsData.data) {
+                            if (Array.isArray(ticketsData.data)) {
+                                allTickets = ticketsData.data;
+                            } else if (Array.isArray(ticketsData.data.items)) {
+                                allTickets = ticketsData.data.items;
+                            }
+                        } else if (Array.isArray(ticketsData)) {
+                            allTickets = ticketsData;
+                        } else if (Array.isArray(ticketsData.data)) {
+                            allTickets = ticketsData.data;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('[TEAMS] Could not load tickets for team counts:', error);
+                allTickets = [];
+            }
             
             for (const team of teams) {
                 // جلب أعضاء الفريق
@@ -6166,7 +6205,12 @@ async function loadTeams() {
                     members = [];
                 }
                 
-                const teamTicketsCount = allTickets.filter(t => t.team === team.name).length;
+                // حساب عدد التذاكر المسندة للفريق
+                // البحث في team أو partner.displayValue أو assignedTeam
+                const teamTicketsCount = allTickets.filter(t => {
+                    const ticketTeam = t.team || t.assignedTeam || t.partner?.displayValue || '';
+                    return ticketTeam === team.name;
+                }).length;
                 const firstLetter = team.name.charAt(0).toUpperCase();
                 const statusClass = team.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
                 const statusText = team.status === 'active' ? 'نشط' : 'غير نشط';
@@ -6494,80 +6538,20 @@ async function openTeamTickets(teamName) {
 // تم حذف هذه الدالة لأنها كانت تستخدم /api/tickets المحلية
 // النظام الآن يجلب التذاكر فقط من موقع الوطني
 async function loadTeamTickets(teamName) {
-    try {
-        // تم إزالة جلب التذاكر المحلية
-        // يمكن إعادة تنفيذها لاحقاً لجلب التذاكر من الوطني حسب الفريق
-        const teamTickets = [];
-        
-        const tableBody = document.querySelector('#team-tickets-screen tbody');
-        if (!tableBody) return;
-        
-        tableBody.innerHTML = '';
-        
-        if (teamTickets.length === 0) {
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="6" class="p-8 text-center text-gray-400">لا توجد تكتات مسندة لهذا الفريق</td>
-                </tr>
-            `;
-        } else {
-            teamTickets.forEach(ticket => {
-                const row = document.createElement('tr');
-                row.className = "hover:bg-slate-50";
-                
-                const priorityColors = {
-                    'high': 'bg-red-100 text-red-700',
-                    'medium': 'bg-yellow-100 text-yellow-700',
-                    'low': 'bg-green-100 text-green-700'
-                };
-                
-                const statusColors = {
-                    'open': 'bg-red-100 text-red-700',
-                    'pending': 'bg-orange-100 text-orange-700',
-                    'closed': 'bg-gray-100 text-gray-700'
-                };
-                
-                const date = ticket.created_at ? new Date(ticket.created_at).toISOString().split('T')[0] : '-';
-                
-                // Escape values for onclick attribute
-                const ticketNumberEscaped = (ticket.ticket_number || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                const subscriberNameEscaped = (ticket.subscriber_name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                const teamEscaped = (ticket.team || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                const descriptionEscaped = (ticket.description || '').replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/\n/g, '\\n');
-                
-                row.innerHTML = `
-                    <td class="p-3 font-mono text-slate-600">${ticket.ticket_number}</td>
-                    <td class="p-3 font-medium">${ticket.subscriber_name}</td>
-                    <td class="p-3 text-slate-600">${ticket.description || '-'}</td>
-                    <td class="p-3">
-                        <span class="${priorityColors[ticket.priority] || priorityColors.medium} px-2 py-1 rounded text-xs font-bold">
-                            ${ticket.priority === 'high' ? 'عالية' : ticket.priority === 'medium' ? 'متوسطة' : 'منخفضة'}
-                        </span>
-                    </td>
-                    <td class="p-3">
-                        <span class="${statusColors[ticket.status] || statusColors.open} px-2 py-1 rounded text-xs font-bold">
-                            ${ticket.status === 'open' ? 'مفتوح' : ticket.status === 'pending' ? 'قيد المعالجة' : 'مغلق'}
-                        </span>
-                    </td>
-                    <td class="p-3 text-center">
-                        <button onclick="viewTicketDetails(${ticket.id}, '${ticketNumberEscaped}', '${subscriberNameEscaped}', '${teamEscaped}', '${descriptionEscaped}')" class="text-blue-500 hover:underline">عرض</button>
-                    </td>
-                `;
-                
-                tableBody.appendChild(row);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading team tickets:', error);
-        const tableBody = document.querySelector('#team-tickets-screen tbody');
-        if (tableBody) {
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="6" class="p-8 text-center text-red-400">حدث خطأ أثناء تحميل التكتات</td>
-                </tr>
-            `;
-        }
-    }
+    console.log('[TEAM TICKETS] loadTeamTickets called for team:', teamName);
+    console.log('[TEAM TICKETS] ⚠️ Local tickets API removed - this function needs to be reimplemented to fetch from Alwatani API');
+    
+    const tableBody = document.querySelector('#team-tickets-screen tbody');
+    if (!tableBody) return;
+    
+    tableBody.innerHTML = `
+        <tr>
+            <td colspan="6" class="p-8 text-center text-slate-400">
+                <p>⚠️ تم إزالة التذاكر المحلية</p>
+                <p class="text-xs mt-2">النظام الآن يجلب التذاكر فقط من موقع الوطني</p>
+            </td>
+        </tr>
+    `;
 }
 
 // متغيرات لإعادة توجيه التذكرة
