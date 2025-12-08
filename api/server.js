@@ -7630,6 +7630,7 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
                 const customerId = task.customer?.id || task.customerId || task.subscriberId || '';
                 const assignedTo = task.assignedTo || task.assignedUser || '';
                 const team = task.team || task.assignedTeam || task.partner?.displayValue || '';
+                const zone = task.zone?.displayValue || task.zone?.id || task.zone || '';
                 const createdAt = task.createdAt || task.created_at || task.dateCreated || task.date || null;
                 const updatedAt = task.updatedAt || task.updated_at || task.dateUpdated || null;
                 
@@ -7654,12 +7655,13 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
                             customer_id = ?,
                             assigned_to = ?,
                             team = ?,
+                            zone = ?,
                             created_at = ?,
                             updated_at = ?,
                             sla_data = ?,
                             last_synced_at = CURRENT_TIMESTAMP
                         WHERE sla_ticket_id = ?`,
-                        [ticketNumber, title, description, status, priority, customerName, customerId, assignedTo, team, createdAt, updatedAt, taskData, taskId]
+                        [ticketNumber, title, description, status, priority, customerName, customerId, assignedTo, team, zone, createdAt, updatedAt, taskData, taskId]
                     );
                     updated++;
                 } else {
@@ -7667,9 +7669,9 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
                     await alwataniPool.query(
                         `INSERT INTO sla_tickets (
                             sla_ticket_id, ticket_number, title, description, status, priority,
-                            customer_name, customer_id, assigned_to, team, created_at, updated_at, sla_data
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                        [taskId, ticketNumber, title, description, status, priority, customerName, customerId, assignedTo, team, createdAt, updatedAt, taskData]
+                            customer_name, customer_id, assigned_to, team, zone, created_at, updated_at, sla_data
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [taskId, ticketNumber, title, description, status, priority, customerName, customerId, assignedTo, team, zone, createdAt, updatedAt, taskData]
                     );
                     created++;
                 }
@@ -7747,7 +7749,7 @@ app.get('/api/alwatani-login/:id/tasks/db', async (req, res) => {
         const [tickets] = await alwataniPool.query(
             `SELECT 
                 id, sla_ticket_id, ticket_number, title, description, status, priority,
-                customer_name, customer_id, assigned_to, team, created_at, updated_at,
+                customer_name, customer_id, assigned_to, team, zone, created_at, updated_at,
                 sla_data, synced_at, last_synced_at
             FROM sla_tickets
             ORDER BY created_at DESC
@@ -7760,8 +7762,11 @@ app.get('/api/alwatani-login/:id/tasks/db', async (req, res) => {
             return {
                 id: ticket.sla_ticket_id,
                 taskId: ticket.sla_ticket_id,
+                self: { id: ticket.sla_ticket_id },
+                displayId: ticket.ticket_number,
                 number: ticket.ticket_number,
                 ticketNumber: ticket.ticket_number,
+                summary: ticket.title,
                 subject: ticket.title,
                 title: ticket.title,
                 description: ticket.description,
@@ -7769,10 +7774,16 @@ app.get('/api/alwatani-login/:id/tasks/db', async (req, res) => {
                 taskStatus: ticket.status,
                 priority: ticket.priority,
                 customerName: ticket.customer_name,
-                customer: { name: ticket.customer_name, id: ticket.customer_id },
+                customer: { 
+                    name: ticket.customer_name, 
+                    id: ticket.customer_id,
+                    displayValue: ticket.customer_name
+                },
                 assignedTo: ticket.assigned_to,
                 team: ticket.team,
                 assignedTeam: ticket.team,
+                partner: { displayValue: ticket.team },
+                zone: ticket.zone ? { displayValue: ticket.zone, id: ticket.zone } : null,
                 createdAt: ticket.created_at,
                 created_at: ticket.created_at,
                 updatedAt: ticket.updated_at,
