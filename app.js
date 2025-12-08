@@ -1431,8 +1431,12 @@ function closeExpiringScreen() {
     }
 }
 
+// Make sure function is available globally for onclick
+window.openTicketDashboardScreen = openTicketDashboardScreen;
+
 async function openTicketDashboardScreen() {
     console.log('[TICKETS DASHBOARD] ========== Opening tickets dashboard screen ==========');
+    console.log('[TICKETS DASHBOARD] Function called!');
     console.log('[TICKETS DASHBOARD] currentUserId:', currentUserId);
     console.log('[TICKETS DASHBOARD] currentDetailUser:', currentDetailUser);
     
@@ -5890,6 +5894,12 @@ function updateTicketCountsDisplay(open, pending, closed) {
 }
 
 // Load tickets for dashboard screen (display as cards)
+// Make sure function is available globally for onclick
+window.loadTicketsForDashboard = loadTicketsForDashboard;
+
+// Make sure function is available globally for onclick
+window.loadTicketsForDashboard = loadTicketsForDashboard;
+
 async function loadTicketsForDashboard(forceSync = false) {
     try {
         console.log('[TICKETS DASHBOARD] ========== START loadTicketsForDashboard ==========');
