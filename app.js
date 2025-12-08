@@ -2177,9 +2177,19 @@ async function deleteEmployee(employeeId, employeeName) {
 function startAutoRefresh() {
     // إيقاف أي تحديث تلقائي سابق
     if (dataAutoRefreshInterval) {
+        console.log('[AUTO-REFRESH] ⚠️ Stopping existing auto-refresh interval before starting new one');
         clearInterval(dataAutoRefreshInterval);
         dataAutoRefreshInterval = null;
     }
+    
+    // التحقق من وجود currentScreen
+    if (!currentScreen) {
+        console.warn('[AUTO-REFRESH] ⚠️ currentScreen is not set, cannot start auto-refresh');
+        return;
+    }
+    
+    console.log('[AUTO-REFRESH] Starting auto-refresh for screen:', currentScreen);
+    console.trace('[AUTO-REFRESH] Call stack:'); // لتتبع من أين تم الاستدعاء
     
     // تحديث البيانات كل دقيقة (60 ثانية)
     dataAutoRefreshInterval = setInterval(async () => {
@@ -5089,6 +5099,7 @@ function initSideMenuNavigation() {
         
         link.addEventListener('click', (e) => {
             e.preventDefault();
+            e.stopPropagation(); // منع انتشار الحدث
             const screenKey = link.getAttribute('data-screen-link');
             console.log('[SIDE MENU NAV] Screen link clicked:', screenKey);
             if (screenKey) {
@@ -5121,6 +5132,12 @@ function initSideMenuNavigation() {
                 }
             }
         });
+        
+        // إزالة أي onclick handlers موجودة لتجنب الاستدعاء المزدوج
+        if (link.hasAttribute('onclick')) {
+            console.log('[SIDE MENU NAV] ⚠️ Removing onclick attribute from link to prevent double call:', screenKey);
+            link.removeAttribute('onclick');
+        }
     });
     
     console.log('[SIDE MENU NAV] ✅ Side menu navigation initialized');
