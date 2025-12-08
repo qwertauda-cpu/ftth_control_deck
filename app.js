@@ -6163,10 +6163,21 @@ function updateTicketsCount(total, loaded, remaining) {
 
 // Render tickets as cards
 function renderTicketCards(tickets) {
+    console.log('[RENDER TICKETS] ========== START renderTicketCards ==========');
+    console.log('[RENDER TICKETS] Tickets received:', tickets);
+    console.log('[RENDER TICKETS] Tickets type:', typeof tickets);
+    console.log('[RENDER TICKETS] Is array:', Array.isArray(tickets));
+    console.log('[RENDER TICKETS] Tickets length:', tickets?.length);
+    
     const container = document.getElementById('tickets-cards-container');
-    if (!container) return;
+    if (!container) {
+        console.error('[RENDER TICKETS] ❌ Container not found! tickets-cards-container element missing');
+        return;
+    }
+    console.log('[RENDER TICKETS] ✅ Container found');
     
     if (!Array.isArray(tickets) || tickets.length === 0) {
+        console.warn('[RENDER TICKETS] ⚠️ No tickets to render:', { isArray: Array.isArray(tickets), length: tickets?.length });
         container.innerHTML = `
             <div class="text-center text-slate-400 text-sm py-8">
                 <p>لا توجد تذاكر متاحة</p>
@@ -6175,9 +6186,11 @@ function renderTicketCards(tickets) {
         return;
     }
     
+    console.log('[RENDER TICKETS] Clearing container and rendering', tickets.length, 'tickets');
     container.innerHTML = '';
     
-    tickets.forEach(ticket => {
+    tickets.forEach((ticket, index) => {
+        console.log(`[RENDER TICKETS] Processing ticket ${index + 1}/${tickets.length}:`, ticket);
         // استخراج البيانات من التذكرة - البنية الجديدة /api/support/tickets
         const ticketId = ticket.self?.id || ticket.id || ticket.taskId || ticket.ticketId || '';
         const ticketNumber = ticket.displayId || ticket.number || ticket.taskNumber || ticket.ticketNumber || ticket.id || '-';
