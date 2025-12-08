@@ -6025,9 +6025,45 @@ async function loadTicketsForDashboard(forceSync = false) {
                         apiTickets = apiData.data.tasks;
                         totalCount = totalCount || apiTickets.length;
                     }
+                } else if (!apiData.success) {
+                    // خطأ من API
+                    const errorMessage = apiData.message || apiData.error || 'فشل جلب التذاكر من موقع الوطني';
+                    console.error('[TICKETS DASHBOARD] ❌ API Error:', errorMessage);
+                    container.innerHTML = `
+                        <div class="text-center text-red-500 text-sm py-8">
+                            <div class="mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <p class="font-bold mb-1">❌ خطأ في جلب التذاكر</p>
+                            <p class="text-xs">${errorMessage}</p>
+                            <p class="text-xs mt-2 text-slate-500">يرجى المحاولة مرة أخرى أو التحقق من اتصال الإنترنت</p>
+                        </div>
+                    `;
+                    updateTicketsCount(0, 0, 0);
+                    return;
                 }
                 
                 tickets = apiTickets;
+                
+                // إذا لم توجد تذاكر
+                if (tickets.length === 0) {
+                    console.warn('[TICKETS DASHBOARD] ⚠️ No tickets found in API response');
+                    container.innerHTML = `
+                        <div class="text-center text-slate-400 text-sm py-8">
+                            <div class="mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                            <p class="font-bold mb-1">لا توجد تذاكر</p>
+                            <p class="text-xs">لم يتم العثور على أي تذاكر في موقع الوطني</p>
+                        </div>
+                    `;
+                    updateTicketsCount(0, 0, 0);
+                    return;
+                }
                 
                 // تحديث العداد
                 if (totalCount > 0) {
@@ -6038,46 +6074,70 @@ async function loadTicketsForDashboard(forceSync = false) {
                 }
                 
                 // عرض التذاكر فوراً قبل المزامنة
-                if (tickets.length > 0) {
-                    console.log('[TICKETS DASHBOARD] Displaying tickets in real-time...');
-                    renderTicketCards(tickets);
-                }
+                console.log('[TICKETS DASHBOARD] Displaying tickets in real-time...');
+                renderTicketCards(tickets);
                 
                 // مزامنة التذاكر في قاعدة البيانات في الخلفية
-                if (tickets.length > 0) {
-                    console.log('[TICKETS DASHBOARD] Syncing tickets to database in background...');
-                    const syncUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks/sync`);
-                    fetch(syncUrl, addUsernameToFetchOptions({
-                        method: 'POST'
-                    })).then(response => {
-                        console.log('[TICKETS DASHBOARD] Sync response status:', response.status);
-                        if (response.ok) {
-                            return response.json();
-                        } else {
-                            return response.text().then(text => {
-                                console.error('[TICKETS DASHBOARD] Sync failed with status:', response.status, text);
-                                return null;
-                            });
+                console.log('[TICKETS DASHBOARD] Syncing tickets to database in background...');
+                const syncUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks/sync`);
+                fetch(syncUrl, addUsernameToFetchOptions({
+                    method: 'POST'
+                })).then(response => {
+                    console.log('[TICKETS DASHBOARD] Sync response status:', response.status);
+                    if (response.ok) {
+                        return response.json();
+                    } else {
+                        return response.text().then(text => {
+                            console.error('[TICKETS DASHBOARD] Sync failed with status:', response.status, text);
+                            throw new Error(`فشل حفظ التذاكر في قاعدة البيانات: ${response.status} - ${text}`);
+                        });
+                    }
+                }).then(syncResult => {
+                    if (syncResult && syncResult.success) {
+                        console.log('[TICKETS DASHBOARD] ✅ Tickets synced to database:', {
+                            synced: syncResult.synced,
+                            updated: syncResult.updated,
+                            created: syncResult.created,
+                            totalCount: syncResult.totalCount
+                        });
+                        // تحديث العداد بعد المزامنة
+                        if (syncResult.totalCount !== undefined) {
+                            updateTicketsCount(syncResult.totalCount, syncResult.loadedCount || syncResult.synced || 0, syncResult.remainingCount || 0);
                         }
-                    }).then(syncResult => {
-                        if (syncResult && syncResult.success) {
-                            console.log('[TICKETS DASHBOARD] ✅ Tickets synced to database:', {
-                                synced: syncResult.synced,
-                                updated: syncResult.updated,
-                                created: syncResult.created,
-                                totalCount: syncResult.totalCount
-                            });
-                            // تحديث العداد بعد المزامنة
-                            if (syncResult.totalCount !== undefined) {
-                                updateTicketsCount(syncResult.totalCount, syncResult.loadedCount || syncResult.synced || 0, syncResult.remainingCount || 0);
-                            }
-                        } else {
-                            console.warn('[TICKETS DASHBOARD] ⚠️ Sync failed or returned no data:', syncResult);
-                        }
-                    }).catch(error => {
-                        console.error('[TICKETS DASHBOARD] ❌ Sync error:', error);
-                    });
+                    } else {
+                        console.warn('[TICKETS DASHBOARD] ⚠️ Sync failed or returned no data:', syncResult);
+                    }
+                }).catch(error => {
+                    console.error('[TICKETS DASHBOARD] ❌ Sync error:', error);
+                    // لا نعرض خطأ للمستخدم لأن التذاكر تم عرضها بالفعل
+                });
+            } else {
+                // خطأ في استجابة API
+                const errorText = await apiResponse.text();
+                let errorMessage = 'فشل الاتصال بموقع الوطني';
+                try {
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.message || errorData.error || errorMessage;
+                } catch (e) {
+                    errorMessage = `خطأ ${apiResponse.status}: ${apiResponse.statusText}`;
                 }
+                console.error('[TICKETS DASHBOARD] ❌ API Response Error:', apiResponse.status, errorMessage);
+                container.innerHTML = `
+                    <div class="text-center text-red-500 text-sm py-8">
+                        <div class="mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <p class="font-bold mb-1">❌ خطأ في الاتصال</p>
+                        <p class="text-xs">${errorMessage}</p>
+                        <p class="text-xs mt-2 text-slate-500">كود الخطأ: ${apiResponse.status}</p>
+                        <button onclick="loadTicketsForDashboard(true)" class="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm">
+                            إعادة المحاولة
+                        </button>
+                    </div>
+                `;
+                updateTicketsCount(0, 0, 0);
             }
         }
         

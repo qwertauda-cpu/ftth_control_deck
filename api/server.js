@@ -7745,6 +7745,21 @@ app.get('/api/alwatani-login/:id/tasks/db', async (req, res) => {
         // الاتصال بقاعدة بيانات الوطني
         const alwataniPool = await dbManager.getPool(alwataniDbName);
         
+        // التحقق من وجود جدول sla_tickets
+        try {
+            await alwataniPool.query('SELECT 1 FROM sla_tickets LIMIT 1');
+        } catch (tableError) {
+            // إذا لم يكن الجدول موجوداً، إنشاؤه
+            if (tableError.code === 'ER_NO_SUCH_TABLE') {
+                console.log('[TICKETS DB] Table sla_tickets not found, creating it...');
+                const { initAlwataniDatabase } = require('./init-alwatani-db');
+                await initAlwataniDatabase(alwataniUsername);
+                console.log('[TICKETS DB] ✅ Table sla_tickets created');
+            } else {
+                throw tableError;
+            }
+        }
+        
         // جلب التذاكر من قاعدة البيانات
         const [tickets] = await alwataniPool.query(
             `SELECT 
@@ -7758,7 +7773,13 @@ app.get('/api/alwatani-login/:id/tasks/db', async (req, res) => {
         
         // تحويل البيانات إلى format مناسب
         const formattedTickets = tickets.map(ticket => {
-            const ticketData = ticket.sla_data ? JSON.parse(ticket.sla_data) : {};
+            let ticketData = {};
+            try {
+                ticketData = ticket.sla_data ? (typeof ticket.sla_data === 'string' ? JSON.parse(ticket.sla_data) : ticket.sla_data) : {};
+            } catch (e) {
+                console.warn('[TICKETS DB] Error parsing sla_data for ticket:', ticket.sla_ticket_id, e);
+            }
+            
             return {
                 id: ticket.sla_ticket_id,
                 taskId: ticket.sla_ticket_id,
