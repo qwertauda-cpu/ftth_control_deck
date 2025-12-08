@@ -5986,93 +5986,46 @@ async function loadTicketsForDashboard(forceSync = false) {
             console.log('[TICKETS DASHBOARD] API Response success:', apiData?.success);
             console.log('[TICKETS DASHBOARD] API Response data type:', typeof apiData?.data);
             console.log('[TICKETS DASHBOARD] API Response data is array:', Array.isArray(apiData?.data));
-                
-                // استخراج البيانات
-                let apiTickets = [];
-                let totalCount = 0;
-                
-                if (apiData.success && apiData.data) {
-                    // استخراج العدد الإجمالي
-                    if (apiData.data.totalCount !== undefined) {
-                        totalCount = apiData.data.totalCount;
-                    } else if (apiData.data.total !== undefined) {
-                        totalCount = apiData.data.total;
-                    } else if (apiData.data.totalItems !== undefined) {
-                        totalCount = apiData.data.totalItems;
-                    }
-                    
-                    if (Array.isArray(apiData.data)) {
-                        apiTickets = apiData.data;
-                        totalCount = totalCount || apiTickets.length;
-                    } else if (Array.isArray(apiData.data.items)) {
-                        apiTickets = apiData.data.items;
-                        totalCount = totalCount || (apiData.data.totalCount || apiTickets.length);
-                    } else if (Array.isArray(apiData.data.tasks)) {
-                        apiTickets = apiData.data.tasks;
-                        totalCount = totalCount || apiTickets.length;
-                    }
-                } else if (!apiData.success) {
-                    // خطأ من API
-                    const errorMessage = apiData.message || apiData.error || 'فشل جلب التذاكر من موقع الوطني';
-                    console.error('[TICKETS DASHBOARD] ❌ API Error:', errorMessage);
-                    container.innerHTML = `
-                        <div class="text-center text-red-500 text-sm py-8">
-                            <div class="mb-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            </div>
-                            <p class="font-bold mb-1">❌ خطأ في جلب التذاكر</p>
-                            <p class="text-xs">${errorMessage}</p>
-                            <p class="text-xs mt-2 text-slate-500">يرجى المحاولة مرة أخرى أو التحقق من اتصال الإنترنت</p>
-                        </div>
-                    `;
-                    updateTicketsCount(0, 0, 0);
-                    return;
+            
+            // استخراج البيانات
+            let apiTickets = [];
+            let totalCount = 0;
+            
+            if (apiData.success && apiData.data) {
+                // استخراج العدد الإجمالي
+                if (apiData.data.totalCount !== undefined) {
+                    totalCount = apiData.data.totalCount;
+                } else if (apiData.data.total !== undefined) {
+                    totalCount = apiData.data.total;
+                } else if (apiData.data.totalItems !== undefined) {
+                    totalCount = apiData.data.totalItems;
                 }
                 
-                tickets = apiTickets;
+                console.log('[TICKETS DASHBOARD] Total count from API:', totalCount);
                 
-                // إذا لم توجد تذاكر
-                if (tickets.length === 0) {
-                    console.warn('[TICKETS DASHBOARD] ⚠️ No tickets found in API response');
-                    container.innerHTML = `
-                        <div class="text-center text-slate-400 text-sm py-8">
-                            <div class="mb-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                            </div>
-                            <p class="font-bold mb-1">لا توجد تذاكر</p>
-                            <p class="text-xs">لم يتم العثور على أي تذاكر في موقع الوطني</p>
-                        </div>
-                    `;
-                    updateTicketsCount(0, 0, 0);
-                    return;
+                if (Array.isArray(apiData.data)) {
+                    apiTickets = apiData.data;
+                    totalCount = totalCount || apiTickets.length;
+                    console.log('[TICKETS DASHBOARD] ✅ Found tickets in apiData.data (array):', apiTickets.length);
+                } else if (Array.isArray(apiData.data.items)) {
+                    apiTickets = apiData.data.items;
+                    totalCount = totalCount || (apiData.data.totalCount || apiTickets.length);
+                    console.log('[TICKETS DASHBOARD] ✅ Found tickets in apiData.data.items:', apiTickets.length);
+                } else if (Array.isArray(apiData.data.tasks)) {
+                    apiTickets = apiData.data.tasks;
+                    totalCount = totalCount || apiTickets.length;
+                    console.log('[TICKETS DASHBOARD] ✅ Found tickets in apiData.data.tasks:', apiTickets.length);
+                } else {
+                    console.warn('[TICKETS DASHBOARD] ⚠️ No tickets array found in apiData.data. Structure:', {
+                        hasData: !!apiData.data,
+                        dataKeys: apiData.data ? Object.keys(apiData.data) : [],
+                        dataType: typeof apiData.data
+                    });
                 }
-                
-                // تحديث العداد
-                if (totalCount > 0) {
-                    updateTicketsCount(totalCount, tickets.length, Math.max(0, totalCount - tickets.length));
-                } else if (tickets.length > 0) {
-                    // إذا لم يكن هناك totalCount، استخدم عدد التذاكر المجلوبة كإجمالي مؤقت
-                    updateTicketsCount(tickets.length, tickets.length, 0);
-                }
-                
-                // عرض التذاكر مباشرة
-                console.log('[TICKETS DASHBOARD] Displaying tickets...');
-                renderTicketCards(tickets);
-            } else {
-                // خطأ في استجابة API
-                const errorText = await apiResponse.text();
-                let errorMessage = 'فشل الاتصال بموقع الوطني';
-                try {
-                    const errorData = JSON.parse(errorText);
-                    errorMessage = errorData.message || errorData.error || errorMessage;
-                } catch (e) {
-                    errorMessage = `خطأ ${apiResponse.status}: ${apiResponse.statusText}`;
-                }
-                console.error('[TICKETS DASHBOARD] ❌ API Response Error:', apiResponse.status, errorMessage);
+            } else if (!apiData.success) {
+                // خطأ من API
+                const errorMessage = apiData.message || apiData.error || 'فشل جلب التذاكر من موقع الوطني';
+                console.error('[TICKETS DASHBOARD] ❌ API Error:', errorMessage);
                 container.innerHTML = `
                     <div class="text-center text-red-500 text-sm py-8">
                         <div class="mb-2">
@@ -6080,31 +6033,82 @@ async function loadTicketsForDashboard(forceSync = false) {
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                         </div>
-                        <p class="font-bold mb-1">❌ خطأ في الاتصال</p>
+                        <p class="font-bold mb-1">❌ خطأ في جلب التذاكر</p>
                         <p class="text-xs">${errorMessage}</p>
-                        <p class="text-xs mt-2 text-slate-500">كود الخطأ: ${apiResponse.status}</p>
+                        <p class="text-xs mt-2 text-slate-500">يرجى المحاولة مرة أخرى أو التحقق من اتصال الإنترنت</p>
                         <button onclick="loadTicketsForDashboard(true)" class="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm">
                             إعادة المحاولة
                         </button>
                     </div>
                 `;
                 updateTicketsCount(0, 0, 0);
+                return;
+            } else {
+                console.warn('[TICKETS DASHBOARD] ⚠️ apiData.success is false or apiData.data is missing:', {
+                    success: apiData?.success,
+                    hasData: !!apiData?.data,
+                    apiDataKeys: apiData ? Object.keys(apiData) : []
+                });
             }
+            
+            tickets = apiTickets;
+            console.log('[TICKETS DASHBOARD] Final tickets array length:', tickets.length);
+            
+            // إذا لم توجد تذاكر
+            if (tickets.length === 0) {
+                console.warn('[TICKETS DASHBOARD] ⚠️ No tickets found in API response');
+                container.innerHTML = `
+                    <div class="text-center text-slate-400 text-sm py-8">
+                        <div class="mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </div>
+                        <p class="font-bold mb-1">لا توجد تذاكر</p>
+                        <p class="text-xs">لم يتم العثور على أي تذكرة في موقع الوطني</p>
+                        <button onclick="loadTicketsForDashboard(true)" class="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm">
+                            تحديث
+                        </button>
+                    </div>
+                `;
+                updateTicketsCount(0, 0, 0);
+                return;
+            }
+            
+            // تحديث العداد
+            if (totalCount > 0) {
+                updateTicketsCount(totalCount, tickets.length, Math.max(0, totalCount - tickets.length));
+            } else if (tickets.length > 0) {
+                // إذا لم يكن هناك totalCount، استخدم عدد التذاكر المجلوبة كإجمالي مؤقت
+                updateTicketsCount(tickets.length, tickets.length, 0);
+            }
+            
+            // عرض التذاكر مباشرة
+            console.log('[TICKETS DASHBOARD] Displaying tickets...', tickets.length);
+            renderTicketCards(tickets);
         } else {
-            // لا توجد تذاكر
-            console.log('[TICKETS DASHBOARD] No tickets found');
-            renderTicketCards([]);
+            // خطأ في استجابة API
+            const errorText = await apiResponse.text();
+            let errorMessage = 'فشل الاتصال بموقع الوطني';
+            try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.message || errorData.error || errorMessage;
+            } catch (e) {
+                errorMessage = `خطأ ${apiResponse.status}: ${apiResponse.statusText}`;
+            }
+            console.error('[TICKETS DASHBOARD] ❌ API Response Error:', apiResponse.status, errorMessage);
             container.innerHTML = `
-                <div class="text-center text-slate-400 text-sm py-8">
+                <div class="text-center text-red-500 text-sm py-8">
                     <div class="mb-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                     </div>
-                    <p class="font-bold mb-1">لا توجد تذاكر</p>
-                    <p class="text-xs">لم يتم العثور على أي تذاكر في موقع الوطني</p>
+                    <p class="font-bold mb-1">❌ خطأ في الاتصال</p>
+                    <p class="text-xs">${errorMessage}</p>
+                    <p class="text-xs mt-2 text-slate-500">كود الخطأ: ${apiResponse.status}</p>
                     <button onclick="loadTicketsForDashboard(true)" class="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm">
-                        تحديث
+                        إعادة المحاولة
                     </button>
                 </div>
             `;
