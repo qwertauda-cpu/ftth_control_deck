@@ -6885,9 +6885,9 @@ app.delete('/api/subscribers/:id', async (req, res) => {
     }
 });
 
-// ================= Tickets Management Routes =================
+// ================= Tickets Management Routes (Local Tickets - stored in owner database) =================
 
-// Get all tickets
+// Get all tickets from owner database
 app.get('/api/tickets', async (req, res) => {
     try {
         const alwataniLoginId = getAlwataniLoginIdFromRequest(req);
@@ -6896,13 +6896,14 @@ app.get('/api/tickets', async (req, res) => {
             return res.status(400).json({ error: 'alwatani_login_id مطلوب في الطلب' });
         }
         
-        const alwataniPool = await getAlwataniPoolFromRequestHelper(req);
+        // استخدام قاعدة بيانات owner بدلاً من Alwatani
+        const ownerPool = await getOwnerPoolFromRequestHelper(req);
         
         // التحقق من وجود الجدول أولاً
         try {
-            const [tableCheck] = await alwataniPool.query("SHOW TABLES LIKE 'tickets'");
+            const [tableCheck] = await ownerPool.query("SHOW TABLES LIKE 'tickets'");
             if (tableCheck.length === 0) {
-                console.log('[TICKETS] Table tickets does not exist, returning empty array');
+                console.log('[TICKETS] Table tickets does not exist in owner database, returning empty array');
                 return res.json([]);
             }
         } catch (tableError) {
@@ -6910,8 +6911,10 @@ app.get('/api/tickets', async (req, res) => {
             return res.json([]);
         }
         
-        const [rows] = await alwataniPool.query(
-            'SELECT * FROM tickets ORDER BY created_at DESC'
+        // جلب التذاكر المرتبطة بـ alwatani_login_id
+        const [rows] = await ownerPool.query(
+            'SELECT * FROM tickets WHERE alwatani_login_id = ? ORDER BY created_at DESC',
+            [alwataniLoginId]
         );
         res.json(rows || []);
     } catch (error) {
@@ -6925,7 +6928,7 @@ app.get('/api/tickets', async (req, res) => {
     }
 });
 
-// Create new ticket
+// Create new ticket in owner database
 app.post('/api/tickets', async (req, res) => {
     try {
         const alwataniLoginId = getAlwataniLoginIdFromRequest(req);
@@ -6934,7 +6937,8 @@ app.post('/api/tickets', async (req, res) => {
             return res.status(400).json({ success: false, message: 'alwatani_login_id مطلوب في الطلب' });
         }
         
-        const alwataniPool = await getAlwataniPoolFromRequestHelper(req);
+        // استخدام قاعدة بيانات owner بدلاً من Alwatani
+        const ownerPool = await getOwnerPoolFromRequestHelper(req);
         const { subscriber_name, description, team, status, priority } = req.body;
         
         // Generate unique ticket number
@@ -6943,9 +6947,9 @@ app.post('/api/tickets', async (req, res) => {
         let ticket_number = `TK-${timestamp}-${random}`;
         
         // Check if ticket number already exists (very unlikely but safe)
-        const [existing] = await alwataniPool.query(
-            'SELECT id FROM tickets WHERE ticket_number = ?',
-            [ticket_number]
+        const [existing] = await ownerPool.query(
+            'SELECT id FROM tickets WHERE ticket_number = ? AND alwatani_login_id = ?',
+            [ticket_number, alwataniLoginId]
         );
         
         if (existing.length > 0) {
@@ -6954,9 +6958,9 @@ app.post('/api/tickets', async (req, res) => {
             ticket_number = `TK-${timestamp}-${newRandom}`;
         }
         
-        const [result] = await alwataniPool.query(
-            'INSERT INTO tickets (ticket_number, subscriber_name, description, team, status, priority) VALUES (?, ?, ?, ?, ?, ?)',
-            [ticket_number, subscriber_name, description, team, status || 'open', priority || 'medium']
+        const [result] = await ownerPool.query(
+            'INSERT INTO tickets (alwatani_login_id, ticket_number, subscriber_name, description, team, status, priority) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [alwataniLoginId, ticket_number, subscriber_name, description, team, status || 'open', priority || 'medium']
         );
         
         res.json({
@@ -6971,7 +6975,7 @@ app.post('/api/tickets', async (req, res) => {
     }
 });
 
-// Update ticket status
+// Update ticket status in owner database
 app.put('/api/tickets/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -7008,19 +7012,24 @@ app.put('/api/tickets/:id', async (req, res) => {
             return res.status(400).json({ success: false, message: 'alwatani_login_id مطلوب في الطلب' });
         }
         
-        const alwataniPool = await getAlwataniPoolFromRequestHelper(req);
+        // استخدام قاعدة بيانات owner بدلاً من Alwatani
+        const ownerPool = await getOwnerPoolFromRequestHelper(req);
         
-        // التحقق من وجود التكت
-        const [existing] = await alwataniPool.query('SELECT id FROM tickets WHERE id = ?', [id]);
+        // التحقق من وجود التكت وارتباطه بـ alwatani_login_id
+        const [existing] = await ownerPool.query(
+            'SELECT id FROM tickets WHERE id = ? AND alwatani_login_id = ?',
+            [id, alwataniLoginId]
+        );
         
         if (existing.length === 0) {
             return res.status(404).json({ success: false, message: 'التكت غير موجود' });
         }
         
         values.push(id);
-        const query = `UPDATE tickets SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+        const query = `UPDATE tickets SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND alwatani_login_id = ?`;
+        values.push(alwataniLoginId);
         
-        await alwataniPool.query(query, values);
+        await ownerPool.query(query, values);
         
         res.json({
             success: true,
