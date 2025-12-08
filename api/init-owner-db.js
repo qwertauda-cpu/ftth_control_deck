@@ -120,28 +120,9 @@ async function initOwnerDatabase(databaseName) {
         `);
         console.log('✅ تم إنشاء جدول: subscribers (المشتركين)');
         
-        // ==================== 5. جدول tickets (التذاكر) ====================
-        await connection.query(`
-            CREATE TABLE IF NOT EXISTS tickets (
-                id INT PRIMARY KEY AUTO_INCREMENT,
-                alwatani_login_id INT NOT NULL COMMENT 'معرف حساب الوطني المرتبط',
-                ticket_number VARCHAR(50) NOT NULL,
-                subscriber_name VARCHAR(255) NOT NULL,
-                description TEXT,
-                team VARCHAR(100),
-                status VARCHAR(50) DEFAULT 'open',
-                priority VARCHAR(50) DEFAULT 'medium',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                UNIQUE KEY unique_ticket_alwatani (ticket_number, alwatani_login_id),
-                INDEX idx_ticket_number (ticket_number),
-                INDEX idx_status (status),
-                INDEX idx_team (team),
-                INDEX idx_alwatani_login_id (alwatani_login_id),
-                FOREIGN KEY (alwatani_login_id) REFERENCES alwatani_login(id) ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        `);
-        console.log('✅ تم إنشاء جدول: tickets (التذاكر)');
+        // ==================== 5. جدول tickets (التذاكر) - REMOVED ====================
+        // تم حذف إنشاء جدول tickets المحلية
+        // النظام الآن يجلب التذاكر فقط من موقع الوطني
         
         // ==================== 6. جدول teams (الفرق) ====================
         await connection.query(`

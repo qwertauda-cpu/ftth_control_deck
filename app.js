@@ -1103,7 +1103,7 @@ function logout() {
     // إيقاف التحديث التلقائي المخفي للمحفظة
     stopWalletSilentSync();
     
-    ['dashboard-screen', 'page-detail-screen', 'ticket-management-screen', 'team-management-screen', 'team-tickets-screen'].forEach(id => {
+    ['dashboard-screen', 'page-detail-screen', 'team-management-screen', 'team-tickets-screen'].forEach(id => {
         const el = document.getElementById(id);
         if(el) {
             el.classList.add('hidden');
@@ -2219,13 +2219,6 @@ function startAutoRefresh() {
                     renderExpiringSoonList();
                     break;
                     
-                case 'tickets':
-                    // تحديث التذاكر
-                    if (typeof loadTickets === 'function') {
-                        await loadTickets();
-                    }
-                    break;
-                    
                 case 'tickets-dashboard':
                     // تحديث التذاكر في لوحة التحكم (من قاعدة البيانات)
                     if (typeof loadTicketsForDashboard === 'function') {
@@ -2242,13 +2235,6 @@ function startAutoRefresh() {
                     // وإلا، تحديث بسيط
                     if (typeof loadWalletData === 'function') {
                         await loadWalletData();
-                    }
-                    break;
-                    
-                case 'ticket-management':
-                    // تحديث قائمة التذاكر في إدارة التذاكر
-                    if (typeof loadTeamTickets === 'function') {
-                        await loadTeamTickets();
                     }
                     break;
                     
@@ -2323,7 +2309,7 @@ function hideAllMainScreens() {
         'wallet-screen',
         'team-tickets-screen',
         'page-detail-screen',
-        'ticket-management-screen',
+        // 'ticket-management-screen', // تم حذفها
         'team-management-screen'
     ];
     screens.forEach((id) => {
@@ -5749,199 +5735,11 @@ function formatCurrency(value) {
 }
 
 // ================= Tickets Management =================
-async function openTicketManagement() {
-    // إخفاء جميع الشاشات أولاً ثم إظهار شاشة إدارة التكتات
-    hideAllMainScreens();
-    showScreen('ticket-management-screen');
-    await loadTickets();
-    updateTicketCounts();
-    currentScreen = 'ticket-management';
-    startAutoRefresh();
-}
-
-// Load tickets from API (from Alwatani website)
-async function loadTickets() {
-    try {
-        console.log('[TICKETS] Loading tickets from Alwatani API...');
-        
-        // التحقق من وجود currentUserId
-        if (!currentUserId) {
-            throw new Error('لم يتم تحديد حساب الوطني. يرجى اختيار حساب وطني أولاً.');
-        }
-        
-        // استدعاء API الوطني لجلب التذاكر
-        const url = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/support/tickets?pageSize=100`);
-        console.log('[TICKETS] Fetching from URL:', url);
-        console.log('[TICKETS] currentUserId:', currentUserId);
-        
-        const response = await fetch(url, addUsernameToFetchOptions());
-        
-        console.log('[TICKETS] Response status:', response.status, response.statusText);
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('[TICKETS] Error response:', errorText);
-            throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-        }
-        
-        const responseData = await response.json();
-        console.log('[TICKETS] Response data:', responseData);
-        
-        // استخراج البيانات من response
-        let tickets = [];
-        if (responseData.success && responseData.data) {
-            // البيانات قد تكون array مباشرة أو داخل items
-            if (Array.isArray(responseData.data)) {
-                tickets = responseData.data;
-            } else if (Array.isArray(responseData.data.items)) {
-                tickets = responseData.data.items;
-            } else if (Array.isArray(responseData.data.tasks)) {
-                tickets = responseData.data.tasks;
-            }
-        } else if (Array.isArray(responseData)) {
-            tickets = responseData;
-        } else if (Array.isArray(responseData.data)) {
-            tickets = responseData.data;
-        }
-        
-        console.log(`[TICKETS] Loaded ${tickets.length} tickets`);
-        
-        // تحديث بطاقة التذاكر المفتوحة
-        const openTicketsCount = tickets.filter(ticket => {
-            const status = ticket.status || ticket.taskStatus || ticket.state || '';
-            return status.toLowerCase() === 'open' || status.toLowerCase() === 'new' || status.toLowerCase() === 'pending';
-        }).length;
-        const openTicketsEl = document.getElementById('dashboard-open-tickets');
-        if (openTicketsEl) {
-            openTicketsEl.textContent = formatNumber(openTicketsCount);
-        }
-        
-        const tableBody = document.getElementById('tickets-table-body');
-        if (!tableBody) {
-            console.error('[TICKETS] Table body not found');
-            return;
-        }
-        
-        tableBody.innerHTML = '';
-        
-        if (!Array.isArray(tickets) || tickets.length === 0) {
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="p-8 text-center text-gray-400">لا توجد تكتات</td>
-                </tr>
-            `;
-            // تحديث العدادات
-            updateTicketCountsDisplay(0, 0, 0);
-            return;
-        }
-        
-        // تحديث العدادات
-        const openCount = tickets.filter(t => {
-            const s = (t.status || t.taskStatus || t.state || '').toLowerCase();
-            return s === 'open' || s === 'new';
-        }).length;
-        const pendingCount = tickets.filter(t => {
-            const s = (t.status || t.taskStatus || t.state || '').toLowerCase();
-            return s === 'pending' || s === 'inprogress' || s === 'in_progress';
-        }).length;
-        const closedCount = tickets.filter(t => {
-            const s = (t.status || t.taskStatus || t.state || '').toLowerCase();
-            return s === 'closed' || s === 'completed' || s === 'resolved';
-        }).length;
-        updateTicketCountsDisplay(openCount, pendingCount, closedCount);
-        
-        tickets.forEach(ticket => {
-            const row = document.createElement('tr');
-            row.className = "hover:bg-slate-50 slide-up";
-            
-            // استخراج البيانات من التذكرة
-            const ticketId = ticket.id || ticket.taskId || ticket.ticketId || '';
-            const ticketNumber = ticket.number || ticket.taskNumber || ticket.ticketNumber || ticket.id || '-';
-            const status = ticket.status || ticket.taskStatus || ticket.state || 'open';
-            const subject = ticket.subject || ticket.title || ticket.name || ticket.description || '-';
-            const description = ticket.description || ticket.notes || ticket.comment || subject || '-';
-            const customerName = ticket.customerName || ticket.customer?.name || ticket.subscriberName || ticket.subscriber?.name || '-';
-            const team = ticket.team || ticket.assignedTeam || ticket.assignedTo || '-';
-            const createdAt = ticket.createdAt || ticket.created_at || ticket.dateCreated || ticket.date || '';
-            const date = createdAt ? new Date(createdAt).toISOString().split('T')[0] : '-';
-            
-            row.setAttribute('data-status', status.toLowerCase());
-            row.setAttribute('data-ticket-id', ticketId);
-            
-            const statusClasses = {
-                'open': 'bg-red-100 text-red-600 focus:ring-red-200',
-                'new': 'bg-red-100 text-red-600 focus:ring-red-200',
-                'pending': 'bg-orange-100 text-orange-600 focus:ring-orange-200',
-                'inprogress': 'bg-orange-100 text-orange-600 focus:ring-orange-200',
-                'in_progress': 'bg-orange-100 text-orange-600 focus:ring-orange-200',
-                'closed': 'bg-gray-100 text-gray-600 focus:ring-gray-200',
-                'completed': 'bg-gray-100 text-gray-600 focus:ring-gray-200',
-                'resolved': 'bg-gray-100 text-gray-600 focus:ring-gray-200'
-            };
-            
-            const statusTextMap = {
-                'open': 'مفتوح',
-                'new': 'جديد',
-                'pending': 'قيد المعالجة',
-                'inprogress': 'قيد المعالجة',
-                'in_progress': 'قيد المعالجة',
-                'closed': 'مغلق',
-                'completed': 'مكتمل',
-                'resolved': 'محلول'
-            };
-            
-            const statusLower = status.toLowerCase();
-            const statusClass = statusClasses[statusLower] || statusClasses['open'];
-            const statusText = statusTextMap[statusLower] || status;
-            
-            // Escape values for onclick attribute
-            const ticketNumberEscaped = String(ticketNumber).replace(/'/g, "\\'").replace(/"/g, "&quot;");
-            const subscriberNameEscaped = String(customerName).replace(/'/g, "\\'").replace(/"/g, "&quot;");
-            const teamEscaped = String(team).replace(/'/g, "\\'").replace(/"/g, "&quot;");
-            const descriptionEscaped = String(description).replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/\n/g, '\\n');
-            
-            row.innerHTML = `
-                <td class="p-3 font-mono text-slate-600">${ticketNumber}</td>
-                <td class="p-3 font-medium">${customerName}</td>
-                <td class="p-3 text-slate-600">${description}</td>
-                <td class="p-3"><span class="bg-indigo-50 text-indigo-700 px-2 py-1 rounded text-xs font-bold">${team}</span></td>
-                <td class="p-3">
-                    <span class="${statusClass} px-2 py-1 rounded text-xs font-bold">${statusText}</span>
-                </td>
-                <td class="p-3 text-slate-500">${date}</td>
-                <td class="p-3 text-center">
-                    <button onclick="viewTicketDetails('${ticketId}', '${ticketNumberEscaped}', '${subscriberNameEscaped}', '${teamEscaped}', '${descriptionEscaped}')" class="text-blue-500 hover:underline">عرض</button>
-                </td>
-            `;
-            
-            tableBody.appendChild(row);
-        });
-        
-        console.log('[TICKETS] Successfully rendered tickets');
-    } catch (error) {
-        console.error('[TICKETS] Error loading tickets:', error);
-        const tableBody = document.getElementById('tickets-table-body');
-        if (tableBody) {
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="p-8 text-center text-red-400">حدث خطأ أثناء تحميل التكتات: ${error.message}</td>
-                </tr>
-            `;
-        }
-        updateTicketCountsDisplay(0, 0, 0);
-    }
-}
-
-// Helper function to update ticket counts display
-function updateTicketCountsDisplay(open, pending, closed) {
-    const openEl = document.getElementById('open-tickets-count');
-    const pendingEl = document.getElementById('pending-tickets-count');
-    const closedEl = document.getElementById('closed-tickets-count');
-    
-    if (openEl) openEl.textContent = formatNumber(open);
-    if (pendingEl) pendingEl.textContent = formatNumber(pending);
-    if (closedEl) closedEl.textContent = formatNumber(closed);
-}
+// ==================== Local Tickets Management Functions - REMOVED ====================
+// تم حذف جميع دوال إدارة التذاكر المحلية:
+// - loadTickets() - كانت تستخدم لجدول التذاكر المحلية
+// - updateTicketCountsDisplay() - كانت تستخدم لعدادات الجدول المحلي
+// النظام الآن يجلب التذاكر فقط من موقع الوطني ويعرضها كبطاقات عبر loadTicketsForDashboard()
 
 // Load tickets for dashboard screen (display as cards)
 // Make sure function is available globally for onclick
@@ -6229,8 +6027,8 @@ function renderTicketCards(tickets) {
         const card = document.createElement('div');
         card.className = 'bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-orange-300 hover:shadow-md transition-all cursor-pointer slide-up';
         card.onclick = function() {
-            openTicketManagement();
-            // يمكن إضافة منطق للانتقال إلى تذكرة معينة لاحقاً
+            // يمكن إضافة منطق للانتقال إلى تفاصيل التذكرة من موقع الوطني لاحقاً
+            console.log('[TICKET CARD] Clicked on ticket:', ticketNumber);
         };
         
         card.innerHTML = `
@@ -6284,255 +6082,24 @@ function renderTicketCards(tickets) {
     console.log(`[TICKETS DASHBOARD] Rendered ${tickets.length} ticket cards`);
 }
 
-function backToDashboardFromTickets() {
-    switchScreen('ticket-management-screen', 'page-detail-screen');
-}
-
-async function openAddTicketModal() {
-    document.getElementById('add-ticket-modal').classList.remove('hidden');
-    document.getElementById('add-ticket-modal').classList.add('flex');
-    
-    // Load teams into select dropdown
-    await loadTeamsForTicket();
-}
-
-async function loadTeamsForTicket() {
-    try {
-        const response = await fetch(addAlwataniLoginIdToUrl(addUsernameToUrl(`${API_URL}/teams`)), addUsernameToFetchOptions());
-        const teamsData = await response.json();
-        const teams = Array.isArray(teamsData) ? teamsData : (teamsData.error ? [] : []);
-        const select = document.getElementById('ticket-team');
-        
-        select.innerHTML = '<option value="">اختر الفريق...</option>';
-        
-        // فلترة الفرق النشطة فقط
-        const activeTeams = teams.filter(team => team.status === 'active');
-        
-        // جلب أعضاء كل فريق والتحقق من وجودهم
-        for (const team of activeTeams) {
-            try {
-                const membersResponse = await fetch(addAlwataniLoginIdToUrl(addUsernameToUrl(`${API_URL}/teams/${team.id}/members`)), addUsernameToFetchOptions());
-                const members = await membersResponse.json();
-                
-                // إضافة الفريق فقط إذا كان يحتوي على أعضاء
-                if (members && members.length > 0) {
-                    const option = document.createElement('option');
-                    option.value = team.name;
-                    option.textContent = team.name;
-                    select.appendChild(option);
-                }
-            } catch (error) {
-                console.error(`Error loading members for team ${team.id}:`, error);
-                // في حالة الخطأ، لا نضيف الفريق للأمان
-            }
-        }
-        
-        // إذا لم توجد فرق تحتوي على أعضاء، عرض رسالة
-        if (select.options.length === 1) { // فقط الخيار الافتراضي
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = '⚠️ لا توجد فرق تحتوي على أعضاء';
-            option.disabled = true;
-            select.appendChild(option);
-        }
-    } catch (error) {
-        console.error('Error loading teams for ticket:', error);
-        const select = document.getElementById('ticket-team');
-        if (select) {
-            select.innerHTML = '<option value="">خطأ في تحميل الفرق</option>';
-        }
-    }
-}
-
-function closeAddTicketModal() {
-    document.getElementById('add-ticket-modal').classList.add('hidden');
-    document.getElementById('add-ticket-modal').classList.remove('flex');
-}
-
-async function handleAddTicket(e) {
-    e.preventDefault();
-    const subscriber = document.getElementById('ticket-subscriber').value;
-    const desc = document.getElementById('ticket-desc').value;
-    const team = document.getElementById('ticket-team').value;
-    
-    if (!team) {
-        alert('يرجى اختيار فريق');
-        return;
-    }
-    
-    // التحقق من وجود أعضاء في الفريق (تحقق إضافي)
-    try {
-        const teamResponse = await fetch(addAlwataniLoginIdToUrl(addUsernameToUrl(`${API_URL}/teams`)), addUsernameToFetchOptions());
-        const teamsData = await teamResponse.json();
-        const teams = Array.isArray(teamsData) ? teamsData : [];
-        const selectedTeam = teams.find(t => t.name === team);
-        
-        if (selectedTeam) {
-            const membersResponse = await fetch(addAlwataniLoginIdToUrl(addUsernameToUrl(`${API_URL}/teams/${selectedTeam.id}/members`)), addUsernameToFetchOptions());
-            const membersData = await membersResponse.json();
-            const members = Array.isArray(membersData) ? membersData : [];
-            
-            if (!members || members.length === 0) {
-                alert('⚠️ لا يمكن إرسال التكت إلى هذا الفريق لأنه لا يحتوي على أعضاء!\n\nيرجى إضافة أعضاء للفريق من صفحة إدارة الفرق أولاً.');
-                // إعادة تحميل القائمة
-                await loadTeamsForTicket();
-                return;
-            }
-        } else {
-            alert('⚠️ الفريق المحدد غير موجود');
-            await loadTeamsForTicket();
-            return;
-        }
-    } catch (error) {
-        console.error('Error checking team members:', error);
-        alert('⚠️ حدث خطأ أثناء التحقق من أعضاء الفريق. يرجى المحاولة مرة أخرى.');
-        return;
-    }
-    
-    // Ticket number will be generated by the backend
-
-    try {
-        // إرسال إلى API
-        const response = await fetch(addAlwataniLoginIdToUrl(addUsernameToUrl(`${API_URL}/tickets`)), addUsernameToFetchOptions({
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                subscriber_name: subscriber,
-                description: desc,
-                team: team,
-                status: 'open',
-                priority: 'medium'
-            })
-        }));
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            // Reload tickets from API to ensure consistency
-            await loadTickets();
-            
-            document.getElementById('ticket-subscriber').value = '';
-            document.getElementById('ticket-desc').value = '';
-            closeAddTicketModal();
-            updateTicketCounts();
-            
-            alert('✅ تم إضافة التكت بنجاح!');
-        } else {
-            alert('❌ فشل إضافة التكت!');
-        }
-    } catch (error) {
-        console.error('Error adding ticket:', error);
-        alert('❌ حدث خطأ أثناء إضافة التكت!');
-    }
-}
-
-async function updateTicketStatus(selectElement) {
-    const status = selectElement.value;
-    const row = selectElement.closest('tr');
-    const ticketId = row.getAttribute('data-ticket-id');
-    
-    if (!ticketId) {
-        console.error('Ticket ID not found');
-        return;
-    }
-    
-    // Update UI immediately
-    row.setAttribute('data-status', status);
-    selectElement.className = 'status-select px-2 py-1 rounded text-xs font-bold border-none outline-none focus:ring-2 transition-colors';
-    
-    if (status === 'open') {
-        selectElement.classList.add('bg-red-100', 'text-red-600', 'focus:ring-red-200');
-    } else if (status === 'pending') {
-        selectElement.classList.add('bg-orange-100', 'text-orange-600', 'focus:ring-orange-200');
-    } else if (status === 'closed') {
-        selectElement.classList.add('bg-gray-100', 'text-gray-600', 'focus:ring-gray-200');
-    }
-    
-    // Send update to API
-    try {
-        const response = await fetch(addAlwataniLoginIdToUrl(addUsernameToUrl(`${API_URL}/tickets/${ticketId}`)), addUsernameToFetchOptions({
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status })
-        }));
-        
-        const data = await response.json();
-        
-        if (!data.success) {
-            console.error('Failed to update ticket status');
-            // Revert UI change on error
-            await loadTickets();
-        }
-    } catch (error) {
-        console.error('Error updating ticket status:', error);
-        // Revert UI change on error
-        await loadTickets();
-    }
-    
-    updateTicketCounts();
-}
-
-function filterTickets(status) {
-    const buttons = document.querySelectorAll('.filter-btn');
-    buttons.forEach(btn => {
-        if(btn.getAttribute('data-filter') === status) {
-            btn.classList.remove('bg-white', 'text-slate-600', 'border', 'border-slate-200');
-            btn.classList.add('bg-[#26466D]', 'text-white');
-        } else {
-            btn.classList.add('bg-white', 'text-slate-600', 'border', 'border-slate-200');
-            btn.classList.remove('bg-[#26466D]', 'text-white');
-        }
-    });
-
-    const rows = document.querySelectorAll('#tickets-table-body tr');
-    rows.forEach(row => {
-        if (status === 'all' || row.getAttribute('data-status') === status) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
-    });
-}
-
-function updateTicketCounts() {
-    const rows = document.querySelectorAll('#tickets-table-body tr');
-    let openCount = 0;
-    let pendingCount = 0;
-    let closedCount = 0;
-    
-    rows.forEach(row => {
-        if (row.style.display === 'none') return; // Skip hidden rows
-        const status = row.getAttribute('data-status');
-        if (status === 'open') openCount++;
-        else if (status === 'pending') pendingCount++;
-        else if (status === 'closed') closedCount++;
-    });
-    
-    document.getElementById('open-tickets-count').textContent = openCount;
-    document.getElementById('pending-tickets-count').textContent = pendingCount;
-    document.getElementById('closed-tickets-count').textContent = closedCount;
-}
-
-// Search tickets function
-function searchTickets(searchTerm) {
-    const term = searchTerm.toLowerCase();
-    const rows = document.querySelectorAll('#tickets-table-body tr');
-    
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        if (text.includes(term)) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
-    });
-    
-    updateTicketCounts();
-}
+// ==================== Local Tickets Management Functions - REMOVED ====================
+// تم حذف جميع دوال إدارة التذاكر المحلية:
+// - backToDashboardFromTickets()
+// - openAddTicketModal()
+// - loadTeamsForTicket()
+// - closeAddTicketModal()
+// - handleAddTicket()
+// - updateTicketStatus()
+// - filterTickets()
+// - updateTicketCounts()
+// - searchTickets()
+// النظام الآن يجلب التذاكر فقط من موقع الوطني ويعرضها كبطاقات
 
 // ================= Teams Management =================
 async function openTeamManagement() {
-    switchScreen('ticket-management-screen', 'team-management-screen');
+    // تم إزالة ticket-management-screen، الآن نفتح team-management مباشرة
+    hideAllMainScreens();
+    showScreen('team-management-screen');
     await loadTeams();
 }
 
@@ -6656,7 +6223,12 @@ async function loadTeams() {
 }
 
 function backToTicketsFromTeams() {
-    switchScreen('team-management-screen', 'ticket-management-screen');
+    // تم إزالة ticket-management-screen، الآن نرجع إلى tickets-dashboard
+    hideAllMainScreens();
+    showScreen('tickets-dashboard-screen');
+    if (typeof openTicketDashboardScreen === 'function') {
+        openTicketDashboardScreen();
+    }
 }
 
 async function handleAddTeam(e) {
@@ -6918,12 +6490,14 @@ async function openTeamTickets(teamName) {
     await loadTeamTickets(teamName);
 }
 
-// Load tickets for a specific team
+// Load tickets for a specific team - REMOVED (was using local tickets API)
+// تم حذف هذه الدالة لأنها كانت تستخدم /api/tickets المحلية
+// النظام الآن يجلب التذاكر فقط من موقع الوطني
 async function loadTeamTickets(teamName) {
     try {
-        const response = await fetch(addAlwataniLoginIdToUrl(addUsernameToUrl(`${API_URL}/tickets`)), addUsernameToFetchOptions());
-        const allTickets = await response.json();
-        const teamTickets = Array.isArray(allTickets) ? allTickets.filter(ticket => ticket.team === teamName) : [];
+        // تم إزالة جلب التذاكر المحلية
+        // يمكن إعادة تنفيذها لاحقاً لجلب التذاكر من الوطني حسب الفريق
+        const teamTickets = [];
         
         const tableBody = document.querySelector('#team-tickets-screen tbody');
         if (!tableBody) return;
@@ -7000,148 +6574,13 @@ async function loadTeamTickets(teamName) {
 let currentRedirectTicketId = null;
 let currentRedirectTicketDescription = null;
 
-function viewTicketDetails(ticketId, ticketNumber, subscriberName, currentTeam, currentDescription) {
-    currentRedirectTicketId = ticketId;
-    currentRedirectTicketDescription = currentDescription || '';
-    
-    // تحديث معلومات التذكرة في الـ modal
-    document.getElementById('redirect-ticket-info').textContent = `#${ticketNumber} - ${subscriberName}`;
-    document.getElementById('redirect-current-team').textContent = currentTeam || 'غير محدد';
-    
-    // تحميل الفرق المتاحة
-    loadTeamsForRedirect();
-    
-    // مسح حقل الملاحظة
-    document.getElementById('redirect-ticket-note').value = '';
-    
-    // فتح الـ modal
-    const modal = document.getElementById('redirect-ticket-modal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-}
-
-function closeRedirectTicketModal() {
-    const modal = document.getElementById('redirect-ticket-modal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-    currentRedirectTicketId = null;
-    currentRedirectTicketDescription = null;
-    document.getElementById('redirect-ticket-team').value = '';
-    document.getElementById('redirect-ticket-note').value = '';
-}
-
-async function loadTeamsForRedirect() {
-    try {
-        const response = await fetch(addAlwataniLoginIdToUrl(addUsernameToUrl(`${API_URL}/teams`)), addUsernameToFetchOptions());
-        const teamsData = await response.json();
-        const teams = Array.isArray(teamsData) ? teamsData : (teamsData.error ? [] : []);
-        const select = document.getElementById('redirect-ticket-team');
-        
-        select.innerHTML = '<option value="">اختر الفريق...</option>';
-        
-        // فلترة الفرق النشطة فقط
-        const activeTeams = teams.filter(team => team.status === 'active');
-        
-        // جلب أعضاء كل فريق والتحقق من وجودهم
-        for (const team of activeTeams) {
-            try {
-                const membersResponse = await fetch(addAlwataniLoginIdToUrl(addUsernameToUrl(`${API_URL}/teams/${team.id}/members`)), addUsernameToFetchOptions());
-                const members = await membersResponse.json();
-                
-                // إضافة الفريق فقط إذا كان يحتوي على أعضاء
-                if (members && members.length > 0) {
-                    const option = document.createElement('option');
-                    option.value = team.name;
-                    option.textContent = team.name;
-                    select.appendChild(option);
-                }
-            } catch (error) {
-                console.error(`Error loading members for team ${team.id}:`, error);
-            }
-        }
-        
-        // إذا لم توجد فرق تحتوي على أعضاء، عرض رسالة
-        if (select.options.length === 1) {
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = '⚠️ لا توجد فرق تحتوي على أعضاء';
-            option.disabled = true;
-            select.appendChild(option);
-        }
-    } catch (error) {
-        console.error('Error loading teams for redirect:', error);
-        const select = document.getElementById('redirect-ticket-team');
-        if (select) {
-            select.innerHTML = '<option value="">خطأ في تحميل الفرق</option>';
-        }
-    }
-}
-
-async function handleRedirectTicket() {
-    if (!currentRedirectTicketId) {
-        alert('خطأ: لم يتم تحديد التذكرة');
-        return;
-    }
-    
-    const newTeam = document.getElementById('redirect-ticket-team').value;
-    if (!newTeam) {
-        alert('يرجى اختيار فريق لإعادة التوجيه');
-        return;
-    }
-    
-    const note = document.getElementById('redirect-ticket-note').value.trim();
-    if (!note) {
-        alert('يرجى إدخال ملاحظة توضح سبب إعادة التوجيه');
-        return;
-    }
-    
-    // دمج الملاحظة مع الوصف الحالي
-    const currentDescription = currentRedirectTicketDescription || '';
-    const updatedDescription = currentDescription 
-        ? `${currentDescription}\n\n[إعادة توجيه] ${note}`
-        : `[إعادة توجيه] ${note}`;
-    
-    try {
-        const response = await fetch(addAlwataniLoginIdToUrl(addUsernameToUrl(`${API_URL}/tickets/${currentRedirectTicketId}`)), addUsernameToFetchOptions({
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                team: newTeam,
-                description: updatedDescription
-            })
-        }));
-        
-        if (!response.ok) {
-            let errorMessage = 'خطأ غير معروف';
-            try {
-                const errorData = await response.json();
-                errorMessage = errorData.message || errorData.error || `خطأ ${response.status}`;
-            } catch (e) {
-                errorMessage = `خطأ ${response.status}: ${response.statusText}`;
-            }
-            alert('❌ فشل إعادة توجيه التذكرة: ' + errorMessage);
-            return;
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            // إعادة تحميل التذاكر
-            await loadTickets();
-            updateTicketCounts();
-            
-            // إغلاق الـ modal
-            closeRedirectTicketModal();
-            
-            alert('✅ تم إعادة توجيه التذكرة بنجاح!');
-        } else {
-            alert('❌ فشل إعادة توجيه التذكرة: ' + (data.message || 'خطأ غير معروف'));
-        }
-    } catch (error) {
-        console.error('Error redirecting ticket:', error);
-        alert('❌ حدث خطأ أثناء إعادة توجيه التذكرة: ' + (error.message || 'خطأ في الاتصال'));
-    }
-}
+// ==================== Ticket Redirect Functions - REMOVED ====================
+// تم حذف جميع دوال إعادة توجيه التذاكر المحلية:
+// - viewTicketDetails()
+// - closeRedirectTicketModal()
+// - loadTeamsForRedirect()
+// - handleRedirectTicket()
+// النظام الآن يجلب التذاكر فقط من موقع الوطني ويعرضها كبطاقات
 
 function closeTeamTickets() {
     switchScreen('team-tickets-screen', 'team-management-screen');
@@ -7184,23 +6623,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // إخفاء القائمة الجانبية عند تحميل الصفحة (افتراضياً في صفحة تسجيل الدخول)
     hideSideMenu();
     
-    // إغلاق modal إعادة توجيه التذكرة عند النقر على الخلفية
-    const redirectModal = document.getElementById('redirect-ticket-modal');
-    if (redirectModal) {
-        redirectModal.addEventListener('click', function(e) {
-            if (e.target === redirectModal) {
-                closeRedirectTicketModal();
-            }
-        });
-    }
+    // تم حذف event listener لـ redirect-ticket-modal
     
     document.getElementById('user-info-modal').addEventListener('click', function(e) {
         if (e.target === this) { closeUserInfoModal(); }
     });
     
-    document.getElementById('add-ticket-modal').addEventListener('click', function(e) {
-        if (e.target === this) { closeAddTicketModal(); }
-    });
+    // تم حذف event listener لـ add-ticket-modal
     
     const createAccountModal = document.getElementById('create-account-modal');
     if (createAccountModal) {
@@ -7307,7 +6736,8 @@ function applyDarkMode() {
         // Handle specific IDs - force override
         if (el.id === 'login-container' || 
             el.id === 'dashboard-screen' || 
-            el.id === 'ticket-management-screen' || 
+            // el.id === 'ticket-management-screen' || // تم حذفها
+            false || 
             el.id === 'team-management-screen' || 
             el.id === 'page-detail-screen' || 
             el.id === 'team-tickets-screen') {

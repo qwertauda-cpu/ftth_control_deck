@@ -231,67 +231,9 @@ async function initDatabase() {
             }
         }
         
-        // Create tickets table
-        await connection.query(`
-            CREATE TABLE IF NOT EXISTS tickets (
-                id INT PRIMARY KEY AUTO_INCREMENT,
-                user_id INT NOT NULL,
-                ticket_number VARCHAR(50) NOT NULL,
-                subscriber_name VARCHAR(255) NOT NULL,
-                description TEXT,
-                team VARCHAR(100),
-                status VARCHAR(50) DEFAULT 'open',
-                priority VARCHAR(50) DEFAULT 'medium',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                INDEX idx_user_id (user_id),
-                INDEX idx_ticket_number (ticket_number),
-                INDEX idx_status (status),
-                INDEX idx_team (team),
-                UNIQUE KEY unique_user_ticket_number (user_id, ticket_number),
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        `);
-        console.log('✅ تم إنشاء جدول: tickets');
-        
-        // إضافة user_id إلى جدول tickets إذا لم يكن موجوداً
-        try {
-            await connection.query(`
-                ALTER TABLE tickets 
-                ADD COLUMN IF NOT EXISTS user_id INT NOT NULL AFTER id,
-                ADD INDEX IF NOT EXISTS idx_user_id (user_id)
-            `);
-            console.log('✅ تم إضافة user_id إلى جدول tickets');
-            
-            // تغيير UNIQUE constraint ليشمل user_id
-            try {
-                await connection.query(`ALTER TABLE tickets DROP INDEX IF EXISTS ticket_number`);
-            } catch (e) {}
-            
-            try {
-                await connection.query(`
-                    ALTER TABLE tickets 
-                    ADD UNIQUE KEY IF NOT EXISTS unique_user_ticket_number (user_id, ticket_number)
-                `);
-            } catch (e) {}
-            
-            // إضافة foreign key إذا لم يكن موجوداً
-            try {
-                await connection.query(`
-                    ALTER TABLE tickets 
-                    ADD CONSTRAINT IF NOT EXISTS fk_tickets_user_id 
-                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-                `);
-            } catch (e) {
-                if (!e.message.includes('Duplicate foreign key')) {
-                    console.warn('⚠️ تحذير عند إضافة foreign key لجدول tickets:', e.message);
-                }
-            }
-        } catch (error) {
-            if (!error.message.includes('Duplicate column name')) {
-                console.warn('⚠️ تحذير عند تحديث جدول tickets:', error.message);
-            }
-        }
+        // ==================== Create tickets table - REMOVED ====================
+        // تم حذف إنشاء جدول tickets المحلية وجميع الكود المتعلق به
+        // النظام الآن يجلب التذاكر فقط من موقع الوطني
         
         // Create teams table
         await connection.query(`

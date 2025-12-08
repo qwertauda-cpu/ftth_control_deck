@@ -1297,114 +1297,9 @@
     </div>
 
     <!-- ================= 3. شاشة إدارة التكتات ================= -->
-    <div id="ticket-management-screen" class="hidden flex-col h-full w-full bg-[#f8fafc] relative fade-in overflow-hidden">
-        <header class="bg-white shadow-sm px-6 py-3 flex items-center justify-between z-30 flex-shrink-0 border-b border-orange-100">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center text-white">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-                    </svg>
-                </div>
-                <div>
-                    <h2 class="font-bold text-slate-800 text-lg leading-tight">إدارة التكتات</h2>
-                    <span class="text-xs text-orange-500 font-medium">الدعم الفني</span>
-                </div>
-            </div>
-            <div class="flex items-center gap-3">
-                <button onclick="openTeamManagement()" class="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition-colors text-sm font-bold border border-indigo-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    إدارة الفرق
-                </button>
-                <button onclick="backToDashboardFromTickets()" class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors text-sm font-medium">
-                    <span>العودة</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                </button>
-            </div>
-        </header>
-
-        <main class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
-            <!-- ملخص التكتات -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="bg-white p-5 rounded-xl border border-orange-100 shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between group relative overflow-hidden">
-                    <div class="absolute top-0 right-0 w-1 h-full bg-gradient-to-b from-orange-400 to-orange-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <div>
-                        <p class="text-sm text-slate-500">التكتات المفتوحة</p>
-                        <h3 class="text-2xl font-bold text-slate-800" id="open-tickets-count">0</h3>
-                    </div>
-                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-100 to-orange-200 text-orange-600 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    </div>
-                </div>
-                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between group relative overflow-hidden">
-                    <div class="absolute top-0 right-0 w-1 h-full bg-gradient-to-b from-slate-400 to-slate-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <div>
-                        <p class="text-sm text-slate-500">قيد المعالجة</p>
-                        <h3 class="text-2xl font-bold text-slate-800" id="pending-tickets-count">0</h3>
-                    </div>
-                    <div class="w-12 h-12 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-                    </div>
-                </div>
-                <div class="bg-white p-5 rounded-xl border border-green-100 shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between group relative overflow-hidden">
-                    <div class="absolute top-0 right-0 w-1 h-full bg-gradient-to-b from-green-400 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <div>
-                        <p class="text-sm text-slate-500">تم الحل</p>
-                        <h3 class="text-2xl font-bold text-slate-800" id="closed-tickets-count">0</h3>
-                    </div>
-                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-100 to-green-200 text-green-600 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    </div>
-                </div>
-            </div>
-
-            <!-- فلترة وأدوات الجدول -->
-            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-                <div class="flex bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
-                    <button onclick="filterTickets('all')" class="px-4 py-2 text-sm font-bold rounded-md bg-[#26466D] text-white transition-all filter-btn" data-filter="all">الكل</button>
-                    <button onclick="filterTickets('open')" class="px-4 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-slate-50 transition-all filter-btn" data-filter="open">مفتوح</button>
-                    <button onclick="filterTickets('pending')" class="px-4 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-slate-50 transition-all filter-btn" data-filter="pending">قيد المعالجة</button>
-                    <button onclick="filterTickets('closed')" class="px-4 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-slate-50 transition-all filter-btn" data-filter="closed">مغلق</button>
-                </div>
-                <button onclick="openAddTicketModal()" class="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-orange-200 hover:shadow-xl hover:shadow-orange-300 transition-all duration-300 transform hover:-translate-y-0.5 hover:scale-105 active:translate-y-0 active:scale-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                    <span class="font-bold">تكت جديد</span>
-                </button>
-            </div>
-
-            <!-- جدول التكتات -->
-            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                    <h3 class="font-bold text-slate-700">آخر التكتات الواردة</h3>
-                    <div class="flex gap-2">
-                         <input type="text" id="search-tickets-input" placeholder="بحث برقم التكت أو اسم المشترك..." class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm outline-none focus:border-orange-500" oninput="searchTickets(this.value)">
-                    </div>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-right" id="tickets-table">
-                        <thead class="bg-slate-50 text-slate-500">
-                            <tr>
-                                <th class="p-3">رقم التكت</th>
-                                <th class="p-3">المشترك</th>
-                                <th class="p-3">الوصف</th>
-                                <th class="p-3">الفريق المسند</th>
-                                <th class="p-3">الحالة</th>
-                                <th class="p-3">التاريخ</th>
-                                <th class="p-3 text-center">الإجراء</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100" id="tickets-table-body">
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </main>
-    </div>
+    <!-- ================= 3. شاشة إدارة التذاكر المحلية - REMOVED ================= -->
+    <!-- تم حذف شاشة ticket-management-screen بالكامل -->
+    <!-- النظام الآن يجلب التذاكر فقط من موقع الوطني ويعرضها كبطاقات في tickets-dashboard-screen -->
 
     <!-- ================= 4. شاشة إدارة الفرق ================= -->
     <div id="team-management-screen" class="hidden flex-col h-full w-full bg-[#f8fafc] relative fade-in overflow-hidden">
@@ -1994,12 +1889,7 @@
                             </h3>
                             <p class="text-slate-500 text-sm">إدارة ومتابعة تذاكر الدعم الفني وتوزيعها على الفرق المختصة.</p>
                         </div>
-                        <div class="md:w-48">
-                            <button onclick="openTicketManagement()" class="w-full text-white bg-orange-500 hover:bg-orange-600 font-bold rounded-xl text-sm px-5 py-3.5 shadow-md shadow-orange-100 transition-all flex justify-center items-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                                إدارة التكتات
-                            </button>
-                        </div>
+                        <!-- تم حذف زر إدارة التكتات - النظام الآن يجلب التذاكر فقط من موقع الوطني -->
                     </div>
                 </div>
                 
@@ -2205,83 +2095,9 @@
     </div>
 
     <!-- ================= 8. نافذة إضافة تكت ================= -->
-    <div id="add-ticket-modal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center fade-in backdrop-blur-sm">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden transform transition-all scale-100">
-            <div class="bg-orange-500 p-5 flex justify-between items-center">
-                <h3 class="text-white font-bold text-lg">إضافة تكت جديد</h3>
-                <button onclick="closeAddTicketModal()" class="text-white/80 hover:text-white">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-            <form onsubmit="handleAddTicket(event)" class="p-6 space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">اسم المشترك</label>
-                    <input type="text" id="ticket-subscriber" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-orange-200 focus:border-orange-500 outline-none transition-all" placeholder="مثال: محمد أحمد">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">وصف المشكلة</label>
-                    <textarea id="ticket-desc" rows="3" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-orange-200 focus:border-orange-500 outline-none transition-all" placeholder="اشرح المشكلة باختصار..."></textarea>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">الفريق المختص</label>
-                    <select id="ticket-team" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-orange-200 focus:border-orange-500 outline-none transition-all">
-                        <option value="">اختر الفريق...</option>
-                    </select>
-                </div>
-                <div class="pt-2">
-                    <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition-colors shadow-md shadow-orange-100">
-                        إضافة التكت
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- ================= 9. نافذة إعادة توجيه التذكرة ================= -->
-    <div id="redirect-ticket-modal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center fade-in backdrop-blur-sm">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden transform transition-all scale-100">
-            <div class="bg-indigo-500 p-5 flex justify-between items-center">
-                <h3 class="text-white font-bold text-lg">إعادة توجيه التذكرة</h3>
-                <button onclick="closeRedirectTicketModal()" class="text-white/80 hover:text-white">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-            <div class="p-6 space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">التذكرة الحالية</label>
-                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                        <p class="text-sm font-medium text-slate-800" id="redirect-ticket-info">-</p>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">الفريق الحالي</label>
-                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                        <p class="text-sm font-medium text-slate-800" id="redirect-current-team">-</p>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">إعادة التوجيه إلى فريق</label>
-                    <select id="redirect-ticket-team" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 outline-none transition-all">
-                        <option value="">اختر الفريق...</option>
-                    </select>
-                    <p class="text-xs text-slate-500 mt-1">سيتم إعادة توجيه التذكرة إلى الفريق المختار</p>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">ملاحظة (مطلوبة)</label>
-                    <textarea id="redirect-ticket-note" rows="3" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 outline-none transition-all" placeholder="اكتب ملاحظة عن سبب إعادة التوجيه..."></textarea>
-                    <p class="text-xs text-slate-500 mt-1">يجب إدخال ملاحظة توضح سبب إعادة التوجيه</p>
-                </div>
-                <div class="pt-2 flex gap-3">
-                    <button onclick="closeRedirectTicketModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-colors">
-                        إلغاء
-                    </button>
-                    <button onclick="handleRedirectTicket()" class="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 rounded-xl transition-colors shadow-md shadow-indigo-100">
-                        إعادة التوجيه
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- ================= Modals التذاكر المحلية - REMOVED ================= -->
+    <!-- تم حذف modals add-ticket-modal و redirect-ticket-modal بالكامل -->
+    <!-- النظام الآن يجلب التذاكر فقط من موقع الوطني ويعرضها كبطاقات -->
 
     <!-- ================= 10. نافذة إضافة/تعديل موظف ================= -->
     <div id="add-employee-modal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center fade-in backdrop-blur-sm">
