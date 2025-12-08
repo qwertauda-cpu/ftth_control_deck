@@ -5946,6 +5946,12 @@ async function loadTicketsForDashboard(forceSync = false) {
             if (dbData.success && dbData.data) {
                 tickets = Array.isArray(dbData.data) ? dbData.data : [];
                 console.log(`[TICKETS DASHBOARD] Loaded ${tickets.length} tickets from database`);
+                
+                // تحديث العداد عند الجلب من قاعدة البيانات
+                if (tickets.length > 0) {
+                    // استخدام عدد التذاكر المجلوبة كإجمالي مؤقت حتى يتم جلب العدد الحقيقي من API
+                    updateTicketsCount(tickets.length, tickets.length, 0);
+                }
             }
         } else {
             console.warn('[TICKETS DASHBOARD] Failed to load from DB, trying API...');
@@ -5993,6 +5999,9 @@ async function loadTicketsForDashboard(forceSync = false) {
                 // تحديث العداد
                 if (totalCount > 0) {
                     updateTicketsCount(totalCount, tickets.length, Math.max(0, totalCount - tickets.length));
+                } else if (tickets.length > 0) {
+                    // إذا لم يكن هناك totalCount، استخدم عدد التذاكر المجلوبة كإجمالي مؤقت
+                    updateTicketsCount(tickets.length, tickets.length, 0);
                 }
                 
                 // عرض التذاكر فوراً قبل المزامنة
