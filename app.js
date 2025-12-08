@@ -1431,12 +1431,13 @@ function closeExpiringScreen() {
     }
 }
 
-function openTicketDashboardScreen() {
+async function openTicketDashboardScreen() {
     hideAllMainScreens();
     showScreen('tickets-dashboard-screen');
     setSideMenuActiveByScreen('tickets');
     currentScreen = 'tickets';
-    startAutoRefresh();
+    // فتح شاشة إدارة التذاكر مباشرة لعرض التذاكر
+    await openTicketManagement();
 }
 
 function closeTicketDashboardScreen() {
@@ -5679,14 +5680,21 @@ async function loadTickets() {
         
         // استدعاء API الوطني لجلب التذاكر
         const url = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks?pageSize=100`);
+        console.log('[TICKETS] Fetching from URL:', url);
+        console.log('[TICKETS] currentUserId:', currentUserId);
+        
         const response = await fetch(url, addUsernameToFetchOptions());
         
+        console.log('[TICKETS] Response status:', response.status, response.statusText);
+        
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            console.error('[TICKETS] Error response:', errorText);
+            throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
         }
         
         const responseData = await response.json();
-        console.log('[TICKETS] Response:', responseData);
+        console.log('[TICKETS] Response data:', responseData);
         
         // استخراج البيانات من response
         let tickets = [];
