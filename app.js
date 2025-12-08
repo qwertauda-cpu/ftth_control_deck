@@ -1446,6 +1446,14 @@ async function openTicketDashboardScreen() {
     await loadTicketsForDashboard();
     console.log('[TICKETS DASHBOARD] loadTicketsForDashboard() completed');
     
+    // ربط زر المزامنة
+    const syncBtn = document.getElementById('sync-tickets-btn');
+    if (syncBtn) {
+        syncBtn.onclick = function() {
+            loadTicketsForDashboard(true);
+        };
+    }
+    
     // بدء التحديث التلقائي
     startAutoRefresh();
 }
@@ -5942,21 +5950,43 @@ async function loadTicketsForDashboard(forceSync = false) {
             console.log('[TICKETS DASHBOARD] No tickets in DB, fetching from API and syncing...');
             
             // جلب من API
-            const apiUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks?pageSize=50`);
+            const apiUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks?pageSize=100`);
             const apiResponse = await fetch(apiUrl, addUsernameToFetchOptions());
             
             if (apiResponse.ok) {
                 const apiData = await apiResponse.json();
                 
                 // استخراج البيانات
+                let apiTickets = [];
+                let totalCount = 0;
+                
                 if (apiData.success && apiData.data) {
-                    if (Array.isArray(apiData.data)) {
-                        tickets = apiData.data;
-                    } else if (Array.isArray(apiData.data.items)) {
-                        tickets = apiData.data.items;
-                    } else if (Array.isArray(apiData.data.tasks)) {
-                        tickets = apiData.data.tasks;
+                    // استخراج العدد الإجمالي
+                    if (apiData.data.totalCount !== undefined) {
+                        totalCount = apiData.data.totalCount;
+                    } else if (apiData.data.total !== undefined) {
+                        totalCount = apiData.data.total;
+                    } else if (apiData.data.totalItems !== undefined) {
+                        totalCount = apiData.data.totalItems;
                     }
+                    
+                    if (Array.isArray(apiData.data)) {
+                        apiTickets = apiData.data;
+                        totalCount = totalCount || apiTickets.length;
+                    } else if (Array.isArray(apiData.data.items)) {
+                        apiTickets = apiData.data.items;
+                        totalCount = totalCount || apiTickets.length;
+                    } else if (Array.isArray(apiData.data.tasks)) {
+                        apiTickets = apiData.data.tasks;
+                        totalCount = totalCount || apiTickets.length;
+                    }
+                }
+                
+                tickets = apiTickets;
+                
+                // تحديث العداد
+                if (totalCount > 0) {
+                    updateTicketsCount(totalCount, tickets.length, Math.max(0, totalCount - tickets.length));
                 }
                 
                 // عرض التذاكر فوراً قبل المزامنة
@@ -5973,7 +6003,16 @@ async function loadTicketsForDashboard(forceSync = false) {
                         method: 'POST'
                     })).then(response => {
                         if (response.ok) {
+                            return response.json();
+                        }
+                        return null;
+                    }).then(syncResult => {
+                        if (syncResult) {
                             console.log('[TICKETS DASHBOARD] ✅ Tickets synced to database');
+                            // تحديث العداد بعد المزامنة
+                            if (syncResult.totalCount !== undefined) {
+                                updateTicketsCount(syncResult.totalCount, syncResult.loadedCount || syncResult.synced || 0, syncResult.remainingCount || 0);
+                            }
                         } else {
                             console.warn('[TICKETS DASHBOARD] ⚠️ Sync failed');
                         }
@@ -5985,13 +6024,19 @@ async function loadTicketsForDashboard(forceSync = false) {
         }
         
         // إذا كانت التذاكر من قاعدة البيانات، اعرضها
-        if (tickets.length > 0 && !forceSync) {
+        if (tickets.length > 0 && !forceSync && !syncData) {
             console.log(`[TICKETS DASHBOARD] Total tickets to display: ${tickets.length}`);
             renderTicketCards(tickets);
-        } else if (tickets.length === 0) {
+            // تحديث العداد بناءً على التذاكر المجلوبة
+            updateTicketsCount(tickets.length, tickets.length, 0);
+        } else if (tickets.length === 0 && !syncData) {
             // لا توجد تذاكر
             console.log('[TICKETS DASHBOARD] No tickets found');
             renderTicketCards([]);
+            updateTicketsCount(0, 0, 0);
+        } else if (syncData && tickets.length > 0) {
+            // بعد المزامنة، اعرض التذاكر
+            renderTicketCards(tickets);
         }
         
     } catch (error) {

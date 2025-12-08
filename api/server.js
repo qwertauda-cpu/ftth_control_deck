@@ -7470,13 +7470,42 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
         
         // استخراج التذاكر من response
         let tasks = [];
+        let totalCount = 0;
+        let pageSize = 100;
+        let currentPage = 1;
+        let totalPages = 1;
+        
         if (resp.data) {
+            // محاولة استخراج العدد الإجمالي من response
+            if (resp.data.totalCount !== undefined) {
+                totalCount = resp.data.totalCount;
+            } else if (resp.data.total !== undefined) {
+                totalCount = resp.data.total;
+            } else if (resp.data.totalItems !== undefined) {
+                totalCount = resp.data.totalItems;
+            }
+            
+            if (resp.data.pageSize !== undefined) {
+                pageSize = resp.data.pageSize;
+            }
+            if (resp.data.currentPage !== undefined) {
+                currentPage = resp.data.currentPage;
+            } else if (resp.data.pageNumber !== undefined) {
+                currentPage = resp.data.pageNumber;
+            }
+            if (resp.data.totalPages !== undefined) {
+                totalPages = resp.data.totalPages;
+            }
+            
             if (Array.isArray(resp.data)) {
                 tasks = resp.data;
+                totalCount = totalCount || tasks.length;
             } else if (Array.isArray(resp.data.items)) {
                 tasks = resp.data.items;
+                totalCount = totalCount || tasks.length;
             } else if (Array.isArray(resp.data.tasks)) {
                 tasks = resp.data.tasks;
+                totalCount = totalCount || tasks.length;
             }
         }
         
@@ -7486,7 +7515,10 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
                 message: 'No tasks to sync',
                 synced: 0,
                 updated: 0,
-                created: 0
+                created: 0,
+                totalCount: 0,
+                loadedCount: 0,
+                remainingCount: 0
             });
         }
         
@@ -7575,12 +7607,21 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
             }
         }
         
+        // حساب العدد الإجمالي من قاعدة البيانات
+        const [totalCountResult] = await alwataniPool.query(
+            'SELECT COUNT(*) as total FROM sla_tickets'
+        );
+        const totalInDb = totalCountResult[0]?.total || 0;
+        
         res.json({
             success: true,
             message: `تم مزامنة ${synced} تذكرة`,
             synced,
             updated,
-            created
+            created,
+            totalCount: totalCount || totalInDb,
+            loadedCount: synced,
+            remainingCount: Math.max(0, (totalCount || totalInDb) - synced)
         });
     } catch (error) {
         console.error('[TICKETS SYNC] Error:', error);
