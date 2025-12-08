@@ -5761,8 +5761,6 @@ function formatCurrency(value) {
 
 // Load tickets for dashboard screen (display as cards)
 // Make sure function is available globally for onclick
-window.loadTicketsForDashboard = loadTicketsForDashboard;
-
 async function loadTicketsForDashboard(forceSync = false) {
     try {
         console.log('[TICKETS DASHBOARD] ========== START loadTicketsForDashboard ==========');
@@ -5965,6 +5963,9 @@ async function loadTicketsForDashboard(forceSync = false) {
         console.log('[TICKETS DASHBOARD] ========== END loadTicketsForDashboard ==========');
     }
 }
+
+// Make sure function is available globally for onclick
+window.loadTicketsForDashboard = loadTicketsForDashboard;
 
 // Update tickets count display
 function updateTicketsCount(total, loaded, remaining) {
