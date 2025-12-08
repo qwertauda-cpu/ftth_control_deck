@@ -6077,6 +6077,17 @@ async function loadTicketsForDashboard(forceSync = false) {
     }
 }
 
+// Update tickets count display
+function updateTicketsCount(total, loaded, remaining) {
+    const totalEl = document.getElementById('tickets-total-count');
+    const loadedEl = document.getElementById('tickets-loaded-count');
+    const remainingEl = document.getElementById('tickets-remaining-count');
+    
+    if (totalEl) totalEl.textContent = formatNumber(total);
+    if (loadedEl) loadedEl.textContent = formatNumber(loaded);
+    if (remainingEl) remainingEl.textContent = formatNumber(remaining);
+}
+
 // Render tickets as cards
 function renderTicketCards(tickets) {
     const container = document.getElementById('tickets-cards-container');
