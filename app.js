@@ -1,13 +1,23 @@
 // API Configuration
-// اكتشاف تلقائي لـ API_URL - يعمل على localhost أو IP المحلي
+// اكتشاف تلقائي لـ API_URL - يعمل على localhost أو IP المحلي أو النطاق العام
 const getAPIURL = () => {
     const hostname = window.location.hostname;
-    // إذا كان من localhost أو 127.0.0.1، استخدم localhost
+    const port = window.location.port;
+    const protocol = window.location.protocol;
+    
+    // إذا كان من localhost أو 127.0.0.1، استخدم localhost:3000
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
         return 'http://localhost:3000/api';
     }
-    // وإلا استخدم نفس hostname (IP المحلي)
-    return `http://${hostname}:3000/api`;
+    
+    // إذا كان هناك port محدد، استخدمه (مثل :3000)
+    if (port) {
+        return `${protocol}//${hostname}:${port}/api`;
+    }
+    
+    // إذا لم يكن هناك port (يعني المنفذ الافتراضي 80 أو 443)، استخدم نفس origin
+    // هذا يعني أن reverse proxy (nginx) يوجّه الطلبات إلى السيرفر
+    return `${protocol}//${hostname}/api`;
 };
 const API_URL = getAPIURL();
 
