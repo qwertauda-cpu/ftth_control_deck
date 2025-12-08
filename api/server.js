@@ -7625,6 +7625,22 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
         // الاتصال بقاعدة بيانات الوطني
         const alwataniPool = await dbManager.getPool(alwataniDbName);
         
+        // التحقق من وجود جدول sla_tickets وإنشاؤه إذا لم يكن موجوداً
+        try {
+            await alwataniPool.query('SELECT 1 FROM sla_tickets LIMIT 1');
+            console.log('[TICKETS SYNC] ✅ Table sla_tickets exists');
+        } catch (tableError) {
+            if (tableError.code === 'ER_NO_SUCH_TABLE') {
+                console.log('[TICKETS SYNC] ⚠️ Table sla_tickets not found, creating it...');
+                const { initAlwataniDatabase } = require('./init-alwatani-db');
+                await initAlwataniDatabase(alwataniUsername);
+                console.log('[TICKETS SYNC] ✅ Table sla_tickets created successfully');
+            } else {
+                console.error('[TICKETS SYNC] ❌ Error checking sla_tickets table:', tableError);
+                throw tableError;
+            }
+        }
+        
         let synced = 0;
         let updated = 0;
         let created = 0;
@@ -7698,6 +7714,15 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
             'SELECT COUNT(*) as total FROM sla_tickets'
         );
         const totalInDb = totalCountResult[0]?.total || 0;
+        
+        console.log('[TICKETS SYNC] ✅ Sync completed:', {
+            synced,
+            updated,
+            created,
+            totalCount: totalCount || totalInDb,
+            totalInDb,
+            alwataniDbName
+        });
         
         res.json({
             success: true,
@@ -7773,6 +7798,7 @@ app.get('/api/alwatani-login/:id/tasks/db', async (req, res) => {
         }
         
         // جلب التذاكر من قاعدة البيانات
+        console.log('[TICKETS DB] Fetching tickets from database:', alwataniDbName);
         const [tickets] = await alwataniPool.query(
             `SELECT 
                 id, sla_ticket_id, ticket_number, title, description, status, priority,
@@ -7782,6 +7808,8 @@ app.get('/api/alwatani-login/:id/tasks/db', async (req, res) => {
             ORDER BY created_at DESC
             LIMIT 100`
         );
+        
+        console.log('[TICKETS DB] ✅ Found', tickets.length, 'tickets in database');
         
         // تحويل البيانات إلى format مناسب
         const formattedTickets = tickets.map(ticket => {
