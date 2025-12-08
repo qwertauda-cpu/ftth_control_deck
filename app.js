@@ -6050,19 +6050,29 @@ async function loadTicketsForDashboard(forceSync = false) {
                     fetch(syncUrl, addUsernameToFetchOptions({
                         method: 'POST'
                     })).then(response => {
+                        console.log('[TICKETS DASHBOARD] Sync response status:', response.status);
                         if (response.ok) {
                             return response.json();
+                        } else {
+                            return response.text().then(text => {
+                                console.error('[TICKETS DASHBOARD] Sync failed with status:', response.status, text);
+                                return null;
+                            });
                         }
-                        return null;
                     }).then(syncResult => {
-                        if (syncResult) {
-                            console.log('[TICKETS DASHBOARD] ✅ Tickets synced to database');
+                        if (syncResult && syncResult.success) {
+                            console.log('[TICKETS DASHBOARD] ✅ Tickets synced to database:', {
+                                synced: syncResult.synced,
+                                updated: syncResult.updated,
+                                created: syncResult.created,
+                                totalCount: syncResult.totalCount
+                            });
                             // تحديث العداد بعد المزامنة
                             if (syncResult.totalCount !== undefined) {
                                 updateTicketsCount(syncResult.totalCount, syncResult.loadedCount || syncResult.synced || 0, syncResult.remainingCount || 0);
                             }
                         } else {
-                            console.warn('[TICKETS DASHBOARD] ⚠️ Sync failed');
+                            console.warn('[TICKETS DASHBOARD] ⚠️ Sync failed or returned no data:', syncResult);
                         }
                     }).catch(error => {
                         console.error('[TICKETS DASHBOARD] ❌ Sync error:', error);
