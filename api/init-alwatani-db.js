@@ -105,6 +105,36 @@ async function initAlwataniDatabase(username) {
         `);
         console.log('✅ تم إنشاء جدول: wallet_transactions');
         
+        // ==================== 3. جدول sla_tickets (تذاكر SLA من موقع الوطني) ====================
+        await connection.query(`
+            CREATE TABLE IF NOT EXISTS sla_tickets (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                sla_ticket_id VARCHAR(255) NOT NULL COMMENT 'معرف تذكرة SLA من موقع الوطني',
+                ticket_number VARCHAR(100) COMMENT 'رقم التذكرة',
+                title VARCHAR(500) COMMENT 'عنوان التذكرة',
+                description TEXT COMMENT 'وصف التذكرة',
+                status VARCHAR(100) COMMENT 'حالة التذكرة',
+                priority VARCHAR(50) COMMENT 'أولوية التذكرة',
+                customer_name VARCHAR(255) COMMENT 'اسم العميل',
+                customer_id VARCHAR(255) COMMENT 'معرف العميل',
+                assigned_to VARCHAR(255) COMMENT 'مخصص إلى',
+                team VARCHAR(255) COMMENT 'الفريق',
+                created_at DATETIME COMMENT 'تاريخ الإنشاء من موقع الوطني',
+                updated_at DATETIME COMMENT 'تاريخ التحديث من موقع الوطني',
+                sla_data JSON COMMENT 'بيانات التذكرة الكاملة من موقع الوطني (JSON)',
+                synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'تاريخ المزامنة',
+                last_synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_sla_ticket_id (sla_ticket_id),
+                INDEX idx_ticket_number (ticket_number),
+                INDEX idx_status (status),
+                INDEX idx_priority (priority),
+                INDEX idx_customer_id (customer_id),
+                INDEX idx_created_at (created_at),
+                INDEX idx_synced_at (synced_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        console.log('✅ تم إنشاء جدول: sla_tickets');
+        
         await connection.end();
         console.log(`✅ تم إنهاء الاتصال بقاعدة البيانات: ${dbName}`);
         

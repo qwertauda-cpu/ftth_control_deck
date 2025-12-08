@@ -7032,6 +7032,403 @@ app.put('/api/tickets/:id', async (req, res) => {
     }
 });
 
+// ================= SLA Tickets API Routes (from admin.ftth.iq) =================
+
+// Helper function to get token from alwatani_login
+async function getAlwataniTokenFromLogin(req) {
+    try {
+        const ownerUsername = getUsernameFromRequest(req);
+        if (!ownerUsername) {
+            throw new Error('Username (owner_username) is required');
+        }
+        
+        const alwataniLoginId = getAlwataniLoginIdFromRequest(req);
+        if (!alwataniLoginId) {
+            throw new Error('alwatani_login_id is required');
+        }
+        
+        const ownerPool = await dbManager.getPoolFromUsername(ownerUsername);
+        const [accounts] = await ownerPool.query(
+            'SELECT id, username, password FROM alwatani_login WHERE id = ?',
+            [alwataniLoginId]
+        );
+        
+        if (accounts.length === 0) {
+            throw new Error('Alwatani login account not found');
+        }
+        
+        const account = accounts[0];
+        const verification = await verifyAlwataniAccount(account.username, account.password);
+        
+        if (!verification.success) {
+            throw new Error(verification.message || 'Failed to verify account');
+        }
+        
+        const token = verification.data?.access_token;
+        if (!token) {
+            throw new Error('No access token received');
+        }
+        
+        return token;
+    } catch (error) {
+        console.error('[GET TOKEN] Error:', error);
+        throw error;
+    }
+}
+
+// Get tasks types from admin.ftth.iq
+app.get('/api/alwatani-login/:id/tasks/types', async (req, res) => {
+    try {
+        const token = await getAlwataniTokenFromLogin(req);
+        const resp = await fetchAlwataniResource('/api/tasks/types', token, 'GET', false, null, null, 'tasks_types');
+        
+        if (!resp.success) {
+            return res.status(resp.statusCode || 500).json({
+                success: false,
+                message: resp.message || 'Failed to fetch tasks types',
+                error: resp.data
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: resp.data
+        });
+    } catch (error) {
+        console.error('[TASKS TYPES] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطأ في جلب أنواع المهام: ' + error.message
+        });
+    }
+});
+
+// Get tasks from admin.ftth.iq
+app.get('/api/alwatani-login/:id/tasks', async (req, res) => {
+    try {
+        const token = await getAlwataniTokenFromLogin(req);
+        
+        // Build query string from request query params
+        const queryParams = new URLSearchParams();
+        if (req.query.pageSize) queryParams.append('pageSize', req.query.pageSize);
+        if (req.query.pageNumber) queryParams.append('pageNumber', req.query.pageNumber);
+        if (req.query['sortCriteria.property']) queryParams.append('sortCriteria.property', req.query['sortCriteria.property']);
+        if (req.query['sortCriteria.direction']) queryParams.append('sortCriteria.direction', req.query['sortCriteria.direction']);
+        if (req.query.status) queryParams.append('status', req.query.status);
+        if (req.query.hierarchyLevel) queryParams.append('hierarchyLevel', req.query.hierarchyLevel);
+        
+        const queryString = queryParams.toString();
+        const path = `/api/tasks${queryString ? '?' + queryString : ''}`;
+        
+        const resp = await fetchAlwataniResource(path, token, 'GET', false, null, null, 'tasks');
+        
+        if (!resp.success) {
+            return res.status(resp.statusCode || 500).json({
+                success: false,
+                message: resp.message || 'Failed to fetch tasks',
+                error: resp.data
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: resp.data
+        });
+    } catch (error) {
+        console.error('[TASKS] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطأ في جلب المهام: ' + error.message
+        });
+    }
+});
+
+// Get locations/zones from admin.ftth.iq
+app.get('/api/alwatani-login/:id/locations/zones', async (req, res) => {
+    try {
+        const token = await getAlwataniTokenFromLogin(req);
+        const resp = await fetchAlwataniResource('/api/locations/zones', token, 'GET', false, null, null, 'locations_zones');
+        
+        if (!resp.success) {
+            return res.status(resp.statusCode || 500).json({
+                success: false,
+                message: resp.message || 'Failed to fetch zones',
+                error: resp.data
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: resp.data
+        });
+    } catch (error) {
+        console.error('[ZONES] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطأ في جلب المناطق: ' + error.message
+        });
+    }
+});
+
+// Get wallet balance from admin.ftth.iq
+app.get('/api/alwatani-login/:id/partners/:partnerId/wallets/balance', async (req, res) => {
+    try {
+        const { partnerId } = req.params;
+        const token = await getAlwataniTokenFromLogin(req);
+        const path = `/api/partners/${partnerId}/wallets/balance`;
+        
+        const resp = await fetchAlwataniResource(path, token, 'GET', false, null, null, 'wallet_balance');
+        
+        if (!resp.success) {
+            return res.status(resp.statusCode || 500).json({
+                success: false,
+                message: resp.message || 'Failed to fetch wallet balance',
+                error: resp.data
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: resp.data
+        });
+    } catch (error) {
+        console.error('[WALLET BALANCE] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطأ في جلب رصيد المحفظة: ' + error.message
+        });
+    }
+});
+
+// Get current user from admin.ftth.iq
+app.get('/api/alwatani-login/:id/current-user', async (req, res) => {
+    try {
+        const token = await getAlwataniTokenFromLogin(req);
+        const resp = await fetchAlwataniResource('/api/current-user', token, 'GET', false, null, null, 'current_user');
+        
+        if (!resp.success) {
+            return res.status(resp.statusCode || 500).json({
+                success: false,
+                message: resp.message || 'Failed to fetch current user',
+                error: resp.data
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: resp.data
+        });
+    } catch (error) {
+        console.error('[CURRENT USER] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطأ في جلب معلومات المستخدم: ' + error.message
+        });
+    }
+});
+
+// Get task details by taskId from admin.ftth.iq
+app.get('/api/alwatani-login/:id/tasks/:taskId', async (req, res) => {
+    try {
+        const { taskId } = req.params;
+        const token = await getAlwataniTokenFromLogin(req);
+        const path = `/api/tasks/${taskId}`;
+        
+        const resp = await fetchAlwataniResource(path, token, 'GET', false, null, null, 'task_details');
+        
+        if (!resp.success) {
+            return res.status(resp.statusCode || 500).json({
+                success: false,
+                message: resp.message || 'Failed to fetch task details',
+                error: resp.data
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: resp.data
+        });
+    } catch (error) {
+        console.error('[TASK DETAILS] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطأ في جلب تفاصيل التذكرة: ' + error.message
+        });
+    }
+});
+
+// Get network elements by zoneId from admin.ftth.iq
+app.get('/api/alwatani-login/:id/network-elements', async (req, res) => {
+    try {
+        const token = await getAlwataniTokenFromLogin(req);
+        
+        // Build query string from request query params
+        const queryParams = new URLSearchParams();
+        if (req.query.zoneId) queryParams.append('zoneId', req.query.zoneId);
+        
+        const queryString = queryParams.toString();
+        const path = `/api/network-elements${queryString ? '?' + queryString : ''}`;
+        
+        const resp = await fetchAlwataniResource(path, token, 'GET', false, null, null, 'network_elements');
+        
+        if (!resp.success) {
+            return res.status(resp.statusCode || 500).json({
+                success: false,
+                message: resp.message || 'Failed to fetch network elements',
+                error: resp.data
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: resp.data
+        });
+    } catch (error) {
+        console.error('[NETWORK ELEMENTS] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطأ في جلب عناصر الشبكة: ' + error.message
+        });
+    }
+});
+
+// Get customer connections for a task from admin.ftth.iq
+app.get('/api/alwatani-login/:id/tasks/:taskId/customer-connections', async (req, res) => {
+    try {
+        const { taskId } = req.params;
+        const token = await getAlwataniTokenFromLogin(req);
+        const path = `/api/tasks/customer-connections/${taskId}`;
+        
+        const resp = await fetchAlwataniResource(path, token, 'GET', false, null, null, 'task_customer_connections');
+        
+        if (!resp.success) {
+            return res.status(resp.statusCode || 500).json({
+                success: false,
+                message: resp.message || 'Failed to fetch customer connections',
+                error: resp.data
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: resp.data
+        });
+    } catch (error) {
+        console.error('[CUSTOMER CONNECTIONS] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطأ في جلب اتصالات العميل: ' + error.message
+        });
+    }
+});
+
+// Validate username from admin.ftth.iq
+app.get('/api/alwatani-login/:id/subscriptions/validate-username', async (req, res) => {
+    try {
+        const token = await getAlwataniTokenFromLogin(req);
+        
+        // Build query string from request query params
+        const queryParams = new URLSearchParams();
+        if (req.query.username) queryParams.append('username', req.query.username);
+        
+        const queryString = queryParams.toString();
+        const path = `/api/subscriptions/validate-username${queryString ? '?' + queryString : ''}`;
+        
+        const resp = await fetchAlwataniResource(path, token, 'GET', false, null, null, 'validate_username');
+        
+        if (!resp.success) {
+            return res.status(resp.statusCode || 500).json({
+                success: false,
+                message: resp.message || 'Failed to validate username',
+                error: resp.data
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: resp.data
+        });
+    } catch (error) {
+        console.error('[VALIDATE USERNAME] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطأ في التحقق من اسم المستخدم: ' + error.message
+        });
+    }
+});
+
+// Validate password from admin.ftth.iq
+app.get('/api/alwatani-login/:id/subscriptions/validate-password', async (req, res) => {
+    try {
+        const token = await getAlwataniTokenFromLogin(req);
+        
+        // Build query string from request query params
+        const queryParams = new URLSearchParams();
+        if (req.query.password) queryParams.append('password', req.query.password);
+        
+        const queryString = queryParams.toString();
+        const path = `/api/subscriptions/validate-password${queryString ? '?' + queryString : ''}`;
+        
+        const resp = await fetchAlwataniResource(path, token, 'GET', false, null, null, 'validate_password');
+        
+        if (!resp.success) {
+            return res.status(resp.statusCode || 500).json({
+                success: false,
+                message: resp.message || 'Failed to validate password',
+                error: resp.data
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: resp.data
+        });
+    } catch (error) {
+        console.error('[VALIDATE PASSWORD] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطأ في التحقق من كلمة المرور: ' + error.message
+        });
+    }
+});
+
+// Get task comments from admin.ftth.iq
+app.get('/api/alwatani-login/:id/tasks/:taskId/comments', async (req, res) => {
+    try {
+        const { taskId } = req.params;
+        const token = await getAlwataniTokenFromLogin(req);
+        
+        // Build query string from request query params
+        const queryParams = new URLSearchParams();
+        if (req.query.pageSize) queryParams.append('pageSize', req.query.pageSize);
+        if (req.query.pageNumber) queryParams.append('pageNumber', req.query.pageNumber);
+        
+        const queryString = queryParams.toString();
+        const path = `/api/tasks/${taskId}/comments${queryString ? '?' + queryString : ''}`;
+        
+        const resp = await fetchAlwataniResource(path, token, 'GET', false, null, null, 'task_comments');
+        
+        if (!resp.success) {
+            return res.status(resp.statusCode || 500).json({
+                success: false,
+                message: resp.message || 'Failed to fetch task comments',
+                error: resp.data
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: resp.data
+        });
+    } catch (error) {
+        console.error('[TASK COMMENTS] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطأ في جلب تعليقات التذكرة: ' + error.message
+        });
+    }
+});
+
 // ================= Employees Management Routes =================
 
 // Get owner domain
