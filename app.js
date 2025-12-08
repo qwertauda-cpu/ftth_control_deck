@@ -5980,10 +5980,12 @@ async function loadTicketsForDashboard(forceSync = false) {
         let tickets = [];
         
         if (apiResponse.ok) {
-            
-            if (apiResponse.ok) {
-                const apiData = await apiResponse.json();
-                console.log('[TICKETS DASHBOARD] API Response data:', apiData);
+            const apiData = await apiResponse.json();
+            console.log('[TICKETS DASHBOARD] API Response data:', apiData);
+            console.log('[TICKETS DASHBOARD] API Response data keys:', apiData ? Object.keys(apiData) : 'null');
+            console.log('[TICKETS DASHBOARD] API Response success:', apiData?.success);
+            console.log('[TICKETS DASHBOARD] API Response data type:', typeof apiData?.data);
+            console.log('[TICKETS DASHBOARD] API Response data is array:', Array.isArray(apiData?.data));
                 
                 // استخراج البيانات
                 let apiTickets = [];
