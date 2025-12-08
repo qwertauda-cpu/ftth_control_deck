@@ -6040,9 +6040,28 @@ async function loadTicketsForDashboard(forceSync = false) {
             console.log('[TICKETS DASHBOARD] No tickets found');
             renderTicketCards([]);
             updateTicketsCount(0, 0, 0);
-        } else if (syncData && tickets.length > 0) {
-            // بعد المزامنة، اعرض التذاكر
+        } else if (syncData) {
+            // بعد المزامنة، جلب التذاكر من قاعدة البيانات وعرضها
+            const dbUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks/db`);
+            const dbResponse = await fetch(dbUrl, addUsernameToFetchOptions());
+            
+            if (dbResponse.ok) {
+                const dbData = await dbResponse.json();
+                if (dbData.success && dbData.data) {
+                    tickets = Array.isArray(dbData.data) ? dbData.data : [];
+                    console.log(`[TICKETS DASHBOARD] Loaded ${tickets.length} tickets from database after sync`);
+                }
+            }
+            
+            // عرض التذاكر
             renderTicketCards(tickets);
+            
+            // تحديث العداد من syncData
+            if (syncData.totalCount !== undefined) {
+                updateTicketsCount(syncData.totalCount, syncData.loadedCount || syncData.synced || tickets.length, syncData.remainingCount || 0);
+            } else {
+                updateTicketsCount(tickets.length, tickets.length, 0);
+            }
         }
         
     } catch (error) {
