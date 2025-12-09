@@ -7469,11 +7469,12 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
             });
         }
         
-        const alwataniLoginId = getAlwataniLoginIdFromRequest(req);
-        if (!alwataniLoginId) {
+        // استخراج alwatani_login_id من params.id مباشرة
+        const alwataniLoginId = req.params?.id ? parseInt(req.params.id, 10) : null;
+        if (!alwataniLoginId || isNaN(alwataniLoginId) || alwataniLoginId <= 0) {
             return res.status(400).json({
                 success: false,
-                message: 'alwatani_login_id is required'
+                message: 'alwatani_login_id is required (invalid or missing id parameter)'
             });
         }
         
@@ -7743,11 +7744,12 @@ app.get('/api/alwatani-login/:id/tasks/db', async (req, res) => {
             });
         }
         
-        const alwataniLoginId = getAlwataniLoginIdFromRequest(req);
-        if (!alwataniLoginId) {
+        // استخراج alwatani_login_id من params.id مباشرة
+        const alwataniLoginId = req.params?.id ? parseInt(req.params.id, 10) : null;
+        if (!alwataniLoginId || isNaN(alwataniLoginId) || alwataniLoginId <= 0) {
             return res.status(400).json({
                 success: false,
-                message: 'alwatani_login_id is required'
+                message: 'alwatani_login_id is required (invalid or missing id parameter)'
             });
         }
         
