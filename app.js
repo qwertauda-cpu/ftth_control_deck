@@ -5963,11 +5963,30 @@ async function loadTicketsForDashboard(forceSync = false) {
                 
                 if (dbResponse.ok) {
                     const dbData = await dbResponse.json();
-                    if (dbData.success && dbData.data) {
+                    console.log('[TICKETS DASHBOARD] DB Response after sync:', { success: dbData.success, dataLength: dbData.data?.length, count: dbData.count, totalCount: dbData.totalCount });
+                    
+                    if (dbData.success && dbData.data && dbData.data.length > 0) {
                         tickets = dbData.data;
-                        totalCount = dbData.count || tickets.length;
-                        console.log(`[TICKETS DASHBOARD] ✅ Loaded ${tickets.length} tickets from database after sync`);
+                        totalCount = dbData.totalCount || dbData.count || tickets.length;
+                        console.log(`[TICKETS DASHBOARD] ✅ Loaded ${tickets.length} tickets from database after sync (total: ${totalCount})`);
+                    } else {
+                        console.warn('[TICKETS DASHBOARD] ⚠️ No tickets in database after sync (success:', dbData.success, ', dataLength:', dbData.data?.length, ')');
                     }
+                } else {
+                    const errorText = await dbResponse.text();
+                    let errorMessage = 'فشل جلب التذاكر من قاعدة البيانات بعد sync';
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        errorMessage = errorData.message || errorData.error || errorMessage;
+                        console.error('[TICKETS DASHBOARD] ❌ Failed to load from DB after sync:', {
+                            status: dbResponse.status,
+                            message: errorMessage,
+                            debug: errorData.debug
+                        });
+                    } catch (e) {
+                        console.error('[TICKETS DASHBOARD] ❌ Failed to parse error after sync:', dbResponse.status, errorText.substring(0, 200));
+                    }
+                    // لا نوقف العملية، سنستخدم بيانات sync
                 }
                 
                 // تحديث العداد من بيانات sync
