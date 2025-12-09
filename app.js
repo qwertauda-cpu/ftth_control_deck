@@ -1144,40 +1144,70 @@ function logout() {
 // ================= Super Admin - Pages Management =================
 async function loadPages() {
     try {
+        console.log('[LOAD PAGES] Starting to load Alwatani login accounts...', {
+            currentUserId,
+            currentDetailUser
+        });
+        
         // Load from alwatani_login table (حسابات الوطني - واجهة تسجيل الدخول الثانية)
         // فلترة حسب المستخدم الحالي (عزل البيانات)
         if (!currentUserId || !currentDetailUser) {
-            console.error('Missing currentUserId or currentDetailUser');
+            console.error('[LOAD PAGES] ❌ Missing currentUserId or currentDetailUser', {
+                currentUserId,
+                currentDetailUser
+            });
             return;
         }
         
-        const response = await fetch(`${API_URL}/alwatani-login?user_id=${currentUserId}&username=${encodeURIComponent(currentDetailUser)}`);
+        const apiUrl = `${API_URL}/alwatani-login?user_id=${currentUserId}&username=${encodeURIComponent(currentDetailUser)}`;
+        console.log('[LOAD PAGES] Fetching from:', apiUrl);
+        
+        const response = await fetch(apiUrl);
+        console.log('[LOAD PAGES] Response status:', response.status);
+        
         const data = await response.json();
+        console.log('[LOAD PAGES] Response data:', data);
         
         const listContainer = document.getElementById('pages-list-container');
         const emptyState = document.getElementById('empty-state');
         
+        if (!listContainer) {
+            console.error('[LOAD PAGES] ❌ pages-list-container not found in DOM');
+            return;
+        }
+        
+        if (!emptyState) {
+            console.error('[LOAD PAGES] ❌ empty-state not found in DOM');
+            return;
+        }
+        
         // Clear existing pages except empty state
         const existingPages = listContainer.querySelectorAll('.slide-up');
+        console.log('[LOAD PAGES] Clearing', existingPages.length, 'existing pages');
         existingPages.forEach(page => page.remove());
         
         // التحقق من أن data هو array
         if (!Array.isArray(data)) {
-            console.error('Invalid data format:', data);
+            console.error('[LOAD PAGES] ❌ Invalid data format:', data);
             emptyState.style.display = 'block';
             return;
         }
         
+        console.log('[LOAD PAGES] Found', data.length, 'Alwatani login accounts');
+        
         if (data.length === 0) {
+            console.log('[LOAD PAGES] ⚠️ No accounts found, showing empty state');
             emptyState.style.display = 'block';
         } else {
+            console.log('[LOAD PAGES] ✅ Adding', data.length, 'account cards');
             emptyState.style.display = 'none';
             data.forEach(user => {
+                console.log('[LOAD PAGES] Adding card for:', user.username);
                 addPageCard(user.username, user.password, user.id, 'dashboard');
             });
         }
     } catch (error) {
-        console.error('Error loading pages:', error);
+        console.error('[LOAD PAGES] ❌ Error loading pages:', error);
     }
 }
 
