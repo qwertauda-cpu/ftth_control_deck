@@ -320,17 +320,21 @@ function getUsernameFromRequest(req) {
     // البحث في query parameters أولاً (للطلبات GET/DELETE)
     if (req.query?.username) {
         username = req.query.username;
+        console.log('[GET USERNAME] Found username in query:', username);
     }
     // البحث في headers
     else if (req.headers['x-username']) {
         username = req.headers['x-username'];
+        console.log('[GET USERNAME] Found username in headers:', username);
     }
     // البحث في body (للطلبات POST/PUT)
     else if (req.body?.username) {
         username = req.body.username;
+        console.log('[GET USERNAME] Found username in body:', username);
     }
     else if (req.body?.owner_username) {
         username = req.body.owner_username;
+        console.log('[GET USERNAME] Found owner_username in body:', username);
     }
     
     // فك تشفير username إذا كان مشفراً (مثل admin%40tec -> admin@tec)
@@ -338,11 +342,14 @@ function getUsernameFromRequest(req) {
         try {
             // Express يقوم بفك تشفير query parameters تلقائياً، لكن نتحقق من وجود % للتأكد
             // إذا كان username يحتوي على رموز مشفرة، قم بفك تشفيرها
+            const originalUsername = username;
             if (username.includes('%')) {
                 username = decodeURIComponent(username);
+                console.log('[GET USERNAME] Decoded username:', originalUsername, '->', username);
             }
             // تنظيف username من أي مسافات إضافية
             username = username.trim();
+            console.log('[GET USERNAME] Final username:', username);
         } catch (e) {
             console.warn('[GET USERNAME] Failed to decode username:', e.message, '- Using original value');
         }
@@ -7777,22 +7784,34 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
 // Get tickets from database
 app.get('/api/alwatani-login/:id/tasks/db', async (req, res) => {
     try {
-        console.log('[TICKETS DB] Request received:', {
-            params: req.params,
-            query: req.query,
-            headers: { 'x-username': req.headers['x-username'] }
-        });
+        console.log('[TICKETS DB] ========== Request received ==========');
+        console.log('[TICKETS DB] params:', JSON.stringify(req.params, null, 2));
+        console.log('[TICKETS DB] query:', JSON.stringify(req.query, null, 2));
+        console.log('[TICKETS DB] headers x-username:', req.headers['x-username']);
+        console.log('[TICKETS DB] raw query string:', req.url);
         
         const ownerUsername = getUsernameFromRequest(req);
         console.log('[TICKETS DB] Extracted ownerUsername:', ownerUsername);
         
         if (!ownerUsername) {
             console.error('[TICKETS DB] ❌ Username not found in request');
+            console.error('[TICKETS DB] Full request details:', {
+                url: req.url,
+                originalUrl: req.originalUrl,
+                query: req.query,
+                params: req.params,
+                headers: {
+                    'x-username': req.headers['x-username'],
+                    'content-type': req.headers['content-type']
+                }
+            });
             return res.status(400).json({
                 success: false,
                 message: 'Username (owner_username) is required',
                 debug: {
+                    url: req.url,
                     query: req.query,
+                    params: req.params,
                     headers: { 'x-username': req.headers['x-username'] }
                 }
             });
