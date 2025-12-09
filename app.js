@@ -6968,9 +6968,57 @@ function toggleModalPassword() {
 }
 
 // Close modal on background click
-document.addEventListener('DOMContentLoaded', function() {
-    // إخفاء القائمة الجانبية عند تحميل الصفحة (افتراضياً في صفحة تسجيل الدخول)
-    hideSideMenu();
+document.addEventListener('DOMContentLoaded', async function() {
+    // التحقق من حالة تسجيل الدخول المحفوظة في localStorage
+    try {
+        const storedUser = localStorage.getItem('currentUser');
+        if (storedUser) {
+            const userData = JSON.parse(storedUser);
+            console.log('[INIT] Found saved user session:', userData);
+            
+            // استرجاع حالة تسجيل الدخول
+            currentUserId = userData.id || null;
+            currentDetailUser = userData.owner_username || userData.username || '';
+            currentUserAgentName = userData.agent_name || null;
+            currentCompanyName = userData.company_name || null;
+            
+            console.log('[INIT] Restored session:', {
+                currentUserId,
+                currentDetailUser,
+                currentUserAgentName,
+                currentCompanyName
+            });
+            
+            // إخفاء صفحة تسجيل الدخول وإظهار لوحة التحكم
+            const loginContainer = document.getElementById('login-container');
+            const dashboardScreen = document.getElementById('dashboard-screen');
+            
+            if (loginContainer) {
+                loginContainer.style.display = 'none';
+                loginContainer.classList.add('hidden');
+                loginContainer.classList.remove('flex', 'flex-1');
+            }
+            
+            if (dashboardScreen) {
+                dashboardScreen.classList.remove('hidden');
+                dashboardScreen.classList.add('flex');
+            }
+            
+            // إظهار القائمة الجانبية وتحديث معلوماتها
+            showSideMenu();
+            updateSideMenuInfo();
+            
+            console.log('[INIT] ✅ Session restored successfully');
+        } else {
+            console.log('[INIT] No saved session found, showing login screen');
+            // إخفاء القائمة الجانبية عند تحميل الصفحة (افتراضياً في صفحة تسجيل الدخول)
+            hideSideMenu();
+        }
+    } catch (e) {
+        console.error('[INIT] ❌ Error restoring session:', e);
+        // في حالة الخطأ، إظهار صفحة تسجيل الدخول
+        hideSideMenu();
+    }
     
     // تم حذف event listener لـ redirect-ticket-modal
     
