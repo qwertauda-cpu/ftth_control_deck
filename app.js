@@ -1190,17 +1190,50 @@ async function loadPages() {
         const data = await response.json();
         console.log('[LOAD PAGES] Response data:', data);
         
+        // التأكد من أن dashboard-screen مرئي
+        const dashboardScreen = document.getElementById('dashboard-screen');
+        if (!dashboardScreen || dashboardScreen.classList.contains('hidden')) {
+            console.warn('[LOAD PAGES] ⚠️ dashboard-screen is hidden, cannot load pages');
+            return;
+        }
+        
+        // التأكد من أن tab-content-login مرئي
+        const tabContentLogin = document.getElementById('tab-content-login');
+        if (!tabContentLogin) {
+            console.error('[LOAD PAGES] ❌ tab-content-login not found in DOM');
+            return;
+        }
+        
+        // التأكد من أن tab-content-login مرئي
+        if (tabContentLogin.style.display === 'none' || tabContentLogin.classList.contains('hidden')) {
+            console.warn('[LOAD PAGES] ⚠️ tab-content-login is hidden, making it visible');
+            tabContentLogin.style.display = 'block';
+            tabContentLogin.classList.remove('hidden');
+        }
+        
         const listContainer = document.getElementById('pages-list-container');
         const emptyState = document.getElementById('empty-state');
         
         if (!listContainer) {
             console.error('[LOAD PAGES] ❌ pages-list-container not found in DOM');
+            console.error('[LOAD PAGES] Available elements:', {
+                dashboardScreen: !!dashboardScreen,
+                tabContentLogin: !!tabContentLogin,
+                listContainer: !!listContainer
+            });
             return;
         }
         
         if (!emptyState) {
             console.error('[LOAD PAGES] ❌ empty-state not found in DOM');
             return;
+        }
+        
+        // التأكد من أن listContainer مرئي
+        if (listContainer.style.display === 'none' || listContainer.classList.contains('hidden')) {
+            console.warn('[LOAD PAGES] ⚠️ pages-list-container is hidden, making it visible');
+            listContainer.style.display = 'block';
+            listContainer.classList.remove('hidden');
         }
         
         // Clear existing pages except empty state
