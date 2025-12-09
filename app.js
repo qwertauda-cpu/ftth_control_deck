@@ -5814,6 +5814,7 @@ async function loadTicketsForDashboard(forceSync = false) {
         let totalCount = 0;
         let currentPage = 1;
         let hasMorePages = true;
+        let paginationStoppedDueToError = false; // تتبع ما إذا كان pagination تم إيقافه بسبب خطأ
         
         // تحديث حالة التحميل لإظهار التقدم
         container.innerHTML = `
@@ -5841,6 +5842,11 @@ async function loadTicketsForDashboard(forceSync = false) {
             const apiUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/support/tickets?${queryParams.toString()}`);
             console.log(`[TICKETS DASHBOARD] Fetching page ${currentPage}...`);
             
+            // إضافة تأخير بين الطلبات لتجنب rate limiting (500ms بعد الصفحة الأولى)
+            if (currentPage > 1) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
             const apiResponse = await fetch(apiUrl, addUsernameToFetchOptions());
             
             if (!apiResponse.ok) {
@@ -5853,23 +5859,34 @@ async function loadTicketsForDashboard(forceSync = false) {
                     errorMessage = `خطأ ${apiResponse.status}: ${apiResponse.statusText}`;
                 }
                 console.error('[TICKETS DASHBOARD] ❌ API Response Error:', apiResponse.status, errorMessage);
-                container.innerHTML = `
-                    <div class="text-center text-red-500 text-sm py-8">
-                        <div class="mb-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                
+                // إذا كان هناك تذاكر مجلوبة بالفعل، نعرضها مع رسالة تحذيرية
+                if (allTickets.length > 0) {
+                    console.warn(`[TICKETS DASHBOARD] ⚠️ Stopped pagination due to error, but displaying ${allTickets.length} tickets already loaded`);
+                    hasMorePages = false; // إيقاف pagination
+                    paginationStoppedDueToError = true; // تحديد أن pagination تم إيقافه بسبب خطأ
+                    // سنستمر في الكود لعرض التذاكر المجلوبة
+                    break; // الخروج من الحلقة
+                } else {
+                    // إذا لم يكن هناك تذاكر مجلوبة، نعرض رسالة خطأ كاملة
+                    container.innerHTML = `
+                        <div class="text-center text-red-500 text-sm py-8">
+                            <div class="mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <p class="font-bold mb-1">❌ خطأ في الاتصال</p>
+                            <p class="text-xs">${errorMessage}</p>
+                            <p class="text-xs mt-2 text-slate-500">كود الخطأ: ${apiResponse.status}</p>
+                            <button onclick="loadTicketsForDashboard(true)" class="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm">
+                                إعادة المحاولة
+                            </button>
                         </div>
-                        <p class="font-bold mb-1">❌ خطأ في الاتصال</p>
-                        <p class="text-xs">${errorMessage}</p>
-                        <p class="text-xs mt-2 text-slate-500">كود الخطأ: ${apiResponse.status}</p>
-                        <button onclick="loadTicketsForDashboard(true)" class="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm">
-                            إعادة المحاولة
-                        </button>
-                    </div>
-                `;
-                updateTicketsCount(0, 0, 0);
-                return;
+                    `;
+                    updateTicketsCount(0, 0, 0);
+                    return;
+                }
             }
             
             const apiData = await apiResponse.json();
@@ -5989,6 +6006,25 @@ async function loadTicketsForDashboard(forceSync = false) {
         
         // عرض التذاكر مباشرة
         console.log('[TICKETS DASHBOARD] Displaying tickets...', tickets.length);
+        
+        // إذا تم إيقاف pagination بسبب خطأ، نعرض رسالة تحذيرية
+        if (paginationStoppedDueToError && tickets.length > 0) {
+            const warningHtml = `
+                <div class="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div class="flex items-start gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <div class="flex-1">
+                            <p class="text-sm font-medium text-yellow-800">⚠️ تم إيقاف جلب التذاكر بسبب خطأ في الاتصال</p>
+                            <p class="text-xs text-yellow-700 mt-1">تم عرض ${tickets.length} تذكرة فقط من إجمالي ${totalCount > 0 ? totalCount : 'غير معروف'} تذكرة. يرجى المحاولة مرة أخرى لاحقاً.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = warningHtml;
+        }
+        
         renderTicketCards(tickets);
         
     } catch (error) {
