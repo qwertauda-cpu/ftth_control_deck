@@ -5990,34 +5990,6 @@ async function loadTicketsForDashboard(forceSync = false) {
         // عرض التذاكر مباشرة
         console.log('[TICKETS DASHBOARD] Displaying tickets...', tickets.length);
         renderTicketCards(tickets);
-        } else {
-            // خطأ في استجابة API
-            const errorText = await apiResponse.text();
-            let errorMessage = 'فشل الاتصال بموقع الوطني';
-            try {
-                const errorData = JSON.parse(errorText);
-                errorMessage = errorData.message || errorData.error || errorMessage;
-            } catch (e) {
-                errorMessage = `خطأ ${apiResponse.status}: ${apiResponse.statusText}`;
-            }
-            console.error('[TICKETS DASHBOARD] ❌ API Response Error:', apiResponse.status, errorMessage);
-            container.innerHTML = `
-                <div class="text-center text-red-500 text-sm py-8">
-                    <div class="mb-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                    </div>
-                    <p class="font-bold mb-1">❌ خطأ في الاتصال</p>
-                    <p class="text-xs">${errorMessage}</p>
-                    <p class="text-xs mt-2 text-slate-500">كود الخطأ: ${apiResponse.status}</p>
-                    <button onclick="loadTicketsForDashboard(true)" class="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm">
-                        إعادة المحاولة
-                    </button>
-                </div>
-            `;
-            updateTicketsCount(0, 0, 0);
-        }
         
     } catch (error) {
         console.error('[TICKETS DASHBOARD] ❌ ERROR:', error);
