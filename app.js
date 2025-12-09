@@ -6704,14 +6704,19 @@ async function viewTicketDetails(ticketId, ticketData = null) {
     // إذا كانت بيانات التذكرة متوفرة، عرضها مباشرة
     if (ticketData) {
         displayTicketDetails(ticketData);
+        // جلب تفاصيل محدثة من API في الخلفية (بدون إخفاء المحتوى)
+        loadTicketDetails(true).catch(error => {
+            console.warn('[TICKET DETAILS] Failed to refresh ticket details:', error);
+            // لا نعرض خطأ إذا كانت البيانات الأساسية موجودة بالفعل
+        });
+    } else {
+        // جلب تفاصيل التذكرة من API
+        await loadTicketDetails();
     }
-    
-    // جلب تفاصيل التذكرة من API
-    await loadTicketDetails();
 }
 
 // Load ticket details from API
-async function loadTicketDetails() {
+async function loadTicketDetails(silentRefresh = false) {
     if (!currentTicketId) {
         console.error('[TICKET DETAILS] ❌ No ticket ID provided');
         return;
@@ -6735,7 +6740,10 @@ async function loadTicketDetails() {
     }
     
     if (!alwataniLoginId) {
-        showTicketDetailsError('لم يتم تحديد حساب الوطني');
+        // إذا كان silentRefresh، لا نعرض خطأ ولا نخفي المحتوى الموجود
+        if (!silentRefresh) {
+            showTicketDetailsError('لم يتم تحديد حساب الوطني');
+        }
         return;
     }
     
@@ -6786,7 +6794,13 @@ async function loadTicketDetails() {
         
     } catch (error) {
         console.error('[TICKET DETAILS] Error loading ticket details:', error);
-        showTicketDetailsError(error.message);
+        // إذا كان silentRefresh = true، لا نعرض خطأ ولا نخفي المحتوى الموجود
+        if (!silentRefresh) {
+            showTicketDetailsError(error.message);
+        } else {
+            // في حالة silent refresh، فقط نسجل الخطأ في console
+            console.warn('[TICKET DETAILS] Silent refresh failed, keeping existing data');
+        }
     }
 }
 
