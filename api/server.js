@@ -358,10 +358,14 @@ function getUsernameFromRequest(req) {
     // Log للتحقق من استخراج username
     if (!username) {
         console.warn('[GET USERNAME] ⚠️ Username not found in request:', {
+            url: req.url,
+            originalUrl: req.originalUrl,
             query: req.query,
             headers: { 'x-username': req.headers['x-username'] },
             body: req.body ? { username: req.body.username, owner_username: req.body.owner_username } : null
         });
+    } else {
+        console.log('[GET USERNAME] ✅ Successfully extracted username:', username);
     }
     
     return username || null;
