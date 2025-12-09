@@ -7165,6 +7165,85 @@ app.get('/api/alwatani-login/:id/support/tickets/statuses', async (req, res) => 
     }
 });
 
+// Get support ticket details by ticketId from admin.ftth.iq
+app.get('/api/alwatani-login/:id/support/tickets/:ticketId', async (req, res) => {
+    try {
+        const { ticketId } = req.params;
+        const token = await getAlwataniTokenFromLogin(req);
+        
+        // محاولة جلب تفاصيل التذكرة من /api/support/tickets/:ticketId
+        let resp = await fetchAlwataniResource(`/api/support/tickets/${ticketId}`, token, 'GET', false, null, null, 'support_ticket_details');
+        
+        // إذا فشل، جرب /api/tasks/:ticketId (للتوافق مع النظام القديم)
+        if (!resp.success && resp.statusCode === 404) {
+            console.log('[TICKET DETAILS] Trying /api/tasks endpoint as fallback...');
+            resp = await fetchAlwataniResource(`/api/tasks/${ticketId}`, token, 'GET', false, null, null, 'task_details');
+        }
+        
+        if (!resp.success) {
+            return res.status(resp.statusCode || 500).json({
+                success: false,
+                message: resp.message || 'Failed to fetch ticket details',
+                error: resp.data
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: resp.data
+        });
+    } catch (error) {
+        console.error('[TICKET DETAILS] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطأ في جلب تفاصيل التذكرة: ' + error.message
+        });
+    }
+});
+
+// Get ticket comments from admin.ftth.iq
+app.get('/api/alwatani-login/:id/support/tickets/:ticketId/comments', async (req, res) => {
+    try {
+        const { ticketId } = req.params;
+        const token = await getAlwataniTokenFromLogin(req);
+        
+        // Build query string from request query params
+        const queryParams = new URLSearchParams();
+        if (req.query.pageSize) queryParams.append('pageSize', req.query.pageSize);
+        if (req.query.pageNumber) queryParams.append('pageNumber', req.query.pageNumber);
+        
+        const queryString = queryParams.toString();
+        
+        // محاولة جلب التعليقات من /api/support/tickets/:ticketId/comments
+        let resp = await fetchAlwataniResource(`/api/support/tickets/${ticketId}/comments${queryString ? '?' + queryString : ''}`, token, 'GET', false, null, null, 'ticket_comments');
+        
+        // إذا فشل، جرب /api/tasks/:ticketId/comments (للتوافق مع النظام القديم)
+        if (!resp.success && resp.statusCode === 404) {
+            console.log('[TICKET COMMENTS] Trying /api/tasks endpoint as fallback...');
+            resp = await fetchAlwataniResource(`/api/tasks/${ticketId}/comments${queryString ? '?' + queryString : ''}`, token, 'GET', false, null, null, 'task_comments');
+        }
+        
+        if (!resp.success) {
+            return res.status(resp.statusCode || 500).json({
+                success: false,
+                message: resp.message || 'Failed to fetch ticket comments',
+                error: resp.data
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: resp.data
+        });
+    } catch (error) {
+        console.error('[TICKET COMMENTS] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطأ في جلب تعليقات التذكرة: ' + error.message
+        });
+    }
+});
+
 // Get tickets from database (MUST be before /api/alwatani-login/:id/tasks to avoid route conflict)
 app.get('/api/alwatani-login/:id/tasks/db', async (req, res) => {
     try {

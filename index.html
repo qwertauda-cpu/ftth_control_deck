@@ -130,6 +130,31 @@
             transition: none !important;
         }
         
+        /* Ticket filter buttons */
+        .ticket-filter-btn {
+            background-color: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
+        
+        .ticket-filter-btn:hover {
+            background-color: #e2e8f0;
+            border-color: #cbd5e1;
+        }
+        
+        .ticket-filter-btn.active {
+            background-color: #f97316;
+            color: #ffffff;
+            border-color: #f97316;
+            font-weight: 600;
+        }
+        
+        .ticket-filter-btn.active:hover {
+            background-color: #ea580c;
+            border-color: #ea580c;
+        }
+        
         /* Force dark mode on all containers and screens - STRONG OVERRIDE */
         body.dark-mode div:not([class*="stat-icon"]):not([class*="custom-blue"]) {
             background-color: inherit;
@@ -1925,6 +1950,21 @@
                             مزامنة
                         </button>
                     </div>
+                    <!-- أزرار الفلترة -->
+                    <div class="flex items-center gap-2 mb-4 flex-wrap">
+                        <button id="filter-all" onclick="filterTicketsByStatus('all')" class="ticket-filter-btn active px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                            الكل
+                        </button>
+                        <button id="filter-open" onclick="filterTicketsByStatus('open')" class="ticket-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                            مفتوحة
+                        </button>
+                        <button id="filter-pending" onclick="filterTicketsByStatus('pending')" class="ticket-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                            في انتظار الرد
+                        </button>
+                        <button id="filter-closed" onclick="filterTicketsByStatus('closed')" class="ticket-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                            مغلقة
+                        </button>
+                    </div>
                     <div id="tickets-cards-container" class="space-y-3">
                         <div class="text-center text-slate-400 text-sm py-8">
                             <div class="flex items-center justify-center gap-2">
@@ -2095,6 +2135,118 @@
     </div>
 
     <!-- ================= 8. نافذة إضافة تكت ================= -->
+    <!-- ================= Modal تفاصيل التذكرة ================= -->
+    <div id="ticket-details-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onclick="if(event.target === this) closeTicketDetailsModal()">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col" onclick="event.stopPropagation()">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-white font-bold text-lg" id="ticket-modal-title">تفاصيل التذكرة</h3>
+                        <p class="text-white/80 text-sm" id="ticket-modal-number">#--</p>
+                    </div>
+                </div>
+                <button onclick="closeTicketDetailsModal()" class="text-white/80 hover:text-white hover:bg-white/20 rounded-lg p-2 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Content -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <!-- Loading State -->
+                <div id="ticket-modal-loading" class="text-center py-12">
+                    <svg class="animate-spin h-12 w-12 text-orange-500 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="text-slate-500">جاري تحميل تفاصيل التذكرة...</p>
+                </div>
+                
+                <!-- Ticket Details -->
+                <div id="ticket-modal-content" class="hidden space-y-6">
+                    <!-- Basic Info -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-slate-50 rounded-lg p-4">
+                            <label class="text-xs text-slate-500 mb-1 block">الحالة</label>
+                            <div id="ticket-modal-status" class="text-sm font-bold">--</div>
+                        </div>
+                        <div class="bg-slate-50 rounded-lg p-4">
+                            <label class="text-xs text-slate-500 mb-1 block">التاريخ</label>
+                            <div id="ticket-modal-date" class="text-sm font-medium text-slate-700">--</div>
+                        </div>
+                        <div class="bg-slate-50 rounded-lg p-4">
+                            <label class="text-xs text-slate-500 mb-1 block">العميل</label>
+                            <div id="ticket-modal-customer" class="text-sm font-medium text-slate-700">--</div>
+                        </div>
+                        <div class="bg-slate-50 rounded-lg p-4">
+                            <label class="text-xs text-slate-500 mb-1 block">الفريق المسند</label>
+                            <div id="ticket-modal-team" class="text-sm font-medium text-slate-700">--</div>
+                        </div>
+                        <div class="bg-slate-50 rounded-lg p-4">
+                            <label class="text-xs text-slate-500 mb-1 block">المنطقة</label>
+                            <div id="ticket-modal-zone" class="text-sm font-medium text-slate-700">--</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Subject -->
+                    <div>
+                        <label class="text-sm font-bold text-slate-700 mb-2 block">الموضوع</label>
+                        <div id="ticket-modal-subject" class="bg-slate-50 rounded-lg p-4 text-slate-800">--</div>
+                    </div>
+                    
+                    <!-- Description -->
+                    <div>
+                        <label class="text-sm font-bold text-slate-700 mb-2 block">الوصف</label>
+                        <div id="ticket-modal-description" class="bg-slate-50 rounded-lg p-4 text-slate-700 whitespace-pre-wrap">--</div>
+                    </div>
+                    
+                    <!-- Comments Section -->
+                    <div>
+                        <label class="text-sm font-bold text-slate-700 mb-2 block">التعليقات</label>
+                        <div id="ticket-modal-comments" class="space-y-3 max-h-64 overflow-y-auto">
+                            <p class="text-slate-400 text-sm text-center py-4">لا توجد تعليقات</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Error State -->
+                <div id="ticket-modal-error" class="hidden text-center py-12">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-red-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p class="text-red-500 font-medium mb-2" id="ticket-modal-error-message">حدث خطأ أثناء تحميل التذكرة</p>
+                    <button onclick="loadTicketDetails()" class="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm">
+                        إعادة المحاولة
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Footer Actions -->
+            <div id="ticket-modal-actions" class="hidden border-t border-slate-200 px-6 py-4 bg-slate-50 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <button onclick="closeTicketDetailsModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        إغلاق
+                    </button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="ticket-update-status-btn" onclick="openUpdateTicketStatusModal()" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-colors">
+                        تحديث الحالة
+                    </button>
+                    <button id="ticket-add-comment-btn" onclick="openAddCommentModal()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+                        إضافة تعليق
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- ================= Modals التذاكر المحلية - REMOVED ================= -->
     <!-- تم حذف modals add-ticket-modal و redirect-ticket-modal بالكامل -->
     <!-- النظام الآن يجلب التذاكر فقط من موقع الوطني ويعرضها كبطاقات -->

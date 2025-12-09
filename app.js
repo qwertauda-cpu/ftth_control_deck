@@ -1578,6 +1578,19 @@ async function openTicketDashboardScreen() {
     currentScreen = 'tickets-dashboard'; // تغيير currentScreen لتفعيل auto-refresh
     saveCurrentScreen(currentScreen);
     
+    // تهيئة أزرار الفلترة (الكل كافتراضي)
+    currentTicketFilter = 'all';
+    const filterButtons = document.querySelectorAll('.ticket-filter-btn');
+    filterButtons.forEach(btn => {
+        btn.classList.remove('active', 'bg-orange-500', 'text-white');
+        btn.classList.add('bg-slate-100', 'text-slate-600', 'hover:bg-slate-200');
+    });
+    const allButton = document.getElementById('filter-all');
+    if (allButton) {
+        allButton.classList.add('active', 'bg-orange-500', 'text-white');
+        allButton.classList.remove('bg-slate-100', 'text-slate-600', 'hover:bg-slate-200');
+    }
+    
     // التحقق من وجود العناصر المطلوبة
     const container = document.getElementById('tickets-cards-container');
     if (!container) {
@@ -5903,6 +5916,8 @@ function formatCurrency(value) {
 // Load tickets for dashboard screen (display as cards)
 // Make sure function is available globally for onclick
 let isLoadingTickets = false; // Flag لمنع إعادة الجلب المتزامنة
+let allTicketsForFiltering = []; // تخزين جميع التذاكر للفلترة
+let currentTicketFilter = 'all'; // الفلتر الحالي: 'all', 'open', 'pending', 'closed'
 
 async function loadTicketsForDashboard(forceSync = false) {
     // منع إعادة الجلب إذا كان الجلب جارياً بالفعل
@@ -6028,6 +6043,9 @@ async function loadTicketsForDashboard(forceSync = false) {
                         totalCount = dbData.count || dbData.totalCount || tickets.length;
                         console.log(`[TICKETS DASHBOARD] ✅ Loaded ${tickets.length} tickets from database (total: ${totalCount})`);
                         
+                        // حفظ جميع التذاكر للفلترة
+                        allTicketsForFiltering = tickets;
+                        
                         // عرض التذاكر من قاعدة البيانات
                         if (totalCount > 0) {
                             updateTicketsCount(totalCount, tickets.length, Math.max(0, totalCount - tickets.length));
@@ -6149,6 +6167,8 @@ async function loadTicketsForDashboard(forceSync = false) {
                         tickets = dbData.data;
                         totalCount = dbData.totalCount || dbData.count || tickets.length;
                         console.log(`[TICKETS DASHBOARD] ✅ Loaded ${tickets.length} tickets from database after sync (total: ${totalCount})`);
+                        // حفظ جميع التذاكر للفلترة
+                        allTicketsForFiltering = tickets;
                     } else {
                         console.warn('[TICKETS DASHBOARD] ⚠️ No tickets in database after sync (success:', dbData.success, ', dataLength:', dbData.data?.length, ')');
                     }
@@ -6187,6 +6207,8 @@ async function loadTicketsForDashboard(forceSync = false) {
                             tickets = retryDbData.data;
                             totalCount = retryDbData.totalCount || retryDbData.count || tickets.length;
                             console.log(`[TICKETS DASHBOARD] ✅ Loaded ${tickets.length} tickets from database on retry`);
+                            // حفظ جميع التذاكر للفلترة
+                            allTicketsForFiltering = tickets;
                         }
                     } else {
                         console.error('[TICKETS DASHBOARD] ❌ Retry DB fetch also failed:', retryDbResponse.status);
@@ -6255,6 +6277,9 @@ async function loadTicketsForDashboard(forceSync = false) {
             // إذا لم يكن هناك totalCount، استخدم عدد التذاكر المجلوبة كإجمالي
             updateTicketsCount(tickets.length, tickets.length, 0);
         }
+        
+        // حفظ جميع التذاكر للفلترة
+        allTicketsForFiltering = tickets;
         
         // عرض التذاكر مباشرة
         console.log('[TICKETS DASHBOARD] Displaying tickets...', tickets.length);
@@ -6345,6 +6370,9 @@ async function syncTicketsInBackground() {
                                 Math.max(0, dbData.totalCount - dbData.data.length)
                             );
                         }
+                        
+                        // حفظ جميع التذاكر للفلترة
+                        allTicketsForFiltering = dbData.data;
                         
                         // إعادة عرض التذاكر
                         renderTicketCards(dbData.data);
@@ -6469,6 +6497,7 @@ function renderTicketCards(tickets) {
     console.log('[RENDER TICKETS] Tickets type:', typeof tickets);
     console.log('[RENDER TICKETS] Is array:', Array.isArray(tickets));
     console.log('[RENDER TICKETS] Tickets length:', tickets?.length);
+    console.log('[RENDER TICKETS] Current filter:', currentTicketFilter);
     
     const container = document.getElementById('tickets-cards-container');
     if (!container) {
@@ -6487,10 +6516,41 @@ function renderTicketCards(tickets) {
         return;
     }
     
-    console.log('[RENDER TICKETS] Clearing container and rendering', tickets.length, 'tickets');
+    // تطبيق الفلتر على التذاكر
+    let filteredTickets = tickets;
+    if (currentTicketFilter !== 'all') {
+        filteredTickets = tickets.filter(ticket => {
+            const status = (ticket.status || ticket.taskStatus || ticket.state || 'open').toLowerCase();
+            
+            if (currentTicketFilter === 'open') {
+                // مفتوحة: open, new, waiting for response
+                return status === 'open' || status === 'new' || status === 'waiting for response';
+            } else if (currentTicketFilter === 'pending') {
+                // في انتظار الرد: pending, in progress, on hold
+                return status === 'pending' || status === 'in progress' || status === 'inprogress' || status === 'in_progress' || status === 'on hold';
+            } else if (currentTicketFilter === 'closed') {
+                // مغلقة: closed, resolved, canceled
+                return status === 'closed' || status === 'close' || status === 'completed' || status === 'resolved' || status === 'canceled';
+            }
+            return true;
+        });
+    }
+    
+    console.log('[RENDER TICKETS] Filtered tickets:', filteredTickets.length, 'out of', tickets.length);
+    
+    if (filteredTickets.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-slate-400 text-sm py-8">
+                <p>لا توجد تذاكر متاحة للفلتر المحدد</p>
+            </div>
+        `;
+        return;
+    }
+    
+    console.log('[RENDER TICKETS] Clearing container and rendering', filteredTickets.length, 'tickets');
     container.innerHTML = '';
     
-    tickets.forEach((ticket, index) => {
+    filteredTickets.forEach((ticket, index) => {
         console.log(`[RENDER TICKETS] Processing ticket ${index + 1}/${tickets.length}:`, ticket);
         // استخراج البيانات من التذكرة - البنية الجديدة /api/support/tickets
         const ticketId = ticket.self?.id || ticket.id || ticket.taskId || ticket.ticketId || '';
@@ -6530,8 +6590,8 @@ function renderTicketCards(tickets) {
         const card = document.createElement('div');
         card.className = 'bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-orange-300 hover:shadow-md transition-all cursor-pointer slide-up';
         card.onclick = function() {
-            // يمكن إضافة منطق للانتقال إلى تفاصيل التذكرة من موقع الوطني لاحقاً
-            console.log('[TICKET CARD] Clicked on ticket:', ticketNumber);
+            console.log('[TICKET CARD] Clicked on ticket:', ticketNumber, 'ID:', ticketId);
+            viewTicketDetails(ticketId, ticket);
         };
         
         card.innerHTML = `
@@ -6582,8 +6642,290 @@ function renderTicketCards(tickets) {
         container.appendChild(card);
     });
     
-    console.log(`[TICKETS DASHBOARD] Rendered ${tickets.length} ticket cards`);
+    console.log(`[TICKETS DASHBOARD] Rendered ${filteredTickets.length} ticket cards (filtered from ${tickets.length} total)`);
 }
+
+// Filter tickets by status
+function filterTicketsByStatus(filter) {
+    console.log('[FILTER TICKETS] Filtering tickets by status:', filter);
+    currentTicketFilter = filter;
+    
+    // تحديث حالة الأزرار
+    const filterButtons = document.querySelectorAll('.ticket-filter-btn');
+    filterButtons.forEach(btn => {
+        btn.classList.remove('active', 'bg-orange-500', 'text-white');
+        btn.classList.add('bg-slate-100', 'text-slate-600', 'hover:bg-slate-200');
+    });
+    
+    const activeButton = document.getElementById(`filter-${filter}`);
+    if (activeButton) {
+        activeButton.classList.add('active', 'bg-orange-500', 'text-white');
+        activeButton.classList.remove('bg-slate-100', 'text-slate-600', 'hover:bg-slate-200');
+    }
+    
+    // إعادة عرض التذاكر مع الفلتر الجديد
+    if (allTicketsForFiltering.length > 0) {
+        renderTicketCards(allTicketsForFiltering);
+    } else {
+        console.warn('[FILTER TICKETS] ⚠️ No tickets stored for filtering, reloading...');
+        loadTicketsForDashboard();
+    }
+}
+
+// Make filter function globally available
+window.filterTicketsByStatus = filterTicketsByStatus;
+
+// ==================== Ticket Details Modal ====================
+let currentTicketId = null;
+let currentTicketData = null;
+
+// View ticket details
+async function viewTicketDetails(ticketId, ticketData = null) {
+    console.log('[TICKET DETAILS] Opening ticket details modal for ticket:', ticketId);
+    
+    currentTicketId = ticketId;
+    currentTicketData = ticketData;
+    
+    const modal = document.getElementById('ticket-details-modal');
+    if (!modal) {
+        console.error('[TICKET DETAILS] ❌ Modal not found!');
+        return;
+    }
+    
+    // إظهار الـ modal
+    modal.classList.remove('hidden');
+    
+    // إظهار حالة التحميل وإخفاء المحتوى
+    document.getElementById('ticket-modal-loading').classList.remove('hidden');
+    document.getElementById('ticket-modal-content').classList.add('hidden');
+    document.getElementById('ticket-modal-error').classList.add('hidden');
+    document.getElementById('ticket-modal-actions').classList.add('hidden');
+    
+    // إذا كانت بيانات التذكرة متوفرة، عرضها مباشرة
+    if (ticketData) {
+        displayTicketDetails(ticketData);
+    }
+    
+    // جلب تفاصيل التذكرة من API
+    await loadTicketDetails();
+}
+
+// Load ticket details from API
+async function loadTicketDetails() {
+    if (!currentTicketId) {
+        console.error('[TICKET DETAILS] ❌ No ticket ID provided');
+        return;
+    }
+    
+    // الحصول على alwataniLoginId
+    let alwataniLoginId = currentUserId;
+    if (!alwataniLoginId && currentDetailUser) {
+        try {
+            const accountsUrl = addUsernameToUrl(`${API_URL}/alwatani-login`);
+            const accountsResponse = await fetch(accountsUrl, addUsernameToFetchOptions());
+            if (accountsResponse.ok) {
+                const accountsData = await accountsResponse.json();
+                if (accountsData.success && accountsData.data && accountsData.data.length > 0) {
+                    alwataniLoginId = accountsData.data[0].id;
+                }
+            }
+        } catch (error) {
+            console.error('[TICKET DETAILS] Failed to get alwatani_login_id:', error);
+        }
+    }
+    
+    if (!alwataniLoginId) {
+        showTicketDetailsError('لم يتم تحديد حساب الوطني');
+        return;
+    }
+    
+    try {
+        // جلب تفاصيل التذكرة
+        const detailsUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${alwataniLoginId}/support/tickets/${currentTicketId}`);
+        const detailsResponse = await fetch(detailsUrl, addUsernameToFetchOptions());
+        
+        if (!detailsResponse.ok) {
+            throw new Error(`HTTP ${detailsResponse.status}: ${detailsResponse.statusText}`);
+        }
+        
+        const detailsData = await detailsResponse.json();
+        
+        if (!detailsData.success || !detailsData.data) {
+            throw new Error(detailsData.message || 'فشل جلب تفاصيل التذكرة');
+        }
+        
+        // جلب التعليقات
+        let comments = [];
+        try {
+            const commentsUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${alwataniLoginId}/support/tickets/${currentTicketId}/comments?pageSize=50`);
+            const commentsResponse = await fetch(commentsUrl, addUsernameToFetchOptions());
+            if (commentsResponse.ok) {
+                const commentsData = await commentsResponse.json();
+                if (commentsData.success && commentsData.data) {
+                    // استخراج التعليقات من البنية المختلفة
+                    if (Array.isArray(commentsData.data)) {
+                        comments = commentsData.data;
+                    } else if (Array.isArray(commentsData.data.items)) {
+                        comments = commentsData.data.items;
+                    } else if (Array.isArray(commentsData.data.comments)) {
+                        comments = commentsData.data.comments;
+                    }
+                }
+            }
+        } catch (commentsError) {
+            console.warn('[TICKET DETAILS] Failed to load comments:', commentsError);
+        }
+        
+        // دمج التعليقات مع بيانات التذكرة
+        const ticketData = {
+            ...detailsData.data,
+            comments: comments
+        };
+        
+        displayTicketDetails(ticketData);
+        
+    } catch (error) {
+        console.error('[TICKET DETAILS] Error loading ticket details:', error);
+        showTicketDetailsError(error.message);
+    }
+}
+
+// Display ticket details in modal
+function displayTicketDetails(ticketData) {
+    console.log('[TICKET DETAILS] Displaying ticket data:', ticketData);
+    
+    // إخفاء حالة التحميل وإظهار المحتوى
+    document.getElementById('ticket-modal-loading').classList.add('hidden');
+    document.getElementById('ticket-modal-content').classList.remove('hidden');
+    document.getElementById('ticket-modal-error').classList.add('hidden');
+    document.getElementById('ticket-modal-actions').classList.remove('hidden');
+    
+    // استخراج البيانات
+    const ticketId = ticketData.self?.id || ticketData.id || currentTicketId || '-';
+    const ticketNumber = ticketData.displayId || ticketData.number || ticketData.taskNumber || ticketData.ticketNumber || ticketId || '-';
+    const status = ticketData.status || ticketData.taskStatus || ticketData.state || 'open';
+    const subject = ticketData.summary || ticketData.subject || ticketData.title || ticketData.name || '-';
+    const description = ticketData.description || ticketData.notes || ticketData.comment || subject || '-';
+    const customerName = ticketData.customer?.displayValue || ticketData.customer?.name || ticketData.customerName || ticketData.subscriberName || ticketData.subscriber?.name || '-';
+    const team = ticketData.team || ticketData.assignedTeam || ticketData.assignedTo || ticketData.partner?.displayValue || 'غير مسند';
+    const zone = ticketData.zone?.displayValue || ticketData.zone || '';
+    const createdAt = ticketData.createdAt || ticketData.created_at || ticketData.dateCreated || ticketData.date || '';
+    const date = createdAt ? new Date(createdAt).toLocaleDateString('ar-EG', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    }) : '-';
+    
+    // تحديد لون الحالة
+    const statusLower = status.toLowerCase();
+    let statusColor = 'bg-slate-100 text-slate-600';
+    let statusText = status;
+    
+    if (statusLower === 'open' || statusLower === 'new' || statusLower === 'waiting for response') {
+        statusColor = 'bg-red-100 text-red-600';
+        statusText = statusLower === 'waiting for response' ? 'في انتظار الرد' : 'مفتوح';
+    } else if (statusLower === 'pending' || statusLower === 'in progress' || statusLower === 'inprogress' || statusLower === 'in_progress' || statusLower === 'on hold') {
+        statusColor = 'bg-orange-100 text-orange-600';
+        statusText = statusLower === 'on hold' ? 'معلق' : 'قيد المعالجة';
+    } else if (statusLower === 'closed' || statusLower === 'close' || statusLower === 'completed' || statusLower === 'resolved' || statusLower === 'canceled') {
+        statusColor = 'bg-green-100 text-green-600';
+        statusText = statusLower === 'resolved' ? 'تم الحل' : statusLower === 'canceled' ? 'ملغي' : 'مغلق';
+    } else if (statusLower === 'reopened') {
+        statusColor = 'bg-blue-100 text-blue-600';
+        statusText = 'مفتوح مجدداً';
+    } else if (statusLower === 'contractor feedback') {
+        statusColor = 'bg-purple-100 text-purple-600';
+        statusText = 'ملاحظات المقاول';
+    }
+    
+    // تحديث العنوان والرقم
+    document.getElementById('ticket-modal-title').textContent = subject || 'تفاصيل التذكرة';
+    document.getElementById('ticket-modal-number').textContent = `#${ticketNumber}`;
+    
+    // تحديث المعلومات الأساسية
+    document.getElementById('ticket-modal-status').innerHTML = `<span class="${statusColor} px-3 py-1 rounded text-xs font-bold">${statusText}</span>`;
+    document.getElementById('ticket-modal-date').textContent = date;
+    document.getElementById('ticket-modal-customer').textContent = customerName;
+    document.getElementById('ticket-modal-team').textContent = team;
+    document.getElementById('ticket-modal-zone').textContent = zone || 'غير محدد';
+    
+    // تحديث الموضوع والوصف
+    document.getElementById('ticket-modal-subject').textContent = subject;
+    document.getElementById('ticket-modal-description').textContent = description;
+    
+    // عرض التعليقات
+    const commentsContainer = document.getElementById('ticket-modal-comments');
+    const comments = ticketData.comments || [];
+    
+    if (comments.length === 0) {
+        commentsContainer.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">لا توجد تعليقات</p>';
+    } else {
+        commentsContainer.innerHTML = comments.map(comment => {
+            const commentText = comment.text || comment.comment || comment.message || comment.content || '-';
+            const commentAuthor = comment.author?.displayValue || comment.author?.name || comment.createdBy || comment.user || 'غير معروف';
+            const commentDate = comment.createdAt || comment.created_at || comment.date || '';
+            const formattedDate = commentDate ? new Date(commentDate).toLocaleDateString('ar-EG', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }) : '-';
+            
+            return `
+                <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-medium text-slate-700">${commentAuthor}</span>
+                        <span class="text-xs text-slate-500">${formattedDate}</span>
+                    </div>
+                    <p class="text-sm text-slate-600 whitespace-pre-wrap">${commentText}</p>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    // حفظ بيانات التذكرة الحالية
+    currentTicketData = ticketData;
+}
+
+// Show error in ticket details modal
+function showTicketDetailsError(errorMessage) {
+    document.getElementById('ticket-modal-loading').classList.add('hidden');
+    document.getElementById('ticket-modal-content').classList.add('hidden');
+    document.getElementById('ticket-modal-error').classList.remove('hidden');
+    document.getElementById('ticket-modal-actions').classList.add('hidden');
+    
+    document.getElementById('ticket-modal-error-message').textContent = errorMessage;
+}
+
+// Close ticket details modal
+function closeTicketDetailsModal() {
+    const modal = document.getElementById('ticket-details-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    currentTicketId = null;
+    currentTicketData = null;
+}
+
+// Open update ticket status modal (placeholder)
+function openUpdateTicketStatusModal() {
+    alert('ميزة تحديث حالة التذكرة قيد التطوير');
+}
+
+// Open add comment modal (placeholder)
+function openAddCommentModal() {
+    alert('ميزة إضافة تعليق قيد التطوير');
+}
+
+// Make functions globally available
+window.viewTicketDetails = viewTicketDetails;
+window.closeTicketDetailsModal = closeTicketDetailsModal;
+window.loadTicketDetails = loadTicketDetails;
+window.openUpdateTicketStatusModal = openUpdateTicketStatusModal;
+window.openAddCommentModal = openAddCommentModal;
 
 // ==================== Local Tickets Management Functions - REMOVED ====================
 // تم حذف جميع دوال إدارة التذاكر المحلية:
