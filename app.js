@@ -5828,9 +5828,15 @@ async function loadTicketsForDashboard(forceSync = false) {
                     const userData = JSON.parse(storedUser);
                     ownerUsername = userData.owner_username || userData.username;
                     console.log('[TICKETS DASHBOARD] ✅ Got username from localStorage:', ownerUsername);
+                } else {
+                    // إذا لم يكن هناك بيانات في localStorage، استخدم admin@tec كقيمة افتراضية
+                    // (هذا مفيد للاختبار، لكن يجب أن يتم تسجيل الدخول بشكل صحيح)
+                    ownerUsername = 'admin@tec';
+                    console.log('[TICKETS DASHBOARD] ⚠️ No user in localStorage, using default: admin@tec');
                 }
             } catch (e) {
                 console.warn('[TICKETS DASHBOARD] Failed to get username from localStorage:', e);
+                ownerUsername = 'admin@tec'; // استخدام قيمة افتراضية في حالة الخطأ
             }
         }
         
