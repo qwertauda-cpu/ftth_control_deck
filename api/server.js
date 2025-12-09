@@ -7610,10 +7610,9 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
         }
         
         const alwataniUsername = accounts[0].username;
-        const alwataniDbName = `ftth_alwatani_${alwataniUsername.toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')}`;
         
         // الاتصال بقاعدة بيانات الوطني
-        const alwataniPool = await dbManager.getPool(alwataniDbName);
+        const alwataniPool = await dbManager.getAlwataniPool(alwataniUsername);
         
         // التحقق من وجود جدول sla_tickets وإنشاؤه إذا لم يكن موجوداً
         try {
@@ -7767,10 +7766,9 @@ app.get('/api/alwatani-login/:id/tasks/db', async (req, res) => {
         }
         
         const alwataniUsername = accounts[0].username;
-        const alwataniDbName = `ftth_alwatani_${alwataniUsername.toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')}`;
         
         // الاتصال بقاعدة بيانات الوطني
-        const alwataniPool = await dbManager.getPool(alwataniDbName);
+        const alwataniPool = await dbManager.getAlwataniPool(alwataniUsername);
         
         // التحقق من وجود جدول sla_tickets
         try {
