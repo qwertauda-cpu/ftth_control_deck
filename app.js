@@ -6682,6 +6682,7 @@ let currentTicketData = null;
 // View ticket details
 async function viewTicketDetails(ticketId, ticketData = null) {
     console.log('[TICKET DETAILS] Opening ticket details modal for ticket:', ticketId);
+    console.log('[TICKET DETAILS] Initial ticket data:', ticketData);
     
     currentTicketId = ticketId;
     currentTicketData = ticketData;
@@ -6695,14 +6696,12 @@ async function viewTicketDetails(ticketId, ticketData = null) {
     // إظهار الـ modal
     modal.classList.remove('hidden');
     
-    // إظهار حالة التحميل وإخفاء المحتوى
-    document.getElementById('ticket-modal-loading').classList.remove('hidden');
-    document.getElementById('ticket-modal-content').classList.add('hidden');
-    document.getElementById('ticket-modal-error').classList.add('hidden');
-    document.getElementById('ticket-modal-actions').classList.add('hidden');
-    
-    // إذا كانت بيانات التذكرة متوفرة، عرضها مباشرة
-    if (ticketData) {
+    // إذا كانت بيانات التذكرة متوفرة وصالحة، عرضها مباشرة بدون loading
+    if (ticketData && hasValidTicketData(ticketData)) {
+        console.log('[TICKET DETAILS] ✅ Using provided ticket data, displaying immediately');
+        // إخفاء loading وإظهار المحتوى مباشرة
+        document.getElementById('ticket-modal-loading').classList.add('hidden');
+        document.getElementById('ticket-modal-error').classList.add('hidden');
         displayTicketDetails(ticketData);
         // جلب تفاصيل محدثة من API في الخلفية (بدون إخفاء المحتوى)
         loadTicketDetails(true).catch(error => {
@@ -6710,9 +6709,26 @@ async function viewTicketDetails(ticketId, ticketData = null) {
             // لا نعرض خطأ إذا كانت البيانات الأساسية موجودة بالفعل
         });
     } else {
+        // إظهار حالة التحميل وإخفاء المحتوى
+        document.getElementById('ticket-modal-loading').classList.remove('hidden');
+        document.getElementById('ticket-modal-content').classList.add('hidden');
+        document.getElementById('ticket-modal-error').classList.add('hidden');
+        document.getElementById('ticket-modal-actions').classList.add('hidden');
+        
         // جلب تفاصيل التذكرة من API
         await loadTicketDetails();
     }
+}
+
+// Check if ticket data has valid information
+function hasValidTicketData(ticketData) {
+    if (!ticketData) return false;
+    
+    // التحقق من وجود معلومات أساسية
+    const hasId = !!(ticketData.self?.id || ticketData.id || ticketData.taskId || ticketData.ticketId);
+    const hasSubject = !!(ticketData.summary || ticketData.subject || ticketData.title || ticketData.name);
+    
+    return hasId && hasSubject;
 }
 
 // Load ticket details from API
@@ -6790,18 +6806,53 @@ async function loadTicketDetails(silentRefresh = false) {
             comments: comments
         };
         
-        displayTicketDetails(ticketData);
+        // التحقق من صحة البيانات قبل العرض
+        if (hasValidTicketData(ticketData)) {
+            displayTicketDetails(ticketData);
+        } else {
+            console.warn('[TICKET DETAILS] ⚠️ Invalid ticket data from API');
+            // إذا كان silentRefresh، لا نعرض خطأ ولا نخفي المحتوى الموجود
+            if (!silentRefresh) {
+                // إذا كانت هناك بيانات أصلية محفوظة، نستخدمها
+                if (currentTicketData && hasValidTicketData(currentTicketData)) {
+                    console.log('[TICKET DETAILS] Using saved ticket data as fallback');
+                    displayTicketDetails(currentTicketData);
+                } else {
+                    showTicketDetailsError('فشل جلب تفاصيل التذكرة: بيانات غير صالحة');
+                }
+            } else {
+                // في حالة silent refresh، فقط نسجل الخطأ في console
+                console.warn('[TICKET DETAILS] Silent refresh failed, keeping existing data');
+            }
+        }
         
     } catch (error) {
         console.error('[TICKET DETAILS] Error loading ticket details:', error);
         // إذا كان silentRefresh = true، لا نعرض خطأ ولا نخفي المحتوى الموجود
         if (!silentRefresh) {
-            showTicketDetailsError(error.message);
+            // إذا كانت هناك بيانات أصلية محفوظة، نستخدمها
+            if (currentTicketData && hasValidTicketData(currentTicketData)) {
+                console.log('[TICKET DETAILS] Error occurred, using saved ticket data as fallback');
+                displayTicketDetails(currentTicketData);
+            } else {
+                showTicketDetailsError(error.message);
+            }
         } else {
             // في حالة silent refresh، فقط نسجل الخطأ في console
             console.warn('[TICKET DETAILS] Silent refresh failed, keeping existing data');
         }
     }
+}
+
+// Check if ticket data has valid information
+function hasValidTicketData(ticketData) {
+    if (!ticketData) return false;
+    
+    // التحقق من وجود معلومات أساسية
+    const hasId = !!(ticketData.self?.id || ticketData.id || ticketData.taskId || ticketData.ticketId);
+    const hasSubject = !!(ticketData.summary || ticketData.subject || ticketData.title || ticketData.name);
+    
+    return hasId && hasSubject;
 }
 
 // Display ticket details in modal
