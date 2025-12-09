@@ -7479,66 +7479,108 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
         
         const token = await getAlwataniTokenFromLogin(req);
         
-        // جلب التذاكر من API الوطني
-        const queryParams = new URLSearchParams();
-        queryParams.append('pageSize', '100');
-        if (req.query.pageNumber) queryParams.append('pageNumber', req.query.pageNumber);
-        if (req.query['sortCriteria.property']) queryParams.append('sortCriteria.property', req.query['sortCriteria.property']);
-        if (req.query['sortCriteria.direction']) queryParams.append('sortCriteria.direction', req.query['sortCriteria.direction']);
-        if (req.query.hierarchyLevel) queryParams.append('hierarchyLevel', req.query.hierarchyLevel);
-        
-        const path = `/api/support/tickets?${queryParams.toString()}`;
-        const resp = await fetchAlwataniResource(path, token, 'GET', false, null, null, 'support_tickets_sync');
-        
-        if (!resp.success) {
-            return res.status(resp.statusCode || 500).json({
-                success: false,
-                message: resp.message || 'Failed to fetch tasks from Alwatani',
-                error: resp.data
-            });
-        }
-        
-        // استخراج التذاكر من response
-        let tasks = [];
+        // جلب جميع التذاكر عبر pagination
+        const pageSize = 100;
+        const maxPages = parseInt(req.query.maxPages || '50', 10); // حد أقصى 50 صفحة (5000 تذكرة)
+        let allTasks = [];
         let totalCount = 0;
-        let pageSize = 100;
         let currentPage = 1;
-        let totalPages = 1;
+        let hasMorePages = true;
         
-        if (resp.data) {
-            // محاولة استخراج العدد الإجمالي من response
-            if (resp.data.totalCount !== undefined) {
-                totalCount = resp.data.totalCount;
-            } else if (resp.data.total !== undefined) {
-                totalCount = resp.data.total;
-            } else if (resp.data.totalItems !== undefined) {
-                totalCount = resp.data.totalItems;
+        console.log(`[TICKETS SYNC] Starting sync with maxPages: ${maxPages}`);
+        
+        // جلب جميع الصفحات
+        while (hasMorePages && currentPage <= maxPages) {
+            const queryParams = new URLSearchParams();
+            queryParams.append('pageSize', pageSize.toString());
+            queryParams.append('pageNumber', currentPage.toString());
+            queryParams.append('sortCriteria.property', 'createdAt');
+            queryParams.append('sortCriteria.direction', 'desc');
+            queryParams.append('hierarchyLevel', '0');
+            
+            const path = `/api/support/tickets?${queryParams.toString()}`;
+            console.log(`[TICKETS SYNC] Fetching page ${currentPage}...`);
+            
+            // إضافة تأخير بين الطلبات لتجنب rate limiting (500ms بعد الصفحة الأولى)
+            if (currentPage > 1) {
+                await new Promise(resolve => setTimeout(resolve, 500));
             }
             
-            if (resp.data.pageSize !== undefined) {
-                pageSize = resp.data.pageSize;
-            }
-            if (resp.data.currentPage !== undefined) {
-                currentPage = resp.data.currentPage;
-            } else if (resp.data.pageNumber !== undefined) {
-                currentPage = resp.data.pageNumber;
-            }
-            if (resp.data.totalPages !== undefined) {
-                totalPages = resp.data.totalPages;
+            const resp = await fetchAlwataniResource(path, token, 'GET', false, null, null, 'support_tickets_sync');
+            
+            if (!resp.success) {
+                console.error(`[TICKETS SYNC] ❌ Failed to fetch page ${currentPage}:`, resp.message);
+                if (allTasks.length === 0) {
+                    return res.status(resp.statusCode || 500).json({
+                        success: false,
+                        message: resp.message || 'Failed to fetch tasks from Alwatani',
+                        error: resp.data
+                    });
+                } else {
+                    // إذا كان هناك تذاكر مجلوبة بالفعل، نتوقف هنا
+                    console.warn(`[TICKETS SYNC] ⚠️ Stopped pagination due to error, but have ${allTasks.length} tickets already loaded`);
+                    hasMorePages = false;
+                    break;
+                }
             }
             
-            if (Array.isArray(resp.data)) {
-                tasks = resp.data;
-                totalCount = totalCount || tasks.length;
-            } else if (Array.isArray(resp.data.items)) {
-                tasks = resp.data.items;
-                // استخدام totalCount من response إذا كان متوفراً، وإلا استخدم عدد المهام المجلوبة
-                totalCount = totalCount || tasks.length;
-            } else if (Array.isArray(resp.data.tasks)) {
-                tasks = resp.data.tasks;
-                totalCount = totalCount || tasks.length;
+            // استخراج التذاكر من response
+            let pageTasks = [];
+            
+            if (resp.data) {
+                // استخراج العدد الإجمالي من الصفحة الأولى فقط
+                if (currentPage === 1) {
+                    if (resp.data.totalCount !== undefined) {
+                        totalCount = resp.data.totalCount;
+                    } else if (resp.data.total !== undefined) {
+                        totalCount = resp.data.total;
+                    } else if (resp.data.totalItems !== undefined) {
+                        totalCount = resp.data.totalItems;
+                    }
+                    console.log(`[TICKETS SYNC] Total count from API: ${totalCount}`);
+                }
+                
+                // استخراج التذاكر من الصفحة الحالية
+                if (Array.isArray(resp.data)) {
+                    pageTasks = resp.data;
+                } else if (Array.isArray(resp.data.items)) {
+                    pageTasks = resp.data.items;
+                } else if (Array.isArray(resp.data.tasks)) {
+                    pageTasks = resp.data.tasks;
+                }
+            }
+            
+            // إضافة تذاكر الصفحة الحالية إلى المصفوفة الإجمالية
+            if (pageTasks.length > 0) {
+                allTasks = allTasks.concat(pageTasks);
+                console.log(`[TICKETS SYNC] ✅ Page ${currentPage}: Loaded ${pageTasks.length} tickets (Total so far: ${allTasks.length})`);
+            }
+            
+            // التحقق من وجود صفحات إضافية
+            if (currentPage >= maxPages) {
+                console.log(`[TICKETS SYNC] ⚠️ Reached maximum pages limit (${maxPages}), stopping pagination`);
+                hasMorePages = false;
+            } else if (pageTasks.length < pageSize) {
+                // لا توجد صفحات إضافية (عدد التذاكر أقل من pageSize)
+                console.log(`[TICKETS SYNC] ✅ No more pages (received ${pageTasks.length} tickets, expected ${pageSize})`);
+                hasMorePages = false;
+            } else if (totalCount > 0) {
+                // التحقق بناءً على العدد الإجمالي
+                const totalPages = Math.ceil(totalCount / pageSize);
+                if (currentPage >= totalPages) {
+                    console.log(`[TICKETS SYNC] ✅ Reached last page (${currentPage} / ${totalPages})`);
+                    hasMorePages = false;
+                } else {
+                    currentPage++;
+                }
+            } else {
+                // إذا لم يكن هناك totalCount، نستمر حتى لا نجد تذاكر أو نصل للحد الأقصى
+                currentPage++;
             }
         }
+        
+        const tasks = allTasks;
+        console.log(`[TICKETS SYNC] ✅ Finished loading all tickets. Total: ${tasks.length} from ${currentPage - 1} pages`);
         
         if (tasks.length === 0) {
             return res.json({
@@ -7679,8 +7721,8 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
             updated,
             created,
             totalCount: totalCount || totalInDb,
-            loadedCount: synced,
-            remainingCount: Math.max(0, (totalCount || totalInDb) - synced)
+            loadedCount: tasks.length,
+            remainingCount: totalCount > 0 ? Math.max(0, totalCount - tasks.length) : 0
         });
     } catch (error) {
         console.error('[TICKETS SYNC] Error:', error);
@@ -7745,7 +7787,7 @@ app.get('/api/alwatani-login/:id/tasks/db', async (req, res) => {
             }
         }
         
-        // جلب التذاكر من قاعدة البيانات
+        // جلب التذاكر من قاعدة البيانات (جميع التذاكر بدون حد أقصى)
         console.log('[TICKETS DB] Fetching tickets from database:', alwataniDbName);
         const [tickets] = await alwataniPool.query(
             `SELECT 
@@ -7753,9 +7795,14 @@ app.get('/api/alwatani-login/:id/tasks/db', async (req, res) => {
                 customer_name, customer_id, assigned_to, team, zone, created_at, updated_at,
                 sla_data, synced_at, last_synced_at
             FROM sla_tickets
-            ORDER BY created_at DESC
-            LIMIT 100`
+            ORDER BY created_at DESC`
         );
+        
+        // حساب العدد الإجمالي
+        const [countResult] = await alwataniPool.query(
+            'SELECT COUNT(*) as total FROM sla_tickets'
+        );
+        const totalCount = countResult[0]?.total || 0;
         
         console.log('[TICKETS DB] ✅ Found', tickets.length, 'tickets in database');
         
@@ -7806,7 +7853,8 @@ app.get('/api/alwatani-login/:id/tasks/db', async (req, res) => {
         res.json({
             success: true,
             data: formattedTickets,
-            count: formattedTickets.length
+            count: formattedTickets.length,
+            totalCount: totalCount
         });
     } catch (error) {
         console.error('[TICKETS DB] Error:', error);

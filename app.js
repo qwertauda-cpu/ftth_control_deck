@@ -5815,71 +5815,99 @@ async function loadTicketsForDashboard(forceSync = false) {
         }
         console.log('[TICKETS DASHBOARD] ✅ currentUserId:', currentUserId);
         
-        // جلب التذاكر مباشرة من API الوطني (بدون قاعدة البيانات)
-        console.log('[TICKETS DASHBOARD] Fetching tickets directly from Alwatani API (no database)...');
-        
-        // جلب جميع التذاكر عبر pagination
-        const pageSize = 100; // عدد التذاكر في كل صفحة
-        const maxPages = 50; // حد أقصى للصفحات (5000 تذكرة كحد أقصى)
-        let allTickets = [];
+        // استراتيجية database-first: جلب من قاعدة البيانات أولاً
+        let tickets = [];
         let totalCount = 0;
-        let currentPage = 1;
-        let hasMorePages = true;
-        let paginationStoppedDueToError = false; // تتبع ما إذا كان pagination تم إيقافه بسبب خطأ
+        let shouldSync = forceSync; // يجب sync إذا كان forceSync=true
         
-        // تحديث حالة التحميل لإظهار التقدم
-        container.innerHTML = `
-            <div class="text-center text-slate-400 text-sm py-8">
-                <div class="flex items-center justify-center gap-2">
-                    <svg class="animate-spin h-5 w-5 text-orange-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>جاري جلب جميع التذاكر...</span>
+        // محاولة جلب التذاكر من قاعدة البيانات أولاً (ما لم يكن forceSync)
+        if (!forceSync) {
+            console.log('[TICKETS DASHBOARD] Attempting to load tickets from database first...');
+            container.innerHTML = `
+                <div class="text-center text-slate-400 text-sm py-8">
+                    <div class="flex items-center justify-center gap-2">
+                        <svg class="animate-spin h-5 w-5 text-orange-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>جاري تحميل التذاكر من قاعدة البيانات...</span>
+                    </div>
                 </div>
-                <p class="text-xs mt-2 text-slate-500" id="tickets-loading-progress">الصفحة 1...</p>
-            </div>
-        `;
-        
-        // جلب جميع الصفحات
-        while (hasMorePages) {
-            const queryParams = new URLSearchParams();
-            queryParams.append('pageSize', pageSize.toString());
-            queryParams.append('pageNumber', currentPage.toString());
-            queryParams.append('sortCriteria.property', 'createdAt');
-            queryParams.append('sortCriteria.direction', 'desc');
-            queryParams.append('hierarchyLevel', '0');
+            `;
             
-            const apiUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/support/tickets?${queryParams.toString()}`);
-            console.log(`[TICKETS DASHBOARD] Fetching page ${currentPage}...`);
-            
-            // إضافة تأخير بين الطلبات لتجنب rate limiting (500ms بعد الصفحة الأولى)
-            if (currentPage > 1) {
-                await new Promise(resolve => setTimeout(resolve, 500));
-            }
-            
-            const apiResponse = await fetch(apiUrl, addUsernameToFetchOptions());
-            
-            if (!apiResponse.ok) {
-                const errorText = await apiResponse.text();
-                let errorMessage = 'فشل الاتصال بموقع الوطني';
-                try {
-                    const errorData = JSON.parse(errorText);
-                    errorMessage = errorData.message || errorData.error || errorMessage;
-                } catch (e) {
-                    errorMessage = `خطأ ${apiResponse.status}: ${apiResponse.statusText}`;
-                }
-                console.error('[TICKETS DASHBOARD] ❌ API Response Error:', apiResponse.status, errorMessage);
+            try {
+                const dbUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks/db`);
+                const dbResponse = await fetch(dbUrl, addUsernameToFetchOptions());
                 
-                // إذا كان هناك تذاكر مجلوبة بالفعل، نعرضها مع رسالة تحذيرية
-                if (allTickets.length > 0) {
-                    console.warn(`[TICKETS DASHBOARD] ⚠️ Stopped pagination due to error, but displaying ${allTickets.length} tickets already loaded`);
-                    hasMorePages = false; // إيقاف pagination
-                    paginationStoppedDueToError = true; // تحديد أن pagination تم إيقافه بسبب خطأ
-                    // سنستمر في الكود لعرض التذاكر المجلوبة
-                    break; // الخروج من الحلقة
+                if (dbResponse.ok) {
+                    const dbData = await dbResponse.json();
+                    if (dbData.success && dbData.data && dbData.data.length > 0) {
+                        tickets = dbData.data;
+                        totalCount = dbData.count || tickets.length;
+                        console.log(`[TICKETS DASHBOARD] ✅ Loaded ${tickets.length} tickets from database`);
+                        
+                        // عرض التذاكر من قاعدة البيانات
+                        if (totalCount > 0) {
+                            updateTicketsCount(totalCount, tickets.length, Math.max(0, totalCount - tickets.length));
+                        } else {
+                            updateTicketsCount(tickets.length, tickets.length, 0);
+                        }
+                        renderTicketCards(tickets);
+                        
+                        // بدء sync في الخلفية للتحقق من التذاكر الجديدة والتحديثات
+                        console.log('[TICKETS DASHBOARD] Starting background sync to check for new tickets and updates...');
+                        syncTicketsInBackground();
+                        
+                        return; // نجحنا في جلب من DB، لا حاجة للمتابعة
+                    } else {
+                        console.log('[TICKETS DASHBOARD] ⚠️ No tickets found in database, will fetch from API');
+                        shouldSync = true; // يجب sync لأن DB فارغة
+                    }
                 } else {
-                    // إذا لم يكن هناك تذاكر مجلوبة، نعرض رسالة خطأ كاملة
+                    console.warn('[TICKETS DASHBOARD] ⚠️ Failed to load from database, will fetch from API');
+                    shouldSync = true; // يجب sync لأن DB فشلت
+                }
+            } catch (dbError) {
+                console.error('[TICKETS DASHBOARD] ❌ Error loading from database:', dbError);
+                shouldSync = true; // يجب sync لأن DB فشلت
+            }
+        }
+        
+        // إذا لم توجد تذاكر في DB أو forceSync=true، استدعاء sync endpoint الذي يجلب ويحفظ تلقائياً
+        if (shouldSync) {
+            console.log('[TICKETS DASHBOARD] Syncing tickets from Alwatani API to database...');
+            
+            // تحديث حالة التحميل
+            container.innerHTML = `
+                <div class="text-center text-slate-400 text-sm py-8">
+                    <div class="flex items-center justify-center gap-2">
+                        <svg class="animate-spin h-5 w-5 text-orange-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>جاري جلب وحفظ التذاكر من API الوطني...</span>
+                    </div>
+                </div>
+            `;
+            
+            try {
+                // استدعاء endpoint sync الذي يجلب ويحفظ تلقائياً
+                const maxPages = 50; // حد أقصى للصفحات
+                const syncUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks/sync?maxPages=${maxPages}`);
+                const syncResponse = await fetch(syncUrl, addUsernameToFetchOptions({
+                    method: 'POST'
+                }));
+                
+                if (!syncResponse.ok) {
+                    const errorText = await syncResponse.text();
+                    let errorMessage = 'فشل مزامنة التذاكر';
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        errorMessage = errorData.message || errorData.error || errorMessage;
+                    } catch (e) {
+                        errorMessage = `خطأ ${syncResponse.status}: ${syncResponse.statusText}`;
+                    }
+                    console.error('[TICKETS DASHBOARD] ❌ Sync Error:', syncResponse.status, errorMessage);
                     container.innerHTML = `
                         <div class="text-center text-red-500 text-sm py-8">
                             <div class="mb-2">
@@ -5887,9 +5915,8 @@ async function loadTicketsForDashboard(forceSync = false) {
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                             </div>
-                            <p class="font-bold mb-1">❌ خطأ في الاتصال</p>
+                            <p class="font-bold mb-1">❌ خطأ في المزامنة</p>
                             <p class="text-xs">${errorMessage}</p>
-                            <p class="text-xs mt-2 text-slate-500">كود الخطأ: ${apiResponse.status}</p>
                             <button onclick="loadTicketsForDashboard(true)" class="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm">
                                 إعادة المحاولة
                             </button>
@@ -5898,13 +5925,39 @@ async function loadTicketsForDashboard(forceSync = false) {
                     updateTicketsCount(0, 0, 0);
                     return;
                 }
-            }
-            
-            const apiData = await apiResponse.json();
-            
-            if (!apiData.success) {
-                const errorMessage = apiData.message || apiData.error || 'فشل جلب التذاكر من موقع الوطني';
-                console.error('[TICKETS DASHBOARD] ❌ API Error:', errorMessage);
+                
+                const syncData = await syncResponse.json();
+                console.log('[TICKETS DASHBOARD] ✅ Sync completed:', syncData);
+                
+                // بعد sync، جلب التذاكر من قاعدة البيانات لعرضها
+                console.log('[TICKETS DASHBOARD] Loading tickets from database after sync...');
+                const dbUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks/db`);
+                const dbResponse = await fetch(dbUrl, addUsernameToFetchOptions());
+                
+                if (dbResponse.ok) {
+                    const dbData = await dbResponse.json();
+                    if (dbData.success && dbData.data) {
+                        tickets = dbData.data;
+                        totalCount = dbData.count || tickets.length;
+                        console.log(`[TICKETS DASHBOARD] ✅ Loaded ${tickets.length} tickets from database after sync`);
+                    }
+                }
+                
+                // تحديث العداد من بيانات sync
+                if (syncData.totalCount !== undefined) {
+                    totalCount = syncData.totalCount;
+                }
+                if (syncData.loadedCount !== undefined) {
+                    updateTicketsCount(
+                        syncData.totalCount || tickets.length,
+                        syncData.loadedCount || tickets.length,
+                        syncData.remainingCount || 0
+                    );
+                } else {
+                    updateTicketsCount(totalCount || tickets.length, tickets.length, 0);
+                }
+            } catch (syncError) {
+                console.error('[TICKETS DASHBOARD] ❌ Error during sync:', syncError);
                 container.innerHTML = `
                     <div class="text-center text-red-500 text-sm py-8">
                         <div class="mb-2">
@@ -5912,9 +5965,8 @@ async function loadTicketsForDashboard(forceSync = false) {
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                         </div>
-                        <p class="font-bold mb-1">❌ خطأ في جلب التذاكر</p>
-                        <p class="text-xs">${errorMessage}</p>
-                        <p class="text-xs mt-2 text-slate-500">يرجى المحاولة مرة أخرى أو التحقق من اتصال الإنترنت</p>
+                        <p class="font-bold mb-1">❌ خطأ في المزامنة</p>
+                        <p class="text-xs">${syncError.message}</p>
                         <button onclick="loadTicketsForDashboard(true)" class="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm">
                             إعادة المحاولة
                         </button>
@@ -5923,76 +5975,7 @@ async function loadTicketsForDashboard(forceSync = false) {
                 updateTicketsCount(0, 0, 0);
                 return;
             }
-            
-            // استخراج البيانات من الصفحة الحالية
-            let pageTickets = [];
-            
-            if (apiData.data) {
-                // استخراج العدد الإجمالي من الصفحة الأولى فقط
-                if (currentPage === 1) {
-                    if (apiData.data.totalCount !== undefined) {
-                        totalCount = apiData.data.totalCount;
-                    } else if (apiData.data.total !== undefined) {
-                        totalCount = apiData.data.total;
-                    } else if (apiData.data.totalItems !== undefined) {
-                        totalCount = apiData.data.totalItems;
-                    }
-                }
-                
-                // استخراج التذاكر من الصفحة الحالية
-                if (Array.isArray(apiData.data)) {
-                    pageTickets = apiData.data;
-                } else if (Array.isArray(apiData.data.items)) {
-                    pageTickets = apiData.data.items;
-                } else if (Array.isArray(apiData.data.tasks)) {
-                    pageTickets = apiData.data.tasks;
-                }
-            }
-            
-            // إضافة تذاكر الصفحة الحالية إلى المصفوفة الإجمالية
-            if (pageTickets.length > 0) {
-                allTickets = allTickets.concat(pageTickets);
-                console.log(`[TICKETS DASHBOARD] ✅ Page ${currentPage}: Loaded ${pageTickets.length} tickets (Total so far: ${allTickets.length})`);
-                
-                // تحديث شريط التقدم
-                const progressEl = document.getElementById('tickets-loading-progress');
-                if (progressEl) {
-                    if (totalCount > 0) {
-                        progressEl.textContent = `الصفحة ${currentPage}... (${allTickets.length} / ${totalCount})`;
-                    } else {
-                        progressEl.textContent = `الصفحة ${currentPage}... (${allTickets.length} تذكرة)`;
-                    }
-                }
-            }
-            
-            // التحقق من وجود صفحات إضافية
-            // أولاً: التحقق من الحد الأقصى للصفحات
-            if (currentPage >= maxPages) {
-                console.log(`[TICKETS DASHBOARD] ⚠️ Reached maximum pages limit (${maxPages}), stopping pagination`);
-                hasMorePages = false;
-            } else if (pageTickets.length < pageSize) {
-                // لا توجد صفحات إضافية (عدد التذاكر أقل من pageSize)
-                console.log(`[TICKETS DASHBOARD] ✅ No more pages (received ${pageTickets.length} tickets, expected ${pageSize})`);
-                hasMorePages = false;
-            } else if (totalCount > 0) {
-                // التحقق بناءً على العدد الإجمالي
-                const totalPages = Math.ceil(totalCount / pageSize);
-                if (currentPage >= totalPages) {
-                    console.log(`[TICKETS DASHBOARD] ✅ Reached last page (${currentPage} / ${totalPages})`);
-                    hasMorePages = false;
-                } else {
-                    currentPage++;
-                    console.log(`[TICKETS DASHBOARD] 📄 Continuing to page ${currentPage} (${totalPages} total pages)`);
-                }
-            } else {
-                // إذا لم يكن هناك totalCount، نستمر حتى لا نجد تذاكر أو نصل للحد الأقصى
-                currentPage++;
-                console.log(`[TICKETS DASHBOARD] 📄 Continuing to page ${currentPage} (no totalCount available)`);
-            }
         }
-        
-        const tickets = allTickets;
-        console.log('[TICKETS DASHBOARD] ✅ Finished loading all tickets. Total:', tickets.length);
         
         // إذا لم توجد تذاكر
         if (tickets.length === 0) {
@@ -6067,6 +6050,64 @@ async function loadTicketsForDashboard(forceSync = false) {
 
 // Make sure function is available globally for onclick
 window.loadTicketsForDashboard = loadTicketsForDashboard;
+
+// دالة لمزامنة التذاكر في الخلفية (بدون عرض loading)
+async function syncTicketsInBackground() {
+    if (!currentUserId) {
+        console.warn('[TICKETS SYNC] No currentUserId, skipping sync');
+        return;
+    }
+    
+    try {
+        console.log('[TICKETS SYNC] Starting background sync...');
+        const syncUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks/sync?maxPages=50`);
+        const syncResponse = await fetch(syncUrl, addUsernameToFetchOptions({
+            method: 'POST'
+        }));
+        
+        if (syncResponse.ok) {
+            const syncData = await syncResponse.json();
+            console.log('[TICKETS SYNC] ✅ Background sync completed:', {
+                created: syncData.created,
+                updated: syncData.updated,
+                totalCount: syncData.totalCount,
+                loadedCount: syncData.loadedCount
+            });
+            
+            // إذا كان هناك تذاكر جديدة أو تحديثات، إعادة تحميل التذاكر من DB
+            if (syncData.created > 0 || syncData.updated > 0) {
+                console.log('[TICKETS SYNC] 🔄 New tickets or updates detected, reloading from database...');
+                
+                // جلب التذاكر المحدثة من DB
+                const dbUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks/db`);
+                const dbResponse = await fetch(dbUrl, addUsernameToFetchOptions());
+                
+                if (dbResponse.ok) {
+                    const dbData = await dbResponse.json();
+                    if (dbData.success && dbData.data) {
+                        console.log(`[TICKETS SYNC] ✅ Reloaded ${dbData.data.length} tickets from database`);
+                        
+                        // تحديث العداد
+                        if (dbData.totalCount !== undefined) {
+                            updateTicketsCount(
+                                dbData.totalCount,
+                                dbData.data.length,
+                                Math.max(0, dbData.totalCount - dbData.data.length)
+                            );
+                        }
+                        
+                        // إعادة عرض التذاكر
+                        renderTicketCards(dbData.data);
+                    }
+                }
+            }
+        } else {
+            console.warn('[TICKETS SYNC] ⚠️ Background sync failed:', syncResponse.status);
+        }
+    } catch (error) {
+        console.error('[TICKETS SYNC] ❌ Background sync error:', error);
+    }
+}
 
 // Load ticket statuses from Alwatani API (like the Alwatani website does)
 async function loadTicketStatuses() {
