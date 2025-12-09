@@ -7640,7 +7640,12 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
                 // استخراج البيانات من البنية الجديدة /api/support/tickets
                 const taskId = task.self?.id || task.id || task.taskId || '';
                 const ticketNumber = task.displayId || task.number || task.taskNumber || task.ticketNumber || taskId || '';
-                const title = task.summary || task.subject || task.title || task.name || '';
+                
+                // تقطيع النص إذا كان طويلاً جداً (title: 500 chars, description: TEXT)
+                let title = task.summary || task.subject || task.title || task.name || '';
+                if (title.length > 500) {
+                    title = title.substring(0, 497) + '...';
+                }
                 const description = task.summary || task.description || task.notes || task.comment || '';
                 const status = task.status || task.taskStatus || task.state || 'open';
                 const priority = task.priority || 'medium';
