@@ -336,13 +336,25 @@ function getUsernameFromRequest(req) {
     // فك تشفير username إذا كان مشفراً (مثل admin%40tec -> admin@tec)
     if (username && typeof username === 'string') {
         try {
+            // Express يقوم بفك تشفير query parameters تلقائياً، لكن نتحقق من وجود % للتأكد
             // إذا كان username يحتوي على رموز مشفرة، قم بفك تشفيرها
             if (username.includes('%')) {
                 username = decodeURIComponent(username);
             }
+            // تنظيف username من أي مسافات إضافية
+            username = username.trim();
         } catch (e) {
             console.warn('[GET USERNAME] Failed to decode username:', e.message, '- Using original value');
         }
+    }
+    
+    // Log للتحقق من استخراج username
+    if (!username) {
+        console.warn('[GET USERNAME] ⚠️ Username not found in request:', {
+            query: req.query,
+            headers: { 'x-username': req.headers['x-username'] },
+            body: req.body ? { username: req.body.username, owner_username: req.body.owner_username } : null
+        });
     }
     
     return username || null;
