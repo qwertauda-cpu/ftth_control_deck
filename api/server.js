@@ -7745,20 +7745,40 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
 // Get tickets from database
 app.get('/api/alwatani-login/:id/tasks/db', async (req, res) => {
     try {
+        console.log('[TICKETS DB] Request received:', {
+            params: req.params,
+            query: req.query,
+            headers: { 'x-username': req.headers['x-username'] }
+        });
+        
         const ownerUsername = getUsernameFromRequest(req);
+        console.log('[TICKETS DB] Extracted ownerUsername:', ownerUsername);
+        
         if (!ownerUsername) {
+            console.error('[TICKETS DB] ❌ Username not found in request');
             return res.status(400).json({
                 success: false,
-                message: 'Username (owner_username) is required'
+                message: 'Username (owner_username) is required',
+                debug: {
+                    query: req.query,
+                    headers: { 'x-username': req.headers['x-username'] }
+                }
             });
         }
         
         // استخراج alwatani_login_id من params.id مباشرة
         const alwataniLoginId = req.params?.id ? parseInt(req.params.id, 10) : null;
+        console.log('[TICKETS DB] Extracted alwataniLoginId:', alwataniLoginId, 'from params.id:', req.params?.id);
+        
         if (!alwataniLoginId || isNaN(alwataniLoginId) || alwataniLoginId <= 0) {
+            console.error('[TICKETS DB] ❌ Invalid alwataniLoginId:', alwataniLoginId);
             return res.status(400).json({
                 success: false,
-                message: 'alwatani_login_id is required (invalid or missing id parameter)'
+                message: 'alwatani_login_id is required (invalid or missing id parameter)',
+                debug: {
+                    paramsId: req.params?.id,
+                    parsedId: alwataniLoginId
+                }
             });
         }
         
