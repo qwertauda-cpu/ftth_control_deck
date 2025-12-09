@@ -5767,7 +5767,17 @@ function formatCurrency(value) {
 
 // Load tickets for dashboard screen (display as cards)
 // Make sure function is available globally for onclick
+let isLoadingTickets = false; // Flag لمنع إعادة الجلب المتزامنة
+
 async function loadTicketsForDashboard(forceSync = false) {
+    // منع إعادة الجلب إذا كان الجلب جارياً بالفعل
+    if (isLoadingTickets && !forceSync) {
+        console.log('[TICKETS DASHBOARD] ⚠️ Already loading tickets, skipping...');
+        return;
+    }
+    
+    isLoadingTickets = true; // تعيين flag للبدء
+    
     try {
         console.log('[TICKETS DASHBOARD] ========== START loadTicketsForDashboard ==========');
         console.log('[TICKETS DASHBOARD] Loading tickets...', { forceSync, currentUserId });
@@ -6050,6 +6060,7 @@ async function loadTicketsForDashboard(forceSync = false) {
         }
         updateTicketsCount(0, 0, 0); // Reset counts on error
     } finally {
+        isLoadingTickets = false; // إعادة تعيين flag عند الانتهاء
         console.log('[TICKETS DASHBOARD] ========== END loadTicketsForDashboard ==========');
     }
 }
