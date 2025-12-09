@@ -6999,29 +6999,102 @@ function toggleModalPassword() {
 
 // Close modal on background click
 document.addEventListener('DOMContentLoaded', async function() {
-    // لا نسترجع حالة تسجيل الدخول تلقائياً - يجب على المستخدم تسجيل الدخول في كل مرة
-    // إخفاء القائمة الجانبية عند تحميل الصفحة (افتراضياً في صفحة تسجيل الدخول)
-    hideSideMenu();
-    
-    // التأكد من إظهار صفحة تسجيل الدخول
-    const loginContainer = document.getElementById('login-container');
-    const dashboardScreen = document.getElementById('dashboard-screen');
-    
-    if (loginContainer) {
-        loginContainer.style.display = 'flex';
-        loginContainer.classList.remove('hidden');
-        loginContainer.classList.add('fixed', 'inset-0', 'flex');
+    // التحقق من حالة تسجيل الدخول المحفوظة في localStorage
+    try {
+        const storedUser = localStorage.getItem('currentUser');
+        if (storedUser) {
+            const userData = JSON.parse(storedUser);
+            console.log('[INIT] Found saved user session:', userData);
+            
+            // استرجاع حالة تسجيل الدخول
+            currentUserId = userData.id || null;
+            currentDetailUser = userData.owner_username || userData.username || '';
+            currentUserAgentName = userData.agent_name || null;
+            currentCompanyName = userData.company_name || null;
+            
+            console.log('[INIT] Restored session:', {
+                currentUserId,
+                currentDetailUser,
+                currentUserAgentName,
+                currentCompanyName
+            });
+            
+            // إخفاء صفحة تسجيل الدخول وإظهار لوحة التحكم
+            const loginContainer = document.getElementById('login-container');
+            const dashboardScreen = document.getElementById('dashboard-screen');
+            
+            if (loginContainer) {
+                loginContainer.style.display = 'none';
+                loginContainer.classList.add('hidden');
+                loginContainer.classList.remove('flex', 'fixed', 'inset-0');
+            }
+            
+            if (dashboardScreen) {
+                dashboardScreen.classList.remove('hidden');
+                dashboardScreen.classList.add('flex');
+            }
+            
+            // إخفاء القائمة الجانبية في لوحة التحكم الرئيسية
+            hideSideMenu();
+            
+            // تحديث معلومات القائمة الجانبية
+            updateSideMenuInfo();
+            
+            // تحميل بطاقات حسابات الوطني
+            await loadPages();
+            
+            // تحميل بيانات لوحة التحكم
+            if (currentUserId) {
+                loadWalletBalance(); // تحميل رصيد المحفظة
+                loadRecentActivities(); // تحميل النشاطات الأخيرة
+                loadActiveTeamsCount(); // تحميل عدد الفرق النشطة
+                loadOpenTicketsCount(); // تحميل عدد التذاكر المفتوحة
+            }
+            
+            // بدء التحديث التلقائي
+            currentScreen = 'dashboard';
+            startAutoRefresh();
+            
+            console.log('[INIT] ✅ Session restored successfully');
+        } else {
+            console.log('[INIT] No saved session found, showing login screen');
+            // إخفاء القائمة الجانبية عند تحميل الصفحة (افتراضياً في صفحة تسجيل الدخول)
+            hideSideMenu();
+            
+            // التأكد من إظهار صفحة تسجيل الدخول
+            const loginContainer = document.getElementById('login-container');
+            const dashboardScreen = document.getElementById('dashboard-screen');
+            
+            if (loginContainer) {
+                loginContainer.style.display = 'flex';
+                loginContainer.classList.remove('hidden');
+                loginContainer.classList.add('fixed', 'inset-0', 'flex');
+            }
+            
+            if (dashboardScreen) {
+                dashboardScreen.classList.add('hidden');
+                dashboardScreen.classList.remove('flex');
+            }
+        }
+    } catch (e) {
+        console.error('[INIT] ❌ Error restoring session:', e);
+        // في حالة الخطأ، إظهار صفحة تسجيل الدخول
+        hideSideMenu();
+        
+        const loginContainer = document.getElementById('login-container');
+        const dashboardScreen = document.getElementById('dashboard-screen');
+        
+        if (loginContainer) {
+            loginContainer.style.display = 'flex';
+            loginContainer.classList.remove('hidden');
+            loginContainer.classList.add('fixed', 'inset-0', 'flex');
+        }
+        
+        if (dashboardScreen) {
+            dashboardScreen.classList.add('hidden');
+            dashboardScreen.classList.remove('flex');
+        }
     }
-    
-    if (dashboardScreen) {
-        dashboardScreen.classList.add('hidden');
-        dashboardScreen.classList.remove('flex');
-    }
-    
-    // مسح أي بيانات محفوظة في localStorage (اختياري - يمكن إزالة هذا السطر إذا أردت الاحتفاظ بالبيانات)
-    // localStorage.removeItem('currentUser');
-    
-    console.log('[INIT] Showing login screen - user must login');
     
     // تم حذف event listener لـ redirect-ticket-modal
     
