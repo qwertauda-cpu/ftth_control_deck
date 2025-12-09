@@ -7879,11 +7879,14 @@ app.get('/api/alwatani-login/:id/tasks/db', async (req, res) => {
             };
         });
         
+        console.log('[TICKETS DB] ✅ Returning', formattedTickets.length, 'tickets (totalCount:', totalCount, ')');
+        
         res.json({
             success: true,
             data: formattedTickets,
             count: formattedTickets.length,
-            totalCount: totalCount
+            totalCount: totalCount,
+            message: formattedTickets.length > 0 ? `تم جلب ${formattedTickets.length} تذكرة` : 'لا توجد تذاكر في قاعدة البيانات'
         });
     } catch (error) {
         console.error('[TICKETS DB] Error:', error);

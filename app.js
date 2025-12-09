@@ -5841,10 +5841,12 @@ async function loadTicketsForDashboard(forceSync = false) {
                 
                 if (dbResponse.ok) {
                     const dbData = await dbResponse.json();
+                    console.log('[TICKETS DASHBOARD] DB Response:', { success: dbData.success, dataLength: dbData.data?.length, count: dbData.count });
+                    
                     if (dbData.success && dbData.data && dbData.data.length > 0) {
                         tickets = dbData.data;
-                        totalCount = dbData.count || tickets.length;
-                        console.log(`[TICKETS DASHBOARD] ✅ Loaded ${tickets.length} tickets from database`);
+                        totalCount = dbData.count || dbData.totalCount || tickets.length;
+                        console.log(`[TICKETS DASHBOARD] ✅ Loaded ${tickets.length} tickets from database (total: ${totalCount})`);
                         
                         // عرض التذاكر من قاعدة البيانات
                         if (totalCount > 0) {
@@ -5860,11 +5862,29 @@ async function loadTicketsForDashboard(forceSync = false) {
                         
                         return; // نجحنا في جلب من DB، لا حاجة للمتابعة
                     } else {
-                        console.log('[TICKETS DASHBOARD] ⚠️ No tickets found in database, will fetch from API');
+                        console.log('[TICKETS DASHBOARD] ⚠️ No tickets found in database (success:', dbData.success, ', dataLength:', dbData.data?.length, '), will fetch from API');
                         shouldSync = true; // يجب sync لأن DB فارغة
                     }
                 } else {
-                    console.warn('[TICKETS DASHBOARD] ⚠️ Failed to load from database, will fetch from API');
+                    const errorText = await dbResponse.text();
+                    let errorMessage = 'فشل جلب التذاكر من قاعدة البيانات';
+                    let errorDetails = null;
+                    
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        errorMessage = errorData.message || errorData.error || errorMessage;
+                        errorDetails = errorData.debug || errorData;
+                    } catch (e) {
+                        errorMessage = `خطأ ${dbResponse.status}: ${dbResponse.statusText}`;
+                    }
+                    
+                    console.error('[TICKETS DASHBOARD] ❌ Failed to load from database:', {
+                        status: dbResponse.status,
+                        statusText: dbResponse.statusText,
+                        message: errorMessage,
+                        details: errorDetails
+                    });
+                    console.warn('[TICKETS DASHBOARD] ⚠️ Will fetch from API instead');
                     shouldSync = true; // يجب sync لأن DB فشلت
                 }
             } catch (dbError) {
