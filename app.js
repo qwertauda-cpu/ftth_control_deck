@@ -257,6 +257,21 @@ async function handleLogin(e) {
             currentDetailPass = passVal;
             currentUserAgentName = data.user.agent_name || null; // حفظ agent_name للمستخدم الحالي
             currentCompanyName = data.user.company_name || null; // حفظ company_name للمستخدم الحالي
+            
+            // حفظ معلومات المستخدم في localStorage للاستخدام لاحقاً
+            try {
+                localStorage.setItem('currentUser', JSON.stringify({
+                    id: data.user.id,
+                    username: userVal,
+                    owner_username: currentDetailUser,
+                    agent_name: currentUserAgentName,
+                    company_name: currentCompanyName
+                }));
+                console.log('[LOGIN] ✅ Saved user info to localStorage');
+            } catch (e) {
+                console.warn('[LOGIN] ⚠️ Failed to save user info to localStorage:', e);
+            }
+            
             updateSideMenuInfo(); // تحديث معلومات القائمة الجانبية
             
             // Store user role for later use
@@ -5804,12 +5819,29 @@ async function loadTicketsForDashboard(forceSync = false) {
         
         // التحقق من وجود currentUserId، وإذا لم يكن موجوداً، جلب أول حساب وطني
         let alwataniLoginId = currentUserId;
-        if (!alwataniLoginId && currentDetailUser) {
+        // محاولة الحصول على username من localStorage إذا كان currentDetailUser فارغاً
+        let ownerUsername = currentDetailUser;
+        if (!ownerUsername) {
+            try {
+                const storedUser = localStorage.getItem('currentUser');
+                if (storedUser) {
+                    const userData = JSON.parse(storedUser);
+                    ownerUsername = userData.owner_username || userData.username;
+                    console.log('[TICKETS DASHBOARD] ✅ Got username from localStorage:', ownerUsername);
+                }
+            } catch (e) {
+                console.warn('[TICKETS DASHBOARD] Failed to get username from localStorage:', e);
+            }
+        }
+        
+        if (!alwataniLoginId && ownerUsername) {
             console.log('[TICKETS DASHBOARD] ⚠️ currentUserId is missing, attempting to get first alwatani_login_id from database...');
             try {
                 // جلب قائمة حسابات الوطني من API
-                const accountsUrl = addUsernameToUrl(`${API_URL}/alwatani-login`);
-                const accountsResponse = await fetch(accountsUrl, addUsernameToFetchOptions());
+                const accountsUrl = ownerUsername ? `${API_URL}/alwatani-login?username=${encodeURIComponent(ownerUsername)}` : `${API_URL}/alwatani-login`;
+                const accountsResponse = await fetch(accountsUrl, {
+                    headers: ownerUsername ? { 'x-username': ownerUsername } : {}
+                });
                 if (accountsResponse.ok) {
                     const accountsData = await accountsResponse.json();
                     if (accountsData.success && accountsData.data && accountsData.data.length > 0) {
@@ -6243,10 +6275,26 @@ async function loadTicketStatuses() {
 async function loadZones() {
     // الحصول على alwataniLoginId (من currentUserId أو جلب أول حساب)
     let alwataniLoginId = currentUserId;
-    if (!alwataniLoginId && currentDetailUser) {
+    // محاولة الحصول على username من localStorage إذا كان currentDetailUser فارغاً
+    let ownerUsername = currentDetailUser;
+    if (!ownerUsername) {
         try {
-            const accountsUrl = addUsernameToUrl(`${API_URL}/alwatani-login`);
-            const accountsResponse = await fetch(accountsUrl, addUsernameToFetchOptions());
+            const storedUser = localStorage.getItem('currentUser');
+            if (storedUser) {
+                const userData = JSON.parse(storedUser);
+                ownerUsername = userData.owner_username || userData.username;
+            }
+        } catch (e) {
+            // ignore
+        }
+    }
+    
+    if (!alwataniLoginId && ownerUsername) {
+        try {
+            const accountsUrl = ownerUsername ? `${API_URL}/alwatani-login?username=${encodeURIComponent(ownerUsername)}` : `${API_URL}/alwatani-login`;
+            const accountsResponse = await fetch(accountsUrl, {
+                headers: ownerUsername ? { 'x-username': ownerUsername } : {}
+            });
             if (accountsResponse.ok) {
                 const accountsData = await accountsResponse.json();
                 if (accountsData.success && accountsData.data && accountsData.data.length > 0) {
