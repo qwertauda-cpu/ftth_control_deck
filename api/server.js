@@ -6917,10 +6917,39 @@ async function getAlwataniTokenFromLogin(req) {
         }
         
         const account = accounts[0];
-        const verification = await verifyAlwataniAccount(account.username, account.password);
         
-        if (!verification.success) {
-            throw new Error(verification.message || 'Failed to verify account');
+        // محاولة التحقق مع retry mechanism
+        let verification = null;
+        let lastError = null;
+        const maxRetries = 3;
+        const retryDelay = 2000; // 2 seconds
+        
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                verification = await verifyAlwataniAccount(account.username, account.password);
+                if (verification.success) {
+                    break; // نجحت المحاولة
+                }
+                lastError = verification.message || 'Failed to verify account';
+                
+                // إذا لم تكن المحاولة الأخيرة، انتظر قبل إعادة المحاولة
+                if (attempt < maxRetries) {
+                    console.log(`[GET TOKEN] Verification failed (attempt ${attempt}/${maxRetries}), retrying in ${retryDelay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, retryDelay));
+                }
+            } catch (error) {
+                lastError = error.message || 'Error during verification';
+                if (attempt < maxRetries) {
+                    console.log(`[GET TOKEN] Verification error (attempt ${attempt}/${maxRetries}), retrying in ${retryDelay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, retryDelay));
+                }
+            }
+        }
+        
+        if (!verification || !verification.success) {
+            const errorMessage = lastError || 'Failed to verify account after multiple attempts';
+            console.error('[GET TOKEN] Error:', errorMessage);
+            throw new Error(errorMessage);
         }
         
         const token = verification.data?.access_token;
