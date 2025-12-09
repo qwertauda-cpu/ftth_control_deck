@@ -1411,6 +1411,21 @@ function openPageDetail(username, password, userId) {
     if (!currentDetailUser || !currentDetailUser.includes('@')) {
         console.warn('[OPEN PAGE] Warning: currentDetailUser is not set or invalid:', currentDetailUser);
     }
+    
+    // حفظ حالة page-detail في localStorage
+    currentScreen = 'page-detail';
+    saveCurrentScreen(currentScreen);
+    try {
+        localStorage.setItem('pageDetailData', JSON.stringify({
+            username: username,
+            password: password,
+            userId: userId
+        }));
+        console.log('[OPEN PAGE] Saved page detail data to localStorage');
+    } catch (e) {
+        console.warn('[OPEN PAGE] Failed to save page detail data:', e);
+    }
+    
     switchScreen('dashboard-screen', 'page-detail-screen');
     showSideMenu(); // إظهار القائمة الجانبية عند فتح صفحة تفاصيل المستخدم
     
@@ -1422,6 +1437,13 @@ function openPageDetail(username, password, userId) {
     const sectionSubscribers = document.getElementById('section-subscribers');
     if (sectionDashboard) sectionDashboard.classList.remove('hidden');
     if (sectionSubscribers) sectionSubscribers.classList.add('hidden');
+    
+    // حفظ القسم الحالي (افتراضياً section-dashboard)
+    try {
+        localStorage.setItem('currentSection', 'section-dashboard');
+    } catch (e) {
+        console.warn('[OPEN PAGE] Failed to save current section:', e);
+    }
     
     // تحميل تفاصيل الوطني
     loadAlwataniDetails();
@@ -5365,6 +5387,14 @@ async function navigateToSection(sectionId) {
         const sectionDashboard = document.getElementById('section-dashboard');
         const sectionSubscribers = document.getElementById('section-subscribers');
         
+        // حفظ القسم الحالي في localStorage
+        try {
+            localStorage.setItem('currentSection', sectionId);
+            console.log('[NAVIGATE] Saved current section:', sectionId);
+        } catch (e) {
+            console.warn('[NAVIGATE] Failed to save current section:', e);
+        }
+        
         // إظهار/إخفاء الأقسام بناءً على القسم المطلوب
         if (sectionId === 'section-subscribers') {
             // إخفاء لوحة التحكم وإظهار قسم المشتركين
@@ -7079,6 +7109,35 @@ document.addEventListener('DOMContentLoaded', async function() {
             hideAllMainScreens();
             
             switch (savedScreen) {
+                case 'page-detail':
+                    // استرجاع بيانات page-detail من localStorage
+                    try {
+                        const pageDetailDataStr = localStorage.getItem('pageDetailData');
+                        if (pageDetailDataStr) {
+                            const pageDetailData = JSON.parse(pageDetailDataStr);
+                            console.log('[INIT] Restoring page-detail with data:', pageDetailData);
+                            
+                            // استرجاع القسم الحالي
+                            const savedSection = localStorage.getItem('currentSection') || 'section-dashboard';
+                            
+                            // فتح page-detail-screen
+                            openPageDetail(pageDetailData.username, pageDetailData.password, pageDetailData.userId, true);
+                            
+                            // الانتظار قليلاً ثم الانتقال للقسم المحفوظ
+                            setTimeout(async () => {
+                                await navigateToSection(savedSection);
+                            }, 500);
+                        } else {
+                            console.warn('[INIT] No page detail data found, showing dashboard');
+                            showScreen('dashboard-screen');
+                            hideSideMenu();
+                        }
+                    } catch (e) {
+                        console.error('[INIT] Error restoring page-detail:', e);
+                        showScreen('dashboard-screen');
+                        hideSideMenu();
+                    }
+                    break;
                 case 'expiring':
                     showScreen('expiring-screen');
                     initExpiringSortControl();
