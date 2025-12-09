@@ -7649,8 +7649,17 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
                 const assignedTo = task.assignedTo || task.assignedUser || '';
                 const team = task.team || task.assignedTeam || task.partner?.displayValue || '';
                 const zone = task.zone?.displayValue || task.zone?.id || task.zone || '';
-                const createdAt = task.createdAt || task.created_at || task.dateCreated || task.date || null;
-                const updatedAt = task.updatedAt || task.updated_at || task.dateUpdated || null;
+                // تحويل ISO date string إلى MySQL datetime format
+                let createdAt = task.createdAt || task.created_at || task.dateCreated || task.date || null;
+                let updatedAt = task.updatedAt || task.updated_at || task.dateUpdated || null;
+                
+                // تحويل ISO format (2025-04-24T16:39:19.030Z) إلى MySQL format (2025-04-24 16:39:19)
+                if (createdAt && typeof createdAt === 'string' && createdAt.includes('T')) {
+                    createdAt = createdAt.replace('T', ' ').replace(/\.\d{3}Z?$/, '').replace('Z', '');
+                }
+                if (updatedAt && typeof updatedAt === 'string' && updatedAt.includes('T')) {
+                    updatedAt = updatedAt.replace('T', ' ').replace(/\.\d{3}Z?$/, '').replace('Z', '');
+                }
                 
                 // التحقق من وجود التذكرة
                 const [existing] = await alwataniPool.query(
@@ -7711,7 +7720,7 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
             created,
             totalCount: totalCount || totalInDb,
             totalInDb,
-            alwataniDbName
+            alwataniUsername
         });
         
         res.json({
@@ -7788,7 +7797,7 @@ app.get('/api/alwatani-login/:id/tasks/db', async (req, res) => {
         }
         
         // جلب التذاكر من قاعدة البيانات (جميع التذاكر بدون حد أقصى)
-        console.log('[TICKETS DB] Fetching tickets from database:', alwataniDbName);
+        console.log('[TICKETS DB] Fetching tickets from database for:', alwataniUsername);
         const [tickets] = await alwataniPool.query(
             `SELECT 
                 id, sla_ticket_id, ticket_number, title, description, status, priority,
