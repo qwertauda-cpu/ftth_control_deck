@@ -104,6 +104,27 @@ const ALWATANI_CUSTOMERS_PAGE_SIZE = 10000; // بلا حدود - جلب جميع
 let dataAutoRefreshInterval = null;
 let currentScreen = 'dashboard'; // تتبع الشاشة الحالية
 
+// دالة لحفظ الشاشة الحالية في localStorage
+function saveCurrentScreen(screen) {
+    try {
+        localStorage.setItem('currentScreen', screen);
+        console.log('[SCREEN] Saved current screen:', screen);
+    } catch (e) {
+        console.warn('[SCREEN] Failed to save current screen:', e);
+    }
+}
+
+// دالة لاسترجاع الشاشة الحالية من localStorage
+function getSavedScreen() {
+    try {
+        const saved = localStorage.getItem('currentScreen');
+        return saved || 'dashboard';
+    } catch (e) {
+        console.warn('[SCREEN] Failed to get saved screen:', e);
+        return 'dashboard';
+    }
+}
+
 // Subscribers dashboard state
 const subscriberStatusConfig = [
     {
@@ -292,6 +313,7 @@ async function handleLogin(e) {
                 hideSideMenu(); // إخفاء القائمة الجانبية في لوحة التحكم الرئيسية
                 await loadPages();
                 currentScreen = 'dashboard';
+                saveCurrentScreen(currentScreen);
                 
                 // تحميل بيانات لوحة التحكم عند الدخول
                 if (currentUserId) {
@@ -1452,6 +1474,7 @@ function openAdminDashboard() {
     hideSideMenu(); // إخفاء القائمة الجانبية عند العودة إلى لوحة التحكم الرئيسية
     loadPages();
     currentScreen = 'dashboard';
+    saveCurrentScreen(currentScreen);
     startAutoRefresh();
 }
 
@@ -1463,6 +1486,7 @@ function openExpiringScreen() {
     renderExpiringSoonList();
     setSideMenuActiveByScreen('expiring');
     currentScreen = 'expiring';
+    saveCurrentScreen(currentScreen);
     startAutoRefresh();
 }
 
@@ -1497,6 +1521,7 @@ async function openTicketDashboardScreen() {
     showScreen('tickets-dashboard-screen');
     setSideMenuActiveByScreen('tickets');
     currentScreen = 'tickets-dashboard'; // تغيير currentScreen لتفعيل auto-refresh
+    saveCurrentScreen(currentScreen);
     
     // التحقق من وجود العناصر المطلوبة
     const container = document.getElementById('tickets-cards-container');
@@ -1562,6 +1587,7 @@ function openGeneralSettingsScreen() {
     setSideMenuActiveByScreen('settings');
     loadEmployees();
     currentScreen = 'settings';
+    saveCurrentScreen(currentScreen);
     startAutoRefresh();
 }
 
@@ -2316,6 +2342,7 @@ function openWalletScreen() {
     setSideMenuActiveByScreen('wallet');
     loadWalletData();
     currentScreen = 'wallet';
+    saveCurrentScreen(currentScreen);
     // لا نبدأ auto-refresh هنا لأن المحفظة لها نظام تحديث تلقائي خاص بها
 }
 
@@ -7043,16 +7070,55 @@ document.addEventListener('DOMContentLoaded', async function() {
             // تحميل بطاقات حسابات الوطني
             await loadPages();
             
-            // تحميل بيانات لوحة التحكم
-            if (currentUserId) {
-                loadWalletBalance(); // تحميل رصيد المحفظة
-                loadRecentActivities(); // تحميل النشاطات الأخيرة
-                loadActiveTeamsCount(); // تحميل عدد الفرق النشطة
-                loadOpenTicketsCount(); // تحميل عدد التذاكر المفتوحة
+            // استرجاع الشاشة الحالية من localStorage
+            const savedScreen = getSavedScreen();
+            console.log('[INIT] Restoring saved screen:', savedScreen);
+            
+            // فتح الشاشة المحفوظة
+            currentScreen = savedScreen;
+            hideAllMainScreens();
+            
+            switch (savedScreen) {
+                case 'expiring':
+                    showScreen('expiring-screen');
+                    initExpiringSortControl();
+                    renderExpiringSoonList();
+                    setSideMenuActiveByScreen('expiring');
+                    break;
+                case 'tickets-dashboard':
+                    showScreen('tickets-dashboard-screen');
+                    setSideMenuActiveByScreen('tickets');
+                    await Promise.all([
+                        loadTicketStatuses(),
+                        loadZones()
+                    ]);
+                    await loadTicketsForDashboard();
+                    break;
+                case 'settings':
+                    showScreen('general-settings-screen');
+                    setSideMenuActiveByScreen('settings');
+                    loadEmployees();
+                    break;
+                case 'wallet':
+                    showScreen('wallet-screen');
+                    setSideMenuActiveByScreen('wallet');
+                    loadWalletData();
+                    break;
+                case 'dashboard':
+                default:
+                    showScreen('dashboard-screen');
+                    hideSideMenu();
+                    // تحميل بيانات لوحة التحكم
+                    if (currentUserId) {
+                        loadWalletBalance(); // تحميل رصيد المحفظة
+                        loadRecentActivities(); // تحميل النشاطات الأخيرة
+                        loadActiveTeamsCount(); // تحميل عدد الفرق النشطة
+                        loadOpenTicketsCount(); // تحميل عدد التذاكر المفتوحة
+                    }
+                    break;
             }
             
             // بدء التحديث التلقائي
-            currentScreen = 'dashboard';
             startAutoRefresh();
             
             console.log('[INIT] ✅ Session restored successfully');
