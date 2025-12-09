@@ -6893,6 +6893,9 @@ app.delete('/api/subscribers/:id', async (req, res) => {
 
 // ================= SLA Tickets API Routes (from admin.ftth.iq) =================
 
+// Token cache to avoid excessive verification requests
+const tokenCache = new Map(); // key: `${ownerUsername}_${alwataniLoginId}`, value: { token, expiresAt }
+
 // Helper function to get token from alwatani_login
 async function getAlwataniTokenFromLogin(req) {
     try {
@@ -6904,6 +6907,20 @@ async function getAlwataniTokenFromLogin(req) {
         const alwataniLoginId = getAlwataniLoginIdFromRequest(req);
         if (!alwataniLoginId) {
             throw new Error('alwatani_login_id is required');
+        }
+        
+        // التحقق من cache أولاً
+        const cacheKey = `${ownerUsername}_${alwataniLoginId}`;
+        const cached = tokenCache.get(cacheKey);
+        if (cached && cached.expiresAt > Date.now()) {
+            console.log(`[GET TOKEN] ✅ Using cached token for ${cacheKey} (expires in ${Math.round((cached.expiresAt - Date.now()) / 1000)}s)`);
+            return cached.token;
+        }
+        
+        // إذا كان الـ token منتهي الصلاحية، نحذفه من cache
+        if (cached && cached.expiresAt <= Date.now()) {
+            tokenCache.delete(cacheKey);
+            console.log(`[GET TOKEN] ⚠️ Cached token expired for ${cacheKey}, fetching new token...`);
         }
         
         const ownerPool = await dbManager.getPoolFromUsername(ownerUsername);
@@ -6961,6 +6978,22 @@ async function getAlwataniTokenFromLogin(req) {
         const token = verification.data?.access_token;
         if (!token) {
             throw new Error('No access token received');
+        }
+        
+        // حفظ الـ token في cache لمدة 50 دقيقة (3000 ثانية)
+        // عادة tokens من موقع الوطني صالحة لمدة 60 دقيقة، لكننا نحفظها لمدة 50 دقيقة لتجنب استخدام token منتهي
+        const expiresAt = Date.now() + (50 * 60 * 1000); // 50 minutes
+        tokenCache.set(cacheKey, { token, expiresAt });
+        console.log(`[GET TOKEN] ✅ Token cached for ${cacheKey} (expires in 50 minutes)`);
+        
+        // تنظيف cache من الـ tokens المنتهية كل 10 دقائق
+        if (Math.random() < 0.1) { // 10% chance to clean cache
+            const now = Date.now();
+            for (const [key, value] of tokenCache.entries()) {
+                if (value.expiresAt <= now) {
+                    tokenCache.delete(key);
+                }
+            }
         }
         
         return token;
