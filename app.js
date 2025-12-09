@@ -5808,66 +5808,73 @@ async function loadTicketsForDashboard(forceSync = false) {
         // جلب التذاكر مباشرة من API الوطني (بدون قاعدة البيانات)
         console.log('[TICKETS DASHBOARD] Fetching tickets directly from Alwatani API (no database)...');
         
-        // جلب من API بنفس المعاملات التي يستخدمها موقع الوطني
-        const queryParams = new URLSearchParams();
-        queryParams.append('pageSize', '100'); // زيادة pageSize لجلب المزيد من التذاكر
-        queryParams.append('pageNumber', '1');
-        queryParams.append('sortCriteria.property', 'createdAt');
-        queryParams.append('sortCriteria.direction', 'desc');
-        queryParams.append('hierarchyLevel', '0');
+        // جلب جميع التذاكر عبر pagination
+        const pageSize = 100; // عدد التذاكر في كل صفحة
+        let allTickets = [];
+        let totalCount = 0;
+        let currentPage = 1;
+        let hasMorePages = true;
         
-        const apiUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/support/tickets?${queryParams.toString()}`);
-        console.log('[TICKETS DASHBOARD] API URL:', apiUrl);
-        const apiResponse = await fetch(apiUrl, addUsernameToFetchOptions());
-        console.log('[TICKETS DASHBOARD] API Response status:', apiResponse.status, apiResponse.statusText);
+        // تحديث حالة التحميل لإظهار التقدم
+        container.innerHTML = `
+            <div class="text-center text-slate-400 text-sm py-8">
+                <div class="flex items-center justify-center gap-2">
+                    <svg class="animate-spin h-5 w-5 text-orange-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>جاري جلب جميع التذاكر...</span>
+                </div>
+                <p class="text-xs mt-2 text-slate-500" id="tickets-loading-progress">الصفحة 1...</p>
+            </div>
+        `;
         
-        let tickets = [];
-        
-        if (apiResponse.ok) {
+        // جلب جميع الصفحات
+        while (hasMorePages) {
+            const queryParams = new URLSearchParams();
+            queryParams.append('pageSize', pageSize.toString());
+            queryParams.append('pageNumber', currentPage.toString());
+            queryParams.append('sortCriteria.property', 'createdAt');
+            queryParams.append('sortCriteria.direction', 'desc');
+            queryParams.append('hierarchyLevel', '0');
+            
+            const apiUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/support/tickets?${queryParams.toString()}`);
+            console.log(`[TICKETS DASHBOARD] Fetching page ${currentPage}...`);
+            
+            const apiResponse = await fetch(apiUrl, addUsernameToFetchOptions());
+            
+            if (!apiResponse.ok) {
+                const errorText = await apiResponse.text();
+                let errorMessage = 'فشل الاتصال بموقع الوطني';
+                try {
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.message || errorData.error || errorMessage;
+                } catch (e) {
+                    errorMessage = `خطأ ${apiResponse.status}: ${apiResponse.statusText}`;
+                }
+                console.error('[TICKETS DASHBOARD] ❌ API Response Error:', apiResponse.status, errorMessage);
+                container.innerHTML = `
+                    <div class="text-center text-red-500 text-sm py-8">
+                        <div class="mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <p class="font-bold mb-1">❌ خطأ في الاتصال</p>
+                        <p class="text-xs">${errorMessage}</p>
+                        <p class="text-xs mt-2 text-slate-500">كود الخطأ: ${apiResponse.status}</p>
+                        <button onclick="loadTicketsForDashboard(true)" class="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm">
+                            إعادة المحاولة
+                        </button>
+                    </div>
+                `;
+                updateTicketsCount(0, 0, 0);
+                return;
+            }
+            
             const apiData = await apiResponse.json();
-            console.log('[TICKETS DASHBOARD] API Response data:', apiData);
-            console.log('[TICKETS DASHBOARD] API Response data keys:', apiData ? Object.keys(apiData) : 'null');
-            console.log('[TICKETS DASHBOARD] API Response success:', apiData?.success);
-            console.log('[TICKETS DASHBOARD] API Response data type:', typeof apiData?.data);
-            console.log('[TICKETS DASHBOARD] API Response data is array:', Array.isArray(apiData?.data));
             
-            // استخراج البيانات
-            let apiTickets = [];
-            let totalCount = 0;
-            
-            if (apiData.success && apiData.data) {
-                // استخراج العدد الإجمالي
-                if (apiData.data.totalCount !== undefined) {
-                    totalCount = apiData.data.totalCount;
-                } else if (apiData.data.total !== undefined) {
-                    totalCount = apiData.data.total;
-                } else if (apiData.data.totalItems !== undefined) {
-                    totalCount = apiData.data.totalItems;
-                }
-                
-                console.log('[TICKETS DASHBOARD] Total count from API:', totalCount);
-                
-                if (Array.isArray(apiData.data)) {
-                    apiTickets = apiData.data;
-                    totalCount = totalCount || apiTickets.length;
-                    console.log('[TICKETS DASHBOARD] ✅ Found tickets in apiData.data (array):', apiTickets.length);
-                } else if (Array.isArray(apiData.data.items)) {
-                    apiTickets = apiData.data.items;
-                    totalCount = totalCount || (apiData.data.totalCount || apiTickets.length);
-                    console.log('[TICKETS DASHBOARD] ✅ Found tickets in apiData.data.items:', apiTickets.length);
-                } else if (Array.isArray(apiData.data.tasks)) {
-                    apiTickets = apiData.data.tasks;
-                    totalCount = totalCount || apiTickets.length;
-                    console.log('[TICKETS DASHBOARD] ✅ Found tickets in apiData.data.tasks:', apiTickets.length);
-                } else {
-                    console.warn('[TICKETS DASHBOARD] ⚠️ No tickets array found in apiData.data. Structure:', {
-                        hasData: !!apiData.data,
-                        dataKeys: apiData.data ? Object.keys(apiData.data) : [],
-                        dataType: typeof apiData.data
-                    });
-                }
-            } else if (!apiData.success) {
-                // خطأ من API
+            if (!apiData.success) {
                 const errorMessage = apiData.message || apiData.error || 'فشل جلب التذاكر من موقع الوطني';
                 console.error('[TICKETS DASHBOARD] ❌ API Error:', errorMessage);
                 container.innerHTML = `
@@ -5887,49 +5894,102 @@ async function loadTicketsForDashboard(forceSync = false) {
                 `;
                 updateTicketsCount(0, 0, 0);
                 return;
+            }
+            
+            // استخراج البيانات من الصفحة الحالية
+            let pageTickets = [];
+            
+            if (apiData.data) {
+                // استخراج العدد الإجمالي من الصفحة الأولى فقط
+                if (currentPage === 1) {
+                    if (apiData.data.totalCount !== undefined) {
+                        totalCount = apiData.data.totalCount;
+                    } else if (apiData.data.total !== undefined) {
+                        totalCount = apiData.data.total;
+                    } else if (apiData.data.totalItems !== undefined) {
+                        totalCount = apiData.data.totalItems;
+                    }
+                }
+                
+                // استخراج التذاكر من الصفحة الحالية
+                if (Array.isArray(apiData.data)) {
+                    pageTickets = apiData.data;
+                } else if (Array.isArray(apiData.data.items)) {
+                    pageTickets = apiData.data.items;
+                } else if (Array.isArray(apiData.data.tasks)) {
+                    pageTickets = apiData.data.tasks;
+                }
+            }
+            
+            // إضافة تذاكر الصفحة الحالية إلى المصفوفة الإجمالية
+            if (pageTickets.length > 0) {
+                allTickets = allTickets.concat(pageTickets);
+                console.log(`[TICKETS DASHBOARD] ✅ Page ${currentPage}: Loaded ${pageTickets.length} tickets (Total so far: ${allTickets.length})`);
+                
+                // تحديث شريط التقدم
+                const progressEl = document.getElementById('tickets-loading-progress');
+                if (progressEl) {
+                    if (totalCount > 0) {
+                        progressEl.textContent = `الصفحة ${currentPage}... (${allTickets.length} / ${totalCount})`;
+                    } else {
+                        progressEl.textContent = `الصفحة ${currentPage}... (${allTickets.length} تذكرة)`;
+                    }
+                }
+            }
+            
+            // التحقق من وجود صفحات إضافية
+            if (pageTickets.length < pageSize) {
+                // لا توجد صفحات إضافية
+                hasMorePages = false;
+            } else if (totalCount > 0) {
+                // التحقق بناءً على العدد الإجمالي
+                const totalPages = Math.ceil(totalCount / pageSize);
+                if (currentPage >= totalPages) {
+                    hasMorePages = false;
+                } else {
+                    currentPage++;
+                }
             } else {
-                console.warn('[TICKETS DASHBOARD] ⚠️ apiData.success is false or apiData.data is missing:', {
-                    success: apiData?.success,
-                    hasData: !!apiData?.data,
-                    apiDataKeys: apiData ? Object.keys(apiData) : []
-                });
+                // إذا لم يكن هناك totalCount، نستمر حتى لا نجد تذاكر
+                currentPage++;
             }
-            
-            tickets = apiTickets;
-            console.log('[TICKETS DASHBOARD] Final tickets array length:', tickets.length);
-            
-            // إذا لم توجد تذاكر
-            if (tickets.length === 0) {
-                console.warn('[TICKETS DASHBOARD] ⚠️ No tickets found in API response');
-                container.innerHTML = `
-                    <div class="text-center text-slate-400 text-sm py-8">
-                        <div class="mb-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                        </div>
-                        <p class="font-bold mb-1">لا توجد تذاكر</p>
-                        <p class="text-xs">لم يتم العثور على أي تذكرة في موقع الوطني</p>
-                        <button onclick="loadTicketsForDashboard(true)" class="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm">
-                            تحديث
-                        </button>
+        }
+        
+        const tickets = allTickets;
+        console.log('[TICKETS DASHBOARD] ✅ Finished loading all tickets. Total:', tickets.length);
+        
+        // إذا لم توجد تذاكر
+        if (tickets.length === 0) {
+            console.warn('[TICKETS DASHBOARD] ⚠️ No tickets found in API response');
+            container.innerHTML = `
+                <div class="text-center text-slate-400 text-sm py-8">
+                    <div class="mb-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
                     </div>
-                `;
-                updateTicketsCount(0, 0, 0);
-                return;
-            }
-            
-            // تحديث العداد
-            if (totalCount > 0) {
-                updateTicketsCount(totalCount, tickets.length, Math.max(0, totalCount - tickets.length));
-            } else if (tickets.length > 0) {
-                // إذا لم يكن هناك totalCount، استخدم عدد التذاكر المجلوبة كإجمالي مؤقت
-                updateTicketsCount(tickets.length, tickets.length, 0);
-            }
-            
-            // عرض التذاكر مباشرة
-            console.log('[TICKETS DASHBOARD] Displaying tickets...', tickets.length);
-            renderTicketCards(tickets);
+                    <p class="font-bold mb-1">لا توجد تذاكر</p>
+                    <p class="text-xs">لم يتم العثور على أي تذكرة في موقع الوطني</p>
+                    <button onclick="loadTicketsForDashboard(true)" class="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm">
+                        تحديث
+                    </button>
+                </div>
+            `;
+            updateTicketsCount(0, 0, 0);
+            return;
+        }
+        
+        // تحديث العداد
+        if (totalCount > 0) {
+            updateTicketsCount(totalCount, tickets.length, Math.max(0, totalCount - tickets.length));
+        } else {
+            // إذا لم يكن هناك totalCount، استخدم عدد التذاكر المجلوبة كإجمالي
+            updateTicketsCount(tickets.length, tickets.length, 0);
+        }
+        
+        // عرض التذاكر مباشرة
+        console.log('[TICKETS DASHBOARD] Displaying tickets...', tickets.length);
+        renderTicketCards(tickets);
         } else {
             // خطأ في استجابة API
             const errorText = await apiResponse.text();
