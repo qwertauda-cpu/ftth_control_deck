@@ -5810,6 +5810,7 @@ async function loadTicketsForDashboard(forceSync = false) {
         
         // جلب جميع التذاكر عبر pagination
         const pageSize = 100; // عدد التذاكر في كل صفحة
+        const maxPages = 50; // حد أقصى للصفحات (5000 تذكرة كحد أقصى)
         let allTickets = [];
         let totalCount = 0;
         let currentPage = 1;
@@ -5955,20 +5956,28 @@ async function loadTicketsForDashboard(forceSync = false) {
             }
             
             // التحقق من وجود صفحات إضافية
-            if (pageTickets.length < pageSize) {
-                // لا توجد صفحات إضافية
+            // أولاً: التحقق من الحد الأقصى للصفحات
+            if (currentPage >= maxPages) {
+                console.log(`[TICKETS DASHBOARD] ⚠️ Reached maximum pages limit (${maxPages}), stopping pagination`);
+                hasMorePages = false;
+            } else if (pageTickets.length < pageSize) {
+                // لا توجد صفحات إضافية (عدد التذاكر أقل من pageSize)
+                console.log(`[TICKETS DASHBOARD] ✅ No more pages (received ${pageTickets.length} tickets, expected ${pageSize})`);
                 hasMorePages = false;
             } else if (totalCount > 0) {
                 // التحقق بناءً على العدد الإجمالي
                 const totalPages = Math.ceil(totalCount / pageSize);
                 if (currentPage >= totalPages) {
+                    console.log(`[TICKETS DASHBOARD] ✅ Reached last page (${currentPage} / ${totalPages})`);
                     hasMorePages = false;
                 } else {
                     currentPage++;
+                    console.log(`[TICKETS DASHBOARD] 📄 Continuing to page ${currentPage} (${totalPages} total pages)`);
                 }
             } else {
-                // إذا لم يكن هناك totalCount، نستمر حتى لا نجد تذاكر
+                // إذا لم يكن هناك totalCount، نستمر حتى لا نجد تذاكر أو نصل للحد الأقصى
                 currentPage++;
+                console.log(`[TICKETS DASHBOARD] 📄 Continuing to page ${currentPage} (no totalCount available)`);
             }
         }
         
