@@ -6949,6 +6949,12 @@ async function getAlwataniTokenFromLogin(req) {
         if (!verification || !verification.success) {
             const errorMessage = lastError || 'Failed to verify account after multiple attempts';
             console.error('[GET TOKEN] Error:', errorMessage);
+            
+            // إذا كان الخطأ متعلق بـ rate limiting أو connection، نعطي رسالة أوضح
+            if (errorMessage.includes('Invalid login credentials') || errorMessage.includes('rate-limit')) {
+                throw new Error('تم رفض الطلب بسبب كثرة المحاولات. يرجى الانتظار قليلاً والمحاولة مرة أخرى.');
+            }
+            
             throw new Error(errorMessage);
         }
         
@@ -6960,6 +6966,14 @@ async function getAlwataniTokenFromLogin(req) {
         return token;
     } catch (error) {
         console.error('[GET TOKEN] Error:', error);
+        
+        // تحسين رسالة الخطأ للمستخدم
+        if (error.message.includes('Invalid login credentials')) {
+            throw new Error('فشل التحقق من الحساب. يرجى التحقق من بيانات الدخول أو المحاولة لاحقاً.');
+        } else if (error.message.includes('rate-limit') || error.message.includes('كثرة المحاولات')) {
+            throw new Error('تم رفض الطلب بسبب كثرة المحاولات. يرجى الانتظار قليلاً والمحاولة مرة أخرى.');
+        }
+        
         throw error;
     }
 }
@@ -7024,9 +7038,20 @@ app.get('/api/alwatani-login/:id/support/tickets', async (req, res) => {
         });
     } catch (error) {
         console.error('[SUPPORT TICKETS] Error:', error);
+        const errorMessage = error.message || 'خطأ غير معروف';
+        
+        // إذا كان الخطأ متعلق بالتحقق، نعيد 401 بدلاً من 500
+        if (errorMessage.includes('Invalid login credentials') || errorMessage.includes('فشل التحقق')) {
+            return res.status(401).json({
+                success: false,
+                message: errorMessage,
+                error: 'AUTHENTICATION_FAILED'
+            });
+        }
+        
         res.status(500).json({
             success: false,
-            message: 'خطأ في جلب تذاكر الدعم: ' + error.message
+            message: 'خطأ في جلب تذاكر الدعم: ' + errorMessage
         });
     }
 });
@@ -7051,9 +7076,20 @@ app.get('/api/alwatani-login/:id/support/tickets/statuses', async (req, res) => 
         });
     } catch (error) {
         console.error('[SUPPORT TICKETS STATUSES] Error:', error);
+        const errorMessage = error.message || 'خطأ غير معروف';
+        
+        // إذا كان الخطأ متعلق بالتحقق، نعيد 401 بدلاً من 500
+        if (errorMessage.includes('Invalid login credentials') || errorMessage.includes('فشل التحقق')) {
+            return res.status(401).json({
+                success: false,
+                message: errorMessage,
+                error: 'AUTHENTICATION_FAILED'
+            });
+        }
+        
         res.status(500).json({
             success: false,
-            message: 'خطأ في جلب حالات تذاكر الدعم: ' + error.message
+            message: 'خطأ في جلب حالات تذاكر الدعم: ' + errorMessage
         });
     }
 });
