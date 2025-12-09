@@ -7838,23 +7838,60 @@ app.get('/api/alwatani-login/:id/tasks/db', async (req, res) => {
         }
         
         // الحصول على قاعدة بيانات الوطني
-        const ownerPool = await dbManager.getPoolFromUsername(ownerUsername);
-        const [accounts] = await ownerPool.query(
-            'SELECT username FROM alwatani_login WHERE id = ?',
-            [alwataniLoginId]
-        );
+        let ownerPool;
+        try {
+            ownerPool = await dbManager.getPoolFromUsername(ownerUsername);
+            console.log('[TICKETS DB] ✅ Connected to owner database for:', ownerUsername);
+        } catch (poolError) {
+            console.error('[TICKETS DB] ❌ Error getting owner pool:', poolError);
+            return res.status(500).json({
+                success: false,
+                message: 'Error connecting to owner database: ' + poolError.message,
+                debug: { ownerUsername, error: poolError.message }
+            });
+        }
+        
+        let accounts;
+        try {
+            [accounts] = await ownerPool.query(
+                'SELECT username FROM alwatani_login WHERE id = ?',
+                [alwataniLoginId]
+            );
+            console.log('[TICKETS DB] Found', accounts.length, 'account(s) for alwatani_login_id:', alwataniLoginId);
+        } catch (queryError) {
+            console.error('[TICKETS DB] ❌ Error querying alwatani_login:', queryError);
+            return res.status(500).json({
+                success: false,
+                message: 'Error querying alwatani_login: ' + queryError.message,
+                debug: { alwataniLoginId, error: queryError.message }
+            });
+        }
         
         if (accounts.length === 0) {
+            console.error('[TICKETS DB] ❌ Alwatani login account not found for id:', alwataniLoginId);
             return res.status(404).json({
                 success: false,
-                message: 'Alwatani login account not found'
+                message: 'Alwatani login account not found',
+                debug: { alwataniLoginId, ownerUsername }
             });
         }
         
         const alwataniUsername = accounts[0].username;
+        console.log('[TICKETS DB] Using alwatani username:', alwataniUsername);
         
         // الاتصال بقاعدة بيانات الوطني
-        const alwataniPool = await dbManager.getAlwataniPool(alwataniUsername);
+        let alwataniPool;
+        try {
+            alwataniPool = await dbManager.getAlwataniPool(alwataniUsername);
+            console.log('[TICKETS DB] ✅ Connected to Alwatani database for:', alwataniUsername);
+        } catch (alwataniPoolError) {
+            console.error('[TICKETS DB] ❌ Error getting Alwatani pool:', alwataniPoolError);
+            return res.status(500).json({
+                success: false,
+                message: 'Error connecting to Alwatani database: ' + alwataniPoolError.message,
+                debug: { alwataniUsername, error: alwataniPoolError.message }
+            });
+        }
         
         // التحقق من وجود جدول sla_tickets
         try {
