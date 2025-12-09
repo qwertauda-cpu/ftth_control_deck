@@ -5802,9 +5802,31 @@ async function loadTicketsForDashboard(forceSync = false) {
             </div>
         `;
         
-        // التحقق من وجود currentUserId
-        if (!currentUserId) {
-            console.error('[TICKETS DASHBOARD] ❌ currentUserId is missing!', { currentUserId });
+        // التحقق من وجود currentUserId، وإذا لم يكن موجوداً، جلب أول حساب وطني
+        let alwataniLoginId = currentUserId;
+        if (!alwataniLoginId && currentDetailUser) {
+            console.log('[TICKETS DASHBOARD] ⚠️ currentUserId is missing, attempting to get first alwatani_login_id from database...');
+            try {
+                // جلب قائمة حسابات الوطني من API
+                const accountsUrl = addUsernameToUrl(`${API_URL}/alwatani-login`);
+                const accountsResponse = await fetch(accountsUrl, addUsernameToFetchOptions());
+                if (accountsResponse.ok) {
+                    const accountsData = await accountsResponse.json();
+                    if (accountsData.success && accountsData.data && accountsData.data.length > 0) {
+                        // استخدام أول حساب وطني
+                        alwataniLoginId = accountsData.data[0].id;
+                        console.log('[TICKETS DASHBOARD] ✅ Found first alwatani_login_id:', alwataniLoginId);
+                        // تحديث currentUserId للاستخدام المستقبلي
+                        currentUserId = alwataniLoginId;
+                    }
+                }
+            } catch (error) {
+                console.error('[TICKETS DASHBOARD] ❌ Failed to get alwatani_login_id:', error);
+            }
+        }
+        
+        if (!alwataniLoginId) {
+            console.error('[TICKETS DASHBOARD] ❌ alwatani_login_id is missing!', { currentUserId, currentDetailUser });
             container.innerHTML = `
                 <div class="text-center text-red-400 text-sm py-8">
                     <p>⚠️ لم يتم تحديد حساب الوطني. يرجى اختيار حساب وطني أولاً.</p>
@@ -5813,7 +5835,7 @@ async function loadTicketsForDashboard(forceSync = false) {
             updateTicketsCount(0, 0, 0);
             return;
         }
-        console.log('[TICKETS DASHBOARD] ✅ currentUserId:', currentUserId);
+        console.log('[TICKETS DASHBOARD] ✅ Using alwatani_login_id:', alwataniLoginId);
         
         // استراتيجية database-first: جلب من قاعدة البيانات أولاً
         let tickets = [];
@@ -5836,7 +5858,7 @@ async function loadTicketsForDashboard(forceSync = false) {
             `;
             
             try {
-                const dbUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks/db`);
+                const dbUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${alwataniLoginId}/tasks/db`);
                 const dbResponse = await fetch(dbUrl, addUsernameToFetchOptions());
                 
                 if (dbResponse.ok) {
@@ -5920,7 +5942,7 @@ async function loadTicketsForDashboard(forceSync = false) {
             try {
                 // استدعاء endpoint sync الذي يجلب ويحفظ تلقائياً
                 const maxPages = 50; // حد أقصى للصفحات
-                const syncUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks/sync?maxPages=${maxPages}`);
+                const syncUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${alwataniLoginId}/tasks/sync?maxPages=${maxPages}`);
                 const syncResponse = await fetch(syncUrl, addUsernameToFetchOptions({
                     method: 'POST'
                 }));
@@ -5958,7 +5980,7 @@ async function loadTicketsForDashboard(forceSync = false) {
                 
                 // بعد sync، جلب التذاكر من قاعدة البيانات لعرضها
                 console.log('[TICKETS DASHBOARD] Loading tickets from database after sync...');
-                const dbUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks/db`);
+                const dbUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${alwataniLoginId}/tasks/db`);
                 const dbResponse = await fetch(dbUrl, addUsernameToFetchOptions());
                 
                 if (dbResponse.ok) {
@@ -5999,7 +6021,7 @@ async function loadTicketsForDashboard(forceSync = false) {
                     console.warn('[TICKETS DASHBOARD] ⚠️ No tickets loaded from DB, but sync reported', syncData.loadedCount, 'tickets. Will retry DB fetch...');
                     // إعادة محاولة جلب من DB بعد ثانية واحدة
                     await new Promise(resolve => setTimeout(resolve, 1000));
-                    const retryDbUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks/db`);
+                    const retryDbUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${alwataniLoginId}/tasks/db`);
                     const retryDbResponse = await fetch(retryDbUrl, addUsernameToFetchOptions());
                     if (retryDbResponse.ok) {
                         const retryDbData = await retryDbResponse.json();
@@ -6130,7 +6152,7 @@ async function syncTicketsInBackground() {
     
     try {
         console.log('[TICKETS SYNC] Starting background sync...');
-        const syncUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks/sync?maxPages=50`);
+        const syncUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${alwataniLoginId}/tasks/sync?maxPages=50`);
         const syncResponse = await fetch(syncUrl, addUsernameToFetchOptions({
             method: 'POST'
         }));
@@ -6149,7 +6171,7 @@ async function syncTicketsInBackground() {
                 console.log('[TICKETS SYNC] 🔄 New tickets or updates detected, reloading from database...');
                 
                 // جلب التذاكر المحدثة من DB
-                const dbUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks/db`);
+                const dbUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${alwataniLoginId}/tasks/db`);
                 const dbResponse = await fetch(dbUrl, addUsernameToFetchOptions());
                 
                 if (dbResponse.ok) {
@@ -6181,10 +6203,27 @@ async function syncTicketsInBackground() {
 
 // Load ticket statuses from Alwatani API (like the Alwatani website does)
 async function loadTicketStatuses() {
-    if (!currentUserId) return;
+    // الحصول على alwataniLoginId (من currentUserId أو جلب أول حساب)
+    let alwataniLoginId = currentUserId;
+    if (!alwataniLoginId && currentDetailUser) {
+        try {
+            const accountsUrl = addUsernameToUrl(`${API_URL}/alwatani-login`);
+            const accountsResponse = await fetch(accountsUrl, addUsernameToFetchOptions());
+            if (accountsResponse.ok) {
+                const accountsData = await accountsResponse.json();
+                if (accountsData.success && accountsData.data && accountsData.data.length > 0) {
+                    alwataniLoginId = accountsData.data[0].id;
+                }
+            }
+        } catch (error) {
+            console.error('[LOAD TICKET STATUSES] Failed to get alwatani_login_id:', error);
+        }
+    }
+    
+    if (!alwataniLoginId) return;
     
     try {
-        const url = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/support/tickets/statuses`);
+        const url = addUsernameToUrl(`${API_URL}/alwatani-login/${alwataniLoginId}/support/tickets/statuses`);
         const response = await fetch(url, addUsernameToFetchOptions());
         
         if (response.ok) {
@@ -6202,10 +6241,27 @@ async function loadTicketStatuses() {
 
 // Load zones from Alwatani API (like the Alwatani website does)
 async function loadZones() {
-    if (!currentUserId) return;
+    // الحصول على alwataniLoginId (من currentUserId أو جلب أول حساب)
+    let alwataniLoginId = currentUserId;
+    if (!alwataniLoginId && currentDetailUser) {
+        try {
+            const accountsUrl = addUsernameToUrl(`${API_URL}/alwatani-login`);
+            const accountsResponse = await fetch(accountsUrl, addUsernameToFetchOptions());
+            if (accountsResponse.ok) {
+                const accountsData = await accountsResponse.json();
+                if (accountsData.success && accountsData.data && accountsData.data.length > 0) {
+                    alwataniLoginId = accountsData.data[0].id;
+                }
+            }
+        } catch (error) {
+            console.error('[LOAD ZONES] Failed to get alwatani_login_id:', error);
+        }
+    }
+    
+    if (!alwataniLoginId) return;
     
     try {
-        const url = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/locations/zones`);
+        const url = addUsernameToUrl(`${API_URL}/alwatani-login/${alwataniLoginId}/locations/zones`);
         const response = await fetch(url, addUsernameToFetchOptions());
         
         if (response.ok) {
