@@ -5874,16 +5874,23 @@ async function loadTicketsForDashboard(forceSync = false) {
                         const errorData = JSON.parse(errorText);
                         errorMessage = errorData.message || errorData.error || errorMessage;
                         errorDetails = errorData.debug || errorData;
+                        console.error('[TICKETS DASHBOARD] ❌ Database fetch failed:', {
+                            status: dbResponse.status,
+                            statusText: dbResponse.statusText,
+                            message: errorMessage,
+                            details: errorDetails,
+                            url: dbUrl
+                        });
                     } catch (e) {
                         errorMessage = `خطأ ${dbResponse.status}: ${dbResponse.statusText}`;
+                        console.error('[TICKETS DASHBOARD] ❌ Failed to parse error response:', {
+                            status: dbResponse.status,
+                            statusText: dbResponse.statusText,
+                            errorText: errorText.substring(0, 200),
+                            url: dbUrl
+                        });
                     }
                     
-                    console.error('[TICKETS DASHBOARD] ❌ Failed to load from database:', {
-                        status: dbResponse.status,
-                        statusText: dbResponse.statusText,
-                        message: errorMessage,
-                        details: errorDetails
-                    });
                     console.warn('[TICKETS DASHBOARD] ⚠️ Will fetch from API instead');
                     shouldSync = true; // يجب sync لأن DB فشلت
                 }
