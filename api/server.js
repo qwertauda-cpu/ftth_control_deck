@@ -7789,13 +7789,17 @@ app.post('/api/alwatani-login/:id/tasks/sync', async (req, res) => {
 app.get('/api/alwatani-login/:id/tasks/db', async (req, res) => {
     try {
         console.log('[TICKETS DB] ========== Request received ==========');
+        console.log('[TICKETS DB] Full URL:', req.originalUrl || req.url);
         console.log('[TICKETS DB] params:', JSON.stringify(req.params, null, 2));
-        console.log('[TICKETS DB] query:', JSON.stringify(req.query, null, 2));
+        console.log('[TICKETS DB] query object:', JSON.stringify(req.query, null, 2));
+        console.log('[TICKETS DB] query.username:', req.query?.username);
+        console.log('[TICKETS DB] query.username type:', typeof req.query?.username);
         console.log('[TICKETS DB] headers x-username:', req.headers['x-username']);
-        console.log('[TICKETS DB] raw query string:', req.url);
+        console.log('[TICKETS DB] All headers:', JSON.stringify(req.headers, null, 2));
         
         const ownerUsername = getUsernameFromRequest(req);
         console.log('[TICKETS DB] Extracted ownerUsername:', ownerUsername);
+        console.log('[TICKETS DB] ownerUsername type:', typeof ownerUsername);
         
         if (!ownerUsername) {
             console.error('[TICKETS DB] ❌ Username not found in request');
