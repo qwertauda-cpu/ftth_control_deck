@@ -315,22 +315,37 @@ async function getOwnerPoolFromRequest(req) {
  * Helper: الحصول على username من request
  */
 function getUsernameFromRequest(req) {
+    let username = null;
+    
     // البحث في query parameters أولاً (للطلبات GET/DELETE)
     if (req.query?.username) {
-        return req.query.username;
+        username = req.query.username;
     }
     // البحث في headers
-    if (req.headers['x-username']) {
-        return req.headers['x-username'];
+    else if (req.headers['x-username']) {
+        username = req.headers['x-username'];
     }
     // البحث في body (للطلبات POST/PUT)
-    if (req.body?.username) {
-        return req.body.username;
+    else if (req.body?.username) {
+        username = req.body.username;
     }
-    if (req.body?.owner_username) {
-        return req.body.owner_username;
+    else if (req.body?.owner_username) {
+        username = req.body.owner_username;
     }
-    return null;
+    
+    // فك تشفير username إذا كان مشفراً (مثل admin%40tec -> admin@tec)
+    if (username && typeof username === 'string') {
+        try {
+            // إذا كان username يحتوي على رموز مشفرة، قم بفك تشفيرها
+            if (username.includes('%')) {
+                username = decodeURIComponent(username);
+            }
+        } catch (e) {
+            console.warn('[GET USERNAME] Failed to decode username:', e.message, '- Using original value');
+        }
+    }
+    
+    return username || null;
 }
 
 /**
