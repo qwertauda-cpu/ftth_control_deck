@@ -5993,14 +5993,38 @@ async function loadTicketsForDashboard(forceSync = false) {
                 if (syncData.totalCount !== undefined) {
                     totalCount = syncData.totalCount;
                 }
+                
+                // إذا لم نتمكن من جلب التذاكر من DB، نستخدم بيانات sync
+                if (tickets.length === 0 && syncData.loadedCount > 0) {
+                    console.warn('[TICKETS DASHBOARD] ⚠️ No tickets loaded from DB, but sync reported', syncData.loadedCount, 'tickets. Will retry DB fetch...');
+                    // إعادة محاولة جلب من DB بعد ثانية واحدة
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    const retryDbUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks/db`);
+                    const retryDbResponse = await fetch(retryDbUrl, addUsernameToFetchOptions());
+                    if (retryDbResponse.ok) {
+                        const retryDbData = await retryDbResponse.json();
+                        if (retryDbData.success && retryDbData.data && retryDbData.data.length > 0) {
+                            tickets = retryDbData.data;
+                            totalCount = retryDbData.totalCount || retryDbData.count || tickets.length;
+                            console.log(`[TICKETS DASHBOARD] ✅ Loaded ${tickets.length} tickets from database on retry`);
+                        }
+                    } else {
+                        console.error('[TICKETS DASHBOARD] ❌ Retry DB fetch also failed:', retryDbResponse.status);
+                    }
+                }
+                
                 if (syncData.loadedCount !== undefined) {
                     updateTicketsCount(
-                        syncData.totalCount || tickets.length,
+                        syncData.totalCount || totalCount || tickets.length,
                         syncData.loadedCount || tickets.length,
-                        syncData.remainingCount || 0
+                        syncData.remainingCount || Math.max(0, (syncData.totalCount || totalCount || tickets.length) - (syncData.loadedCount || tickets.length))
                     );
                 } else {
-                    updateTicketsCount(totalCount || tickets.length, tickets.length, 0);
+                    updateTicketsCount(
+                        totalCount || tickets.length,
+                        tickets.length,
+                        Math.max(0, (totalCount || tickets.length) - tickets.length)
+                    );
                 }
             } catch (syncError) {
                 console.error('[TICKETS DASHBOARD] ❌ Error during sync:', syncError);
