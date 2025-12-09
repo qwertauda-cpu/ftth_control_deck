@@ -283,7 +283,7 @@ async function handleLogin(e) {
                 if (loginContainer) {
                     loginContainer.style.display = 'none';
                     loginContainer.classList.add('hidden');
-                    loginContainer.classList.remove('flex', 'flex-1');
+                    loginContainer.classList.remove('flex', 'fixed', 'inset-0');
                 }
                 // إخفاء جميع الشاشات الأخرى أولاً
                 hideAllMainScreens();
@@ -6980,7 +6980,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (loginContainer) {
         loginContainer.style.display = 'flex';
         loginContainer.classList.remove('hidden');
-        loginContainer.classList.add('flex', 'flex-1');
+        loginContainer.classList.add('fixed', 'inset-0', 'flex');
     }
     
     if (dashboardScreen) {
