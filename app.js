@@ -7540,14 +7540,35 @@ document.addEventListener('DOMContentLoaded', async function() {
             // تحميل بطاقات حسابات الوطني
             await loadPages();
             
-            // استرجاع الشاشة الحالية من localStorage
-            const savedScreen = getSavedScreen();
-            console.log('[INIT] Restoring saved screen:', savedScreen);
+            // دائماً نفتح لوحة التحكم الرئيسية عند تسجيل الدخول
+            // لا نسترجع الشاشة المحفوظة لتجنب التخطي المباشر
+            console.log('[INIT] Opening dashboard screen after login');
             
-            // فتح الشاشة المحفوظة
-            currentScreen = savedScreen;
+            // فتح لوحة التحكم الرئيسية
+            currentScreen = 'dashboard';
             hideAllMainScreens();
             
+            // فتح لوحة التحكم الرئيسية مباشرة
+            showScreen('dashboard-screen');
+            hideSideMenu();
+            
+            // تحميل بيانات لوحة التحكم
+            if (currentUserId) {
+                loadWalletBalance(); // تحميل رصيد المحفظة
+                loadRecentActivities(); // تحميل النشاطات الأخيرة
+                loadActiveTeamsCount(); // تحميل عدد الفرق النشطة
+                loadOpenTicketsCount(); // تحميل عدد التذاكر المفتوحة
+            }
+            
+            // بدء التحديث التلقائي
+            startAutoRefresh();
+            
+            console.log('[INIT] ✅ Session restored successfully - Dashboard opened');
+            
+            // إلغاء باقي الكود القديم
+            return;
+            
+            /* الكود القديم - تم تعطيله
             switch (savedScreen) {
                 case 'page-detail':
                     // استرجاع بيانات page-detail من localStorage
