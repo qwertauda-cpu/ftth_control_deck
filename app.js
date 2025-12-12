@@ -6335,7 +6335,7 @@ async function syncTicketsInBackground() {
     
     try {
         console.log('[TICKETS SYNC] Starting background sync...');
-        const syncUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${alwataniLoginId}/tasks/sync?maxPages=50`);
+        const syncUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks/sync?maxPages=50`);
         const syncResponse = await fetch(syncUrl, addUsernameToFetchOptions({
             method: 'POST'
         }));
