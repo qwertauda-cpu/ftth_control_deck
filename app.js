@@ -6354,7 +6354,7 @@ async function syncTicketsInBackground() {
                 console.log('[TICKETS SYNC] 🔄 New tickets or updates detected, reloading from database...');
                 
                 // جلب التذاكر المحدثة من DB
-                const dbUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${alwataniLoginId}/tasks/db`);
+                const dbUrl = addUsernameToUrl(`${API_URL}/alwatani-login/${currentUserId}/tasks/db`);
                 const dbResponse = await fetch(dbUrl, addUsernameToFetchOptions());
                 
                 if (dbResponse.ok) {
