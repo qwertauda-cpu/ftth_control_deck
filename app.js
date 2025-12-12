@@ -7544,6 +7544,14 @@ document.addEventListener('DOMContentLoaded', async function() {
             // لا نسترجع الشاشة المحفوظة لتجنب التخطي المباشر
             console.log('[INIT] Opening dashboard screen after login');
             
+            // مسح الشاشة المحفوظة من localStorage لتجنب أي مشاكل
+            try {
+                localStorage.removeItem('currentScreen');
+                console.log('[INIT] Cleared saved screen from localStorage');
+            } catch (e) {
+                console.warn('[INIT] Failed to clear saved screen:', e);
+            }
+            
             // فتح لوحة التحكم الرئيسية
             currentScreen = 'dashboard';
             hideAllMainScreens();
